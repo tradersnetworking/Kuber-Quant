@@ -1,22 +1,36 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: Kuber Capital Trading Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: users
+  - name: investments
+  - name: trades
+  - name: copy-trading
+  - name: ea-strategies
+  - name: transactions
+  - name: dashboard
+  - name: admin
+  - name: kyc
+  - name: referral
+  - name: mt5
+  - name: tickets
+  - name: notifications
+  - name: plans
+  - name: wallet
+  - name: manager
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +38,1040 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/portfolio-chart:
+    get:
+      operationId: getPortfolioChart
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Chart data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChartPoint"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /investments:
+    get:
+      operationId: listInvestments
+      tags: [investments]
+      responses:
+        "200":
+          description: Investments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Investment"
+    post:
+      operationId: createInvestment
+      tags: [investments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvestmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Investment"
+
+  /investments/{id}:
+    get:
+      operationId: getInvestment
+      tags: [investments]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Investment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Investment"
+
+  /investments/{id}/withdraw:
+    post:
+      operationId: withdrawInvestment
+      tags: [investments]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Investment"
+
+  /trades:
+    get:
+      operationId: listTrades
+      tags: [trades]
+      responses:
+        "200":
+          description: Trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trade"
+
+  /trades/stats:
+    get:
+      operationId: getTradeStats
+      tags: [trades]
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeStats"
+
+  /algo-strategies:
+    get:
+      operationId: listAlgoStrategies
+      tags: [trades]
+      responses:
+        "200":
+          description: Strategies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AlgoStrategy"
+
+  /algo-strategies/{id}/subscribe:
+    post:
+      operationId: subscribeAlgoStrategy
+      tags: [trades]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrategySubscription"
+      responses:
+        "200":
+          description: Subscribed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /copy-traders:
+    get:
+      operationId: listCopyTraders
+      tags: [copy-trading]
+      responses:
+        "200":
+          description: Copy traders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CopyTrader"
+
+  /copy-traders/{id}:
+    get:
+      operationId: getCopyTrader
+      tags: [copy-trading]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trader
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CopyTrader"
+
+  /copy-traders/{id}/follow:
+    post:
+      operationId: followCopyTrader
+      tags: [copy-trading]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CopyTradeInput"
+      responses:
+        "200":
+          description: Following
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /copy-traders/{id}/unfollow:
+    post:
+      operationId: unfollowCopyTrader
+      tags: [copy-trading]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unfollowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /ea-strategies:
+    get:
+      operationId: listEAStrategies
+      tags: [ea-strategies]
+      responses:
+        "200":
+          description: EA strategies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EAStrategy"
+    post:
+      operationId: createEAStrategy
+      tags: [ea-strategies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EAStrategyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EAStrategy"
+
+  /ea-strategies/{id}:
+    get:
+      operationId: getEAStrategy
+      tags: [ea-strategies]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: EA strategy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EAStrategy"
+
+  /ea-strategies/{id}/activate:
+    post:
+      operationId: activateEAStrategy
+      tags: [ea-strategies]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /plans:
+    get:
+      operationId: listPlans
+      tags: [plans]
+      summary: List public investment plans
+      responses:
+        "200":
+          description: Plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InvestmentPlan"
+
+  /plans/{id}:
+    get:
+      operationId: getPlan
+      tags: [plans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestmentPlan"
+
+  /kyc:
+    get:
+      operationId: getKyc
+      tags: [kyc]
+      summary: Get current user KYC status
+      responses:
+        "200":
+          description: KYC info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KycRecord"
+    post:
+      operationId: submitKyc
+      tags: [kyc]
+      summary: Submit KYC application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KycInput"
+      responses:
+        "201":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KycRecord"
+
+  /referral/stats:
+    get:
+      operationId: getReferralStats
+      tags: [referral]
+      summary: Get referral stats for current user
+      responses:
+        "200":
+          description: Referral stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralStats"
+
+  /referral/earnings:
+    get:
+      operationId: listReferralEarnings
+      tags: [referral]
+      summary: List referral earnings
+      responses:
+        "200":
+          description: Earnings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReferralEarning"
+
+  /mt5-accounts:
+    get:
+      operationId: listMt5Accounts
+      tags: [mt5]
+      summary: List user MT5 accounts
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Mt5Account"
+    post:
+      operationId: createMt5Account
+      tags: [mt5]
+      summary: Add MT5 account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Mt5AccountInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mt5Account"
+
+  /mt5-accounts/{id}:
+    get:
+      operationId: getMt5Account
+      tags: [mt5]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mt5Account"
+
+  /tickets:
+    get:
+      operationId: listTickets
+      tags: [tickets]
+      summary: List support tickets
+      responses:
+        "200":
+          description: Tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ticket"
+    post:
+      operationId: createTicket
+      tags: [tickets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+
+  /tickets/{id}:
+    get:
+      operationId: getTicket
+      tags: [tickets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+
+  /tickets/{id}/reply:
+    post:
+      operationId: replyTicket
+      tags: [tickets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketReplyInput"
+      responses:
+        "200":
+          description: Reply sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /wallet:
+    get:
+      operationId: getWallet
+      tags: [wallet]
+      summary: Get wallet balances
+      responses:
+        "200":
+          description: Wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+
+  /wallet/transfer:
+    post:
+      operationId: walletTransfer
+      tags: [wallet]
+      summary: Internal wallet transfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletTransferInput"
+      responses:
+        "200":
+          description: Transferred
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /admin/users/{id}:
+    get:
+      operationId: getAdminUser
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    patch:
+      operationId: updateAdminUser
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /admin/transactions:
+    get:
+      operationId: listAdminTransactions
+      tags: [admin]
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+
+  /admin/transactions/{id}/approve:
+    post:
+      operationId: approveTransaction
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /admin/transactions/{id}/reject:
+    post:
+      operationId: rejectTransaction
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /admin/kyc:
+    get:
+      operationId: listAdminKyc
+      tags: [admin]
+      summary: List all KYC applications (admin)
+      responses:
+        "200":
+          description: KYC records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KycRecord"
+
+  /admin/kyc/{id}/approve:
+    post:
+      operationId: approveKyc
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KycRecord"
+
+  /admin/kyc/{id}/reject:
+    post:
+      operationId: rejectKyc
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KycRejectInput"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KycRecord"
+
+  /admin/plans:
+    get:
+      operationId: listAdminPlans
+      tags: [admin]
+      responses:
+        "200":
+          description: Plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InvestmentPlan"
+    post:
+      operationId: createAdminPlan
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvestmentPlanInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestmentPlan"
+
+  /admin/plans/{id}:
+    patch:
+      operationId: updateAdminPlan
+      tags: [admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvestmentPlanInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestmentPlan"
+
+  /admin/wallet-adjust:
+    post:
+      operationId: adminWalletAdjust
+      tags: [admin]
+      summary: Manually adjust a user wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletAdjustInput"
+      responses:
+        "200":
+          description: Adjusted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /admin/mt5-accounts:
+    get:
+      operationId: listAdminMt5Accounts
+      tags: [admin]
+      responses:
+        "200":
+          description: All MT5 accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Mt5Account"
+
+  /admin/tickets:
+    get:
+      operationId: listAdminTickets
+      tags: [admin]
+      responses:
+        "200":
+          description: All tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ticket"
+
+  /admin/referral-stats:
+    get:
+      operationId: getAdminReferralStats
+      tags: [admin]
+      responses:
+        "200":
+          description: Platform referral stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReferralStats"
+
+  /manager/clients:
+    get:
+      operationId: listManagerClients
+      tags: [manager]
+      summary: Assigned clients for manager
+      responses:
+        "200":
+          description: Clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /manager/tickets:
+    get:
+      operationId: listManagerTickets
+      tags: [manager]
+      responses:
+        "200":
+          description: Tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ticket"
+
+  /manager/kyc:
+    get:
+      operationId: listManagerKyc
+      tags: [manager]
+      responses:
+        "200":
+          description: KYC pending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KycRecord"
+
+  /manager/transactions:
+    get:
+      operationId: listManagerTransactions
+      tags: [manager]
+      responses:
+        "200":
+          description: Transactions to verify
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+
+  /manager/stats:
+    get:
+      operationId: getManagerStats
+      tags: [manager]
+      responses:
+        "200":
+          description: Manager stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagerStats"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +1079,827 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    RegisterInput:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 6
+        fullName:
+          type: string
+        referralCode:
+          type: string
+        phone:
+          type: string
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+
+    User:
+      type: object
+      required: [id, email, fullName, role, kycStatus, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        fullName:
+          type: string
+        phone:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [user, manager, admin]
+        kycStatus:
+          type: string
+          enum: [pending, submitted, verified, rejected]
+        balanceFiat:
+          type: ["number", "null"]
+        balanceCrypto:
+          type: ["number", "null"]
+        totalProfit:
+          type: ["number", "null"]
+        referralCode:
+          type: ["string", "null"]
+        referralCount:
+          type: ["integer", "null"]
+        referralEarnings:
+          type: ["number", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        managerId:
+          type: ["integer", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    AdminUserUpdate:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, manager, admin]
+        kycStatus:
+          type: string
+          enum: [pending, submitted, verified, rejected]
+        balanceFiat:
+          type: number
+        balanceCrypto:
+          type: number
+        isActive:
+          type: boolean
+        managerId:
+          type: ["integer", "null"]
+
+    DashboardSummary:
+      type: object
+      required: [totalBalance, totalProfit, totalInvested, activeInvestments, profitPercentage, fiatBalance, cryptoBalance]
+      properties:
+        totalBalance:
+          type: number
+        totalProfit:
+          type: number
+        totalInvested:
+          type: number
+        activeInvestments:
+          type: integer
+        profitPercentage:
+          type: number
+        fiatBalance:
+          type: number
+        cryptoBalance:
+          type: number
+        followedTraders:
+          type: integer
+        activeAlgoStrategies:
+          type: integer
+        referralEarnings:
+          type: number
+        pendingWithdrawals:
+          type: number
+        unreadNotifications:
+          type: integer
+
+    ChartPoint:
+      type: object
+      required: [date, value]
+      properties:
+        date:
+          type: string
+        value:
+          type: number
+
+    ActivityItem:
+      type: object
+      required: [id, type, description, amount, currency, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [deposit, withdrawal, profit, investment, trade, referral]
+        description:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        createdAt:
+          type: string
+
+    Investment:
+      type: object
+      required: [id, userId, type, amount, currency, profit, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        type:
+          type: string
+          enum: [algo, copy, ea, manual, plan]
+        planName:
+          type: ["string", "null"]
+        planId:
+          type: ["integer", "null"]
+        amount:
+          type: number
+        currency:
+          type: string
+          enum: [USD, EUR, BTC, ETH, USDT, INR]
+        profit:
+          type: number
+        profitPercent:
+          type: number
+        roiPercent:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [active, completed, pending, withdrawn]
+        maturityDate:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    InvestmentInput:
+      type: object
+      required: [type, amount, currency, planName]
+      properties:
+        type:
+          type: string
+          enum: [algo, copy, ea, manual, plan]
+        amount:
+          type: number
+        currency:
+          type: string
+          enum: [USD, EUR, BTC, ETH, USDT, INR]
+        planName:
+          type: string
+        planId:
+          type: integer
+
+    InvestmentPlan:
+      type: object
+      required: [id, name, minAmount, maxAmount, roiPercent, durationDays, currency, isActive]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        minAmount:
+          type: number
+        maxAmount:
+          type: number
+        roiPercent:
+          type: number
+        durationDays:
+          type: integer
+        currency:
+          type: string
+        isActive:
+          type: boolean
+        totalInvestors:
+          type: integer
+        category:
+          type: string
+          enum: [starter, growth, premium, elite]
+
+    InvestmentPlanInput:
+      type: object
+      required: [name, minAmount, maxAmount, roiPercent, durationDays, currency]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        minAmount:
+          type: number
+        maxAmount:
+          type: number
+        roiPercent:
+          type: number
+        durationDays:
+          type: integer
+        currency:
+          type: string
+        isActive:
+          type: boolean
+        category:
+          type: string
+          enum: [starter, growth, premium, elite]
+
+    Trade:
+      type: object
+      required: [id, userId, symbol, type, amount, entryPrice, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        symbol:
+          type: string
+        type:
+          type: string
+          enum: [buy, sell]
+        amount:
+          type: number
+        entryPrice:
+          type: number
+        exitPrice:
+          type: ["number", "null"]
+        profitLoss:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [open, closed, cancelled]
+        strategy:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    TradeStats:
+      type: object
+      required: [totalTrades, winRate, totalProfitLoss, avgProfit, openTrades]
+      properties:
+        totalTrades:
+          type: integer
+        winRate:
+          type: number
+        totalProfitLoss:
+          type: number
+        avgProfit:
+          type: number
+        openTrades:
+          type: integer
+
+    AlgoStrategy:
+      type: object
+      required: [id, name, description, roi, riskLevel, subscribers, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        roi:
+          type: number
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        subscribers:
+          type: integer
+        status:
+          type: string
+          enum: [active, paused]
+        minInvestment:
+          type: number
+        currency:
+          type: string
+
+    StrategySubscription:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+
+    CopyTrader:
+      type: object
+      required: [id, name, roi, followers, winRate, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+        roi:
+          type: number
+        monthlyRoi:
+          type: number
+        followers:
+          type: integer
+        winRate:
+          type: number
+        totalTrades:
+          type: integer
+        status:
+          type: string
+          enum: [active, inactive]
+        minInvestment:
+          type: number
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        isFollowing:
+          type: boolean
+
+    CopyTradeInput:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+
+    EAStrategy:
+      type: object
+      required: [id, name, description, type, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [scalping, swing, trend, grid, arbitrage]
+        backtestRoi:
+          type: ["number", "null"]
+        winRate:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [active, inactive, backtesting]
+        isPublic:
+          type: boolean
+        createdAt:
+          type: string
+
+    EAStrategyInput:
+      type: object
+      required: [name, description, type]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [scalping, swing, trend, grid, arbitrage]
+        isPublic:
+          type: boolean
+
+    Transaction:
+      type: object
+      required: [id, userId, type, amount, currency, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userEmail:
+          type: ["string", "null"]
+        userName:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [deposit, withdrawal]
+        amount:
+          type: number
+        currency:
+          type: string
+          enum: [USD, EUR, BTC, ETH, USDT, INR]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        paymentMethod:
+          type: ["string", "null"]
+        txHash:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    TransactionInput:
+      type: object
+      required: [type, amount, currency]
+      properties:
+        type:
+          type: string
+          enum: [deposit, withdrawal]
+        amount:
+          type: number
+        currency:
+          type: string
+          enum: [USD, EUR, BTC, ETH, USDT, INR]
+        paymentMethod:
+          type: string
+        txHash:
+          type: string
+        notes:
+          type: string
+
+    KycRecord:
+      type: object
+      required: [id, userId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userEmail:
+          type: ["string", "null"]
+        userName:
+          type: ["string", "null"]
+        fullName:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        idType:
+          type: ["string", "null"]
+          enum: [passport, national_id, drivers_license, null]
+        idNumber:
+          type: ["string", "null"]
+        panCard:
+          type: ["string", "null"]
+        aadhaarNumber:
+          type: ["string", "null"]
+        bankAccountNumber:
+          type: ["string", "null"]
+        bankName:
+          type: ["string", "null"]
+        ifscCode:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, submitted, verified, rejected]
+        rejectionReason:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+
+    KycInput:
+      type: object
+      required: [fullName, address, country]
+      properties:
+        fullName:
+          type: string
+        address:
+          type: string
+        country:
+          type: string
+        idType:
+          type: string
+          enum: [passport, national_id, drivers_license]
+        idNumber:
+          type: string
+        panCard:
+          type: string
+        aadhaarNumber:
+          type: string
+        bankAccountNumber:
+          type: string
+        bankName:
+          type: string
+        ifscCode:
+          type: string
+
+    KycRejectInput:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+
+    ReferralStats:
+      type: object
+      required: [referralCode, totalReferrals, totalEarnings, pendingEarnings]
+      properties:
+        referralCode:
+          type: string
+        totalReferrals:
+          type: integer
+        totalEarnings:
+          type: number
+        pendingEarnings:
+          type: number
+        thisMonthReferrals:
+          type: integer
+        thisMonthEarnings:
+          type: number
+
+    ReferralEarning:
+      type: object
+      required: [id, amount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        referredUserName:
+          type: ["string", "null"]
+        referredUserEmail:
+          type: ["string", "null"]
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, paid]
+        createdAt:
+          type: string
+
+    Mt5Account:
+      type: object
+      required: [id, userId, accountNumber, broker, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        accountNumber:
+          type: string
+        broker:
+          type: string
+        serverName:
+          type: ["string", "null"]
+        balance:
+          type: ["number", "null"]
+        equity:
+          type: ["number", "null"]
+        profit:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [active, inactive, pending_review]
+        managerId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    Mt5AccountInput:
+      type: object
+      required: [accountNumber, broker]
+      properties:
+        accountNumber:
+          type: string
+        broker:
+          type: string
+        serverName:
+          type: string
+        investorPassword:
+          type: string
+
+    Ticket:
+      type: object
+      required: [id, userId, subject, status, priority, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userEmail:
+          type: ["string", "null"]
+        userName:
+          type: ["string", "null"]
+        subject:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        category:
+          type: ["string", "null"]
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TicketReply"
+        createdAt:
+          type: string
+
+    TicketReply:
+      type: object
+      required: [id, message, isAdmin, createdAt]
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        isAdmin:
+          type: boolean
+        createdAt:
+          type: string
+
+    TicketInput:
+      type: object
+      required: [subject, message]
+      properties:
+        subject:
+          type: string
+        message:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        category:
+          type: string
+
+    TicketReplyInput:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    Notification:
+      type: object
+      required: [id, title, message, type, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [info, success, warning, error]
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+
+    Wallet:
+      type: object
+      required: [fiatBalance, cryptoBalance, totalDeposited, totalWithdrawn, totalProfit]
+      properties:
+        fiatBalance:
+          type: number
+        cryptoBalance:
+          type: number
+        totalDeposited:
+          type: number
+        totalWithdrawn:
+          type: number
+        totalProfit:
+          type: number
+        btcBalance:
+          type: number
+        ethBalance:
+          type: number
+        usdtBalance:
+          type: number
+        inrBalance:
+          type: number
+
+    WalletTransferInput:
+      type: object
+      required: [fromWallet, toWallet, amount]
+      properties:
+        fromWallet:
+          type: string
+          enum: [fiat, crypto, btc, eth, usdt]
+        toWallet:
+          type: string
+          enum: [fiat, crypto, btc, eth, usdt]
+        amount:
+          type: number
+
+    WalletAdjustInput:
+      type: object
+      required: [userId, amount, walletType, reason]
+      properties:
+        userId:
+          type: integer
+        amount:
+          type: number
+        walletType:
+          type: string
+          enum: [fiat, crypto]
+        reason:
+          type: string
+
+    AdminStats:
+      type: object
+      required: [totalUsers, totalDeposits, totalWithdrawals, totalInvestments, pendingTransactions, activeUsers, totalProfit]
+      properties:
+        totalUsers:
+          type: integer
+        totalDeposits:
+          type: number
+        totalWithdrawals:
+          type: number
+        totalInvestments:
+          type: number
+        pendingTransactions:
+          type: integer
+        activeUsers:
+          type: integer
+        totalProfit:
+          type: number
+        newUsersThisMonth:
+          type: integer
+        pendingKyc:
+          type: integer
+        openTickets:
+          type: integer
+        totalManagers:
+          type: integer
+
+    AdminReferralStats:
+      type: object
+      required: [totalReferrals, totalCommissionPaid, pendingCommission]
+      properties:
+        totalReferrals:
+          type: integer
+        totalCommissionPaid:
+          type: number
+        pendingCommission:
+          type: number
+        topReferrers:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: integer
+              userName:
+                type: string
+              referralCount:
+                type: integer
+              earnings:
+                type: number
+            required: [userId, userName, referralCount, earnings]
+
+    ManagerStats:
+      type: object
+      required: [totalClients, pendingTickets, pendingKyc, pendingTransactions]
+      properties:
+        totalClients:
+          type: integer
+        pendingTickets:
+          type: integer
+        pendingKyc:
+          type: integer
+        pendingTransactions:
+          type: integer
+        totalClientVolume:
+          type: number

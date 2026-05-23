@@ -1,0 +1,275 @@
+Use this prompt in [Replit AI](https://replit.com/ai?utm_source=chatgpt.com) or [Replit Agent](https://replit.com/~?utm_source=chatgpt.com) to generate a full-stack professional trading investment platform.
+
+Build a complete production-ready responsive web application named “Kuber Capital”.
+
+The platform must work perfectly on:
+- Desktop
+- Laptop
+- Tablets
+- Android devices
+- iPhone devices
+
+Use modern responsive UI/UX similar to premium fintech and trading platforms.
+
+TECH STACK:
+Frontend:
+- Next.js
+- React
+- Tailwind CSS
+- Framer Motion
+- TradingView Widgets
+- Responsive Mobile-first Design
+
+Backend:
+- Node.js + Express.js
+- PostgreSQL or MySQL
+- JWT Authentication
+- REST API architecture
+
+Hosting Ready:
+- Docker support
+- Environment variables support
+- Vercel/Netlify frontend deployment
+- VPS backend deployment ready
+
+APPLICATION TYPE:
+A trading investment and wealth management platform offering:
+- Algo Trading
+- Copy Trading
+- MT5 account management
+- Trading account handling services
+- Investment plans
+- Referral system
+- Wallet system
+
+DESIGN STYLE:
+- Premium hedge fund look
+- Dark theme with gold accents
+- Smooth animations
+- Glassmorphism cards
+- Professional dashboard UI
+- Fast loading optimized pages
+
+ROLES:
+1. Admin Dashboard
+2. Manager Dashboard
+3. User Dashboard
+
+AUTHENTICATION:
+- Email login/signup
+- Mobile OTP login
+- Google login
+- Forgot password
+- 2FA Authentication
+- Session management
+
+USER DASHBOARD FEATURES:
+- Portfolio overview
+- Wallet balance
+- Deposit history
+- Withdrawal history
+- Active investments
+- ROI tracking
+- Referral earnings
+- KYC verification status
+- Upload documents
+- Support ticket system
+- Notifications center
+- Download statements PDF
+- Live profit analytics
+- Investment calculator
+- TradingView live charts
+- Subscription plans
+- Copy trading subscriptions
+
+ADMIN DASHBOARD FEATURES:
+- User management
+- KYC approval/rejection
+- Deposit approval
+- Withdrawal approval
+- Investment management
+- Profit distribution management
+- Referral commission management
+- Broadcast notifications
+- Manual wallet adjustment
+- Trading account management
+- Crypto wallet management
+- Analytics dashboard
+- Revenue reports
+- Export reports
+- CMS management
+- Website settings
+- Payment settings
+- Role permissions
+- Audit logs
+
+MANAGER DASHBOARD:
+- Assigned client management
+- Ticket handling
+- KYC review
+- Deposit verification
+- Withdrawal verification
+- Client portfolio monitoring
+
+PAYMENT GATEWAY INTEGRATION:
+Integrate:
+- Razorpay
+- PhonePe
+- Paytm
+- PayU
+- PayPal
+
+MANUAL PAYMENT METHODS:
+- QR code payment upload
+- UPI payment
+- Bank transfer
+
+Include:
+- IMPS
+- NEFT
+- RTGS
+
+CRYPTO PAYMENT SYSTEM:
+Accept:
+- Bitcoin (BTC)
+- Ethereum (ETH)
+- USDT TRC20
+- USDT BEP20
+- BNB
+
+Features:
+- Blockchain transaction verification
+- Deposit confirmation system
+- Crypto wallet address generation
+- Transaction hash verification
+- Admin approval system
+- Multi-network support
+
+KYC SYSTEM:
+Create complete KYC verification forms:
+- Full name
+- Address
+- PAN card
+- Aadhaar card
+- Passport
+- Selfie upload
+- Bank account verification
+- Mobile verification
+- Email verification
+
+INVESTMENT MODULE:
+- Multiple investment plans
+- Fixed ROI plans
+- Flexible plans
+- Profit tracking
+- Investment maturity
+- Auto profit calculation
+- Reinvestment option
+
+COPY TRADING MODULE:
+- MT5 account linking
+- Investor password support
+- Strategy subscription
+- Risk level settings
+- Performance analytics
+- Drawdown analytics
+
+TRADING ACCOUNT HANDLING:
+- MT5 credentials submission
+- Secure encrypted storage
+- Manager assignment
+- Account monitoring
+- Profit reports
+
+WALLET SYSTEM:
+- Multi-wallet support
+- Fiat wallet
+- Crypto wallet
+- Internal transfers
+- Transaction logs
+
+WITHDRAWAL SYSTEM:
+- Bank withdrawals
+- UPI withdrawals
+- Crypto withdrawals
+- Withdrawal fees
+- Pending/approved/rejected status
+
+SECURITY:
+- Rate limiting
+- SQL injection protection
+- XSS protection
+- CSRF protection
+- Encrypted sensitive data
+- Secure API authentication
+- File upload validation
+
+NOTIFICATION SYSTEM:
+- Email notifications
+- SMS notifications
+- Push notifications
+- Telegram integration
+- WhatsApp integration
+
+PAGES:
+- Home
+- About
+- Investment Plans
+- Copy Trading
+- Algo Trading
+- Contact
+- FAQ
+- Blog
+- Terms & Conditions
+- Privacy Policy
+- AML Policy
+- Risk Disclaimer
+
+HOME PAGE:
+Create:
+- Hero section
+- Animated statistics
+- Live charts
+- Testimonials
+- Investment plans
+- FAQ section
+- CTA banners
+- Mobile optimized layout
+
+ADMIN SETTINGS:
+- Dynamic logo upload
+- Theme customization
+- Payment configuration
+- Email SMTP settings
+- SEO settings
+
+API READY:
+- REST API documentation
+- Webhook support
+- Scalable architecture
+
+DATABASE:
+Create all necessary tables, relations, indexes, and migrations.
+
+OUTPUT:
+Generate:
+- Complete frontend
+- Complete backend
+- Database schema
+- API routes
+- Authentication system
+- Responsive design
+- Deployment instructions
+- README documentation
+
+IMPORTANT:
+- Make entire application production-ready
+- Mobile-first responsive
+- Professional fintech quality
+- Modern UI/UX
+- Secure architecture
+- Clean reusable code
+- Modular folder structure
+- Optimized performance
+
+Also create demo admin login and sample data for testing.

@@ -1,8 +1,41 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import authRouter from "./auth";
+import dashboardRouter from "./dashboard";
+import investmentsRouter from "./investments";
+import tradesRouter from "./trades";
+import copyTradingRouter from "./copyTrading";
+import eaStrategiesRouter from "./eaStrategies";
+import transactionsRouter from "./transactions";
+import adminRouter from "./admin";
+import plansRouter from "./plans";
+import kycRouter from "./kyc";
+import referralRouter from "./referral";
+import mt5Router from "./mt5";
+import ticketsRouter from "./tickets";
+import notificationsRouter from "./notifications";
+import walletRouter from "./wallet";
+import managerRouter from "./manager";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use("/auth", authRouter);
+router.use("/dashboard", dashboardRouter);
+router.use("/investments", investmentsRouter);
+router.use("/trades", tradesRouter);
+router.use("/algo-strategies", tradesRouter);
+router.use("/copy-traders", copyTradingRouter);
+router.use("/ea-strategies", eaStrategiesRouter);
+router.use("/transactions", transactionsRouter);
+router.use("/admin", adminRouter);
+router.use("/plans", plansRouter);
+router.use("/kyc", kycRouter);
+router.use("/referral", referralRouter);
+router.use("/mt5-accounts", mt5Router);
+router.use("/tickets", ticketsRouter);
+router.use("/notifications", notificationsRouter);
+router.use("/wallet", walletRouter);
+router.use("/manager", managerRouter);
 
 export default router;
