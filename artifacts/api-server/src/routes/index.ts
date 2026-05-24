@@ -22,6 +22,7 @@ import twoFactorRouter from "./twoFactor";
 import roiEngineRouter from "./roiEngine";
 import auditLogsRouter from "./auditLogs";
 import promoCodesRouter from "./promoCodes";
+import agreementsRouter from "./agreements";
 
 const router: IRouter = Router();
 
@@ -49,5 +50,6 @@ router.use("/auth/2fa", twoFactorRouter);
 router.use("/roi", roiEngineRouter);
 router.use("/audit-logs", auditLogsRouter);
 router.use("/promo-codes", promoCodesRouter);
+router.use("/agreements", agreementsRouter);
 
 export default router;

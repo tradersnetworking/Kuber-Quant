@@ -50,6 +50,7 @@ import AdminPaymentGatewaysPage from "@/pages/admin/payment-gateways/index";
 import AdminSettingsPage from "@/pages/admin/settings/index";
 import SuperAdminDashboard from "@/pages/super-admin/index";
 import Mt5RelayPage from "@/pages/mt5-relay/index";
+import AgreementsPage from "@/pages/agreements/index";
 import PrivacyPolicyPage from "@/pages/legal/privacy-policy";
 import TermsOfServicePage from "@/pages/legal/terms-of-service";
 import RiskDisclosurePage from "@/pages/legal/risk-disclosure";
@@ -265,6 +266,9 @@ function MainRouter() {
       {/* MT5 Relay */}
       <Route path="/mt5-relay">
         <ProtectedRoute component={Mt5RelayPage} />
+      </Route>
+      <Route path="/agreements">
+        <ProtectedRoute component={AgreementsPage} />
       </Route>
 
       {/* Super Admin Routes */}

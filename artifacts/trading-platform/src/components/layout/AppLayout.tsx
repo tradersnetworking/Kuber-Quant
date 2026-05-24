@@ -23,7 +23,8 @@ import {
   ClipboardList,
   ArrowLeftRight,
   Crown,
-  Activity
+  Activity,
+  FileText
 } from "lucide-react";
 import { SupportWidget } from "@/components/SupportWidget";
 import { useState } from "react";
@@ -78,6 +79,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { name: "Support", href: "/support", icon: Headset },
     { name: "KYC Verification", href: "/kyc", icon: ShieldCheck },
     { name: "MT5 Services", href: "/mt5-relay", icon: Activity },
+    { name: "Legal Agreements", href: "/agreements", icon: FileText },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 

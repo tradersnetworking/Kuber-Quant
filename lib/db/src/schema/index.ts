@@ -19,3 +19,4 @@ export * from "./auditLogs";
 export * from "./roiPayouts";
 export * from "./loginHistory";
 export * from "./promoCodes";
+export * from "./agreements";

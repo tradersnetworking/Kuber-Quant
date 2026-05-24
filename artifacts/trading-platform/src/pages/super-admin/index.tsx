@@ -46,6 +46,9 @@ export default function SuperAdminDashboard() {
     if (tab === "audit-logs" && !auditLoaded) {
       apiFetch("/audit-logs?limit=100").then(d => { setAuditLogs(d); setAuditLoaded(true); }).catch(() => setAuditLoaded(true));
     }
+    if (tab === "agreements" && !agrLoaded) {
+      apiFetch("/agreements/admin/all?limit=100").then(d => { setAgreements(d); setAgrLoaded(true); }).catch(() => setAgrLoaded(true));
+    }
   }
 
   // ── Global state ──────────────────────────────────────────────────────────
@@ -69,6 +72,13 @@ export default function SuperAdminDashboard() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [auditLoaded, setAuditLoaded] = useState(false);
   const [auditFilter, setAuditFilter] = useState("");
+
+  // ── Agreements state ───────────────────────────────────────────────────────
+  const [agreements, setAgreements] = useState<any[]>([]);
+  const [agrLoaded, setAgrLoaded] = useState(false);
+  const [agrFilter, setAgrFilter] = useState("");
+  const [agrGenerating, setAgrGenerating] = useState(false);
+  const [agrGenForm, setAgrGenForm] = useState({ userId: "", type: "risk_disclosure" });
 
   // ── Trade Copier API state ────────────────────────────────────────────────
   const [tcConfig, setTcConfig] = useState({
@@ -276,6 +286,9 @@ export default function SuperAdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="audit-logs" className="flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5" />Audit Logs
+            </TabsTrigger>
+            <TabsTrigger value="agreements" className="flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5" />Agreements
             </TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -1013,6 +1026,152 @@ export default function SuperAdminDashboard() {
                 </Card>
               </>
             )}
+          </TabsContent>
+          {/* ── Agreements ── */}
+          <TabsContent value="agreements" className="space-y-4">
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-amber-400" />Platform Legal Agreements
+                    </CardTitle>
+                    <CardDescription>Generate and manage legal agreements for users</CardDescription>
+                  </div>
+                  <Button size="sm" variant="outline" className="border-white/10 shrink-0"
+                    onClick={() => apiFetch("/agreements/admin/all?limit=100").then(d => { setAgreements(d); setAgrLoaded(true); })}>
+                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Generate for user */}
+                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Generate Agreement for User</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Input
+                      placeholder="User ID (e.g. 3)"
+                      value={agrGenForm.userId}
+                      onChange={e => setAgrGenForm(f => ({ ...f, userId: e.target.value }))}
+                      className="bg-white/5 border-white/10 h-8 text-sm w-32"
+                    />
+                    <Select value={agrGenForm.type} onValueChange={v => setAgrGenForm(f => ({ ...f, type: v }))}>
+                      <SelectTrigger className="bg-white/5 border-white/10 h-8 text-sm w-52">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          ["investment", "Investment Agreement"],
+                          ["profit_sharing", "Profit Sharing"],
+                          ["ea_subscription", "EA Subscription"],
+                          ["copy_trading", "Copy Trading"],
+                          ["account_handling", "Account Handling"],
+                          ["risk_disclosure", "Risk Disclosure"],
+                          ["aml_kyc", "AML/KYC Declaration"],
+                          ["privacy_policy", "Privacy Policy"],
+                          ["terms_conditions", "Terms & Conditions"],
+                          ["withdrawal_policy", "Withdrawal Policy"],
+                        ].map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" disabled={agrGenerating || !agrGenForm.userId}
+                      onClick={async () => {
+                        setAgrGenerating(true);
+                        try {
+                          const r = await apiFetch("/agreements/admin/generate", {
+                            method: "POST",
+                            body: JSON.stringify({ userId: agrGenForm.userId, type: agrGenForm.type }),
+                          });
+                          toast({ title: "Agreement generated", description: `Ref: ${r.agreementUid}` });
+                          apiFetch("/agreements/admin/all?limit=100").then(d => setAgreements(d));
+                        } catch (e: any) {
+                          toast({ title: "Failed", description: e.message, variant: "destructive" });
+                        } finally { setAgrGenerating(false); }
+                      }}
+                      className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold h-8">
+                      <Plus className="h-3.5 w-3.5 mr-1" />{agrGenerating ? "Generating..." : "Generate"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by ref, user, type..."
+                    value={agrFilter}
+                    onChange={e => setAgrFilter(e.target.value)}
+                    className="bg-white/5 border-white/10 h-8 pl-9 text-sm"
+                  />
+                </div>
+
+                {/* Table */}
+                {!agrLoaded ? (
+                  <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+                ) : (
+                  <div className="space-y-2">
+                    {agreements
+                      .filter(a => {
+                        if (!agrFilter) return true;
+                        const q = agrFilter.toLowerCase();
+                        return a.agreementUid?.toLowerCase().includes(q)
+                          || a.userName?.toLowerCase().includes(q)
+                          || a.userEmail?.toLowerCase().includes(q)
+                          || a.type?.toLowerCase().includes(q);
+                      })
+                      .map(agr => (
+                        <div key={agr.id} className="bg-white/3 border border-white/8 rounded-lg p-3 flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-xs text-amber-400">{agr.agreementUid}</span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                agr.status === "signed" ? "bg-green-500/20 text-green-400" :
+                                agr.status === "revoked" ? "bg-red-500/20 text-red-400" :
+                                "bg-amber-500/20 text-amber-400"
+                              }`}>{agr.status}</span>
+                              <span className="text-xs text-muted-foreground">{agr.type?.replace(/_/g, " ")}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {agr.userName || "—"} · {agr.userEmail || "—"} · UID {agr.userId}
+                            </p>
+                            <p className="text-xs text-white/30">{agr.agreementDate}</p>
+                          </div>
+                          <div className="flex gap-1.5 shrink-0">
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-amber-400"
+                              onClick={async () => {
+                                const r = await fetch(`/api/agreements/admin/${agr.id}/download`, {
+                                  headers: { Authorization: `Bearer ${getToken()}` },
+                                });
+                                if (!r.ok) { toast({ title: "Download failed", variant: "destructive" }); return; }
+                                const blob = await r.blob();
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url; a.download = `${agr.agreementUid}.pdf`; a.click();
+                                URL.revokeObjectURL(url);
+                              }}>
+                              <FileText className="h-3.5 w-3.5" />
+                            </Button>
+                            {agr.status !== "revoked" && (
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400"
+                                onClick={async () => {
+                                  if (!confirm("Revoke this agreement?")) return;
+                                  await apiFetch(`/agreements/admin/${agr.id}/revoke`, { method: "PATCH" });
+                                  setAgreements(prev => prev.map(a => a.id === agr.id ? { ...a, status: "revoked" } : a));
+                                  toast({ title: "Agreement revoked" });
+                                }}>
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    {agreements.length === 0 && (
+                      <div className="text-center py-10 text-muted-foreground text-sm">No agreements found</div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
