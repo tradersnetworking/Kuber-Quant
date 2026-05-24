@@ -30,6 +30,7 @@ export * from './eAStrategyInput';
 export * from './eAStrategyInputType';
 export * from './eAStrategyStatus';
 export * from './eAStrategyType';
+export * from './googleAuthInput';
 export * from './healthStatus';
 export * from './investment';
 export * from './investmentCurrency';

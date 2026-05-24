@@ -58,6 +58,34 @@ export const LoginResponse = zod.object({
 })
 
 
+export const GoogleAuthBody = zod.object({
+  "idToken": zod.string()
+})
+
+export const GoogleAuthResponse = zod.object({
+  "user": zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['user', 'manager', 'admin']),
+  "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
+  "balanceFiat": zod.number().nullish(),
+  "balanceCrypto": zod.number().nullish(),
+  "totalProfit": zod.number().nullish(),
+  "referralCode": zod.string().nullish(),
+  "referralCount": zod.number().nullish(),
+  "referralEarnings": zod.number().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "managerId": zod.number().nullish(),
+  "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
+  "createdAt": zod.string()
+}),
+  "token": zod.string()
+})
+
+
 export const LogoutResponse = zod.object({
   "message": zod.string()
 })

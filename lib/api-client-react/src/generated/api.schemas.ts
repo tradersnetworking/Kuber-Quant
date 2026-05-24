@@ -41,6 +41,10 @@ export interface LoginInput {
   password: string;
 }
 
+export interface GoogleAuthInput {
+  idToken: string;
+}
+
 export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 

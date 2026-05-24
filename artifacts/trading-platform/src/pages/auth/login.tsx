@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useLogin } from "@workspace/api-client-react";
+import { useLogin, useGoogleAuth } from "@workspace/api-client-react";
 import logo from "@/assets/logo.png";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Smartphone, ShieldCheck } from "lucide-react";
+import { GoogleLogin } from "@react-oauth/google";
 import * as ApiHooks from "@workspace/api-client-react";
 
 export default function LoginPage() {
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [, setLocation] = useLocation();
   const loginMutation = useLogin();
+  const googleAuthMutation = useGoogleAuth();
 
   const useVerifyTwoFactor = (ApiHooks as any).useTwoFactorVerifyLogin;
   const verifyMutation = useVerifyTwoFactor ? useVerifyTwoFactor() : { mutate: () => {}, isPending: false };
@@ -63,6 +65,24 @@ export default function LoginPage() {
     );
   };
 
+  const handleGoogleSuccess = (credentialResponse: any) => {
+    const idToken = credentialResponse.credential;
+    if (!idToken) { setLoginError("Google sign-in failed — no credential received."); return; }
+    setLoginError(null);
+    googleAuthMutation.mutate(
+      { data: { idToken } },
+      {
+        onSuccess: (data: any) => {
+          login(data.token, data.user);
+          setLocation("/dashboard");
+        },
+        onError: (err: any) => {
+          setLoginError(err?.message || "Google sign-in failed. Please try again.");
+        },
+      }
+    );
+  };
+
   const BrandPanel = () => (
     <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#050A14] to-[#0a1528] items-center justify-center p-12 border-r border-white/5 relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-20" />
@@ -70,9 +90,9 @@ export default function LoginPage() {
       <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl" />
       <div className="relative z-10 max-w-lg">
         <div className="mb-8">
-          <img src={logo} alt="Kuber Capital" className="h-20 w-20 object-contain mb-6" />
+          <img src={logo} alt="Kuber Quant" className="h-20 w-20 object-contain mb-6" />
           <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-            Kuber <span className="text-amber-500">Capital</span>
+            Kuber <span className="text-amber-500">Quant</span>
           </h1>
           <p className="text-xl text-zinc-400 font-light leading-relaxed">
             Where Wealth Multiplies — Premium hedge-fund management and institutional-grade trading solutions.
@@ -107,13 +127,39 @@ export default function LoginPage() {
                 Access your premium wealth dashboard
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLogin} className="space-y-5">
-                {loginError && (
-                  <Alert variant="destructive" className="bg-red-500/10 border-red-500/50 text-red-400">
-                    <AlertDescription>{loginError}</AlertDescription>
-                  </Alert>
-                )}
+            <CardContent className="space-y-5">
+              {loginError && (
+                <Alert variant="destructive" className="bg-red-500/10 border-red-500/50 text-red-400">
+                  <AlertDescription>{loginError}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Google Sign-In */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-full flex justify-center [&>div]:w-full [&_iframe]:w-full">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setLoginError("Google sign-in was cancelled or failed.")}
+                    theme="filled_black"
+                    size="large"
+                    text="continue_with"
+                    shape="rectangular"
+                    width="100%"
+                  />
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-white/10" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-[#0d1825] px-3 text-zinc-500 uppercase tracking-wider">or sign in with email</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-zinc-300">Email Address</Label>
                   <Input
@@ -138,7 +184,7 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   className="w-full h-12 bg-gradient-to-r from-amber-400 to-yellow-600 hover:from-amber-500 hover:to-yellow-700 text-black font-bold text-base shadow-lg shadow-amber-500/20"
-                  disabled={loginMutation.isPending}
+                  disabled={loginMutation.isPending || googleAuthMutation.isPending}
                 >
                   {loginMutation.isPending ? "Signing in..." : "Sign In"}
                 </Button>

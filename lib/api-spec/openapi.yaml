@@ -75,6 +75,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
 
+  /auth/google:
+    post:
+      operationId: googleAuth
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleAuthInput"
+      responses:
+        "200":
+          description: Authenticated via Google
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
   /auth/logout:
     post:
       operationId: logout
@@ -1376,6 +1394,13 @@ components:
         email:
           type: string
         password:
+          type: string
+
+    GoogleAuthInput:
+      type: object
+      required: [idToken]
+      properties:
+        idToken:
           type: string
 
     AuthResponse:
