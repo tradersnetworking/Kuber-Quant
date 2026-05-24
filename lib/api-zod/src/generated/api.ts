@@ -433,6 +433,199 @@ export const ActivateEAStrategyResponse = zod.object({
 })
 
 
+export const GetEAStrategyCatalogResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "type": zod.string(),
+  "description": zod.string(),
+  "backtestRoi": zod.number(),
+  "winRate": zod.number(),
+  "pairs": zod.string(),
+  "timeframe": zod.string(),
+  "platform": zod.string(),
+  "priceMonthly": zod.number(),
+  "priceQuarterly": zod.number(),
+  "priceBiannual": zod.number(),
+  "priceAnnual": zod.number(),
+  "riskLevel": zod.string(),
+  "category": zod.string()
+})
+export const GetEAStrategyCatalogResponse = zod.array(GetEAStrategyCatalogResponseItem)
+
+
+export const SubscribeToEAStrategyParams = zod.object({
+  "catalogId": zod.coerce.number()
+})
+
+export const SubscribeToEAStrategyBody = zod.object({
+  "mtAccountNumber": zod.string(),
+  "mtPlatform": zod.enum(['mt4', 'mt5']).optional(),
+  "plan": zod.enum(['monthly', 'quarterly', 'biannual', 'annual'])
+})
+
+
+export const GetMyEASubscriptionsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "strategyId": zod.number(),
+  "mtAccountNumber": zod.string(),
+  "mtPlatform": zod.string(),
+  "plan": zod.string(),
+  "licenseKey": zod.string(),
+  "expiresAt": zod.string(),
+  "downloadCount": zod.number().optional(),
+  "status": zod.string(),
+  "isExpired": zod.boolean().optional(),
+  "strategyName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const GetMyEASubscriptionsResponse = zod.array(GetMyEASubscriptionsResponseItem)
+
+
+export const DownloadEAStrategyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+export const SubmitMt5RequestBody = zod.object({
+  "type": zod.enum(['copy_trading', 'account_handling']),
+  "mt5AccountId": zod.number().optional(),
+  "profitSharingPercent": zod.number().optional(),
+  "details": zod.string().optional()
+})
+
+
+export const GetMyMt5RequestsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "mt5AccountId": zod.number().nullish(),
+  "type": zod.string(),
+  "profitSharingPercent": zod.number(),
+  "details": zod.string().nullish(),
+  "status": zod.string(),
+  "externalResponse": zod.string().nullish(),
+  "forwardedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const GetMyMt5RequestsResponse = zod.array(GetMyMt5RequestsResponseItem)
+
+
+export const GetSuperAdminStatsResponse = zod.object({
+  "totalUsers": zod.number(),
+  "admins": zod.number(),
+  "managers": zod.number(),
+  "investors": zod.number(),
+  "pendingMt5Requests": zod.number(),
+  "forwardedMt5Requests": zod.number(),
+  "activeEASubscriptions": zod.number()
+})
+
+
+export const GetSuperAdminUsersResponseItem = zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['user', 'manager', 'admin']),
+  "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
+  "balanceFiat": zod.number().nullish(),
+  "balanceCrypto": zod.number().nullish(),
+  "totalProfit": zod.number().nullish(),
+  "referralCode": zod.string().nullish(),
+  "referralCount": zod.number().nullish(),
+  "referralEarnings": zod.number().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "managerId": zod.number().nullish(),
+  "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
+  "createdAt": zod.string()
+})
+export const GetSuperAdminUsersResponse = zod.array(GetSuperAdminUsersResponseItem)
+
+
+export const UpdateUserRoleSuperAdminParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateUserRoleSuperAdminBody = zod.object({
+  "role": zod.string()
+})
+
+export const UpdateUserRoleSuperAdminResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const GetSuperAdminMt5RequestsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "mt5AccountId": zod.number().nullish(),
+  "type": zod.string(),
+  "profitSharingPercent": zod.number(),
+  "details": zod.string().nullish(),
+  "status": zod.string(),
+  "externalResponse": zod.string().nullish(),
+  "forwardedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const GetSuperAdminMt5RequestsResponse = zod.array(GetSuperAdminMt5RequestsResponseItem)
+
+
+export const ForwardMt5RequestParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ForwardMt5RequestResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const UpdateMt5RequestStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateMt5RequestStatusBody = zod.object({
+  "status": zod.string(),
+  "externalResponse": zod.string().optional()
+})
+
+export const UpdateMt5RequestStatusResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const GetMt5EndpointResponse = zod.object({
+  "endpoint": zod.string().optional()
+})
+
+
+export const SetMt5EndpointBody = zod.object({
+  "endpoint": zod.string()
+})
+
+export const SetMt5EndpointResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const GetSuperAdminEASubscriptionsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "strategyId": zod.number(),
+  "mtAccountNumber": zod.string(),
+  "mtPlatform": zod.string(),
+  "plan": zod.string(),
+  "licenseKey": zod.string(),
+  "expiresAt": zod.string(),
+  "downloadCount": zod.number().optional(),
+  "status": zod.string(),
+  "isExpired": zod.boolean().optional(),
+  "strategyName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const GetSuperAdminEASubscriptionsResponse = zod.array(GetSuperAdminEASubscriptionsResponseItem)
+
+
 export const ListTransactionsResponseItem = zod.object({
   "id": zod.number(),
   "userId": zod.number(),

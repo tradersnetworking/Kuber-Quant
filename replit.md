@@ -70,6 +70,7 @@ A full-stack, production-ready trading investment and wealth management platform
 
 | Role | Email | Password |
 |------|-------|----------|
+| Super Admin | superadmin@kubercapital.com | superadmin123 |
 | Admin | admin@kubercapital.com | admin123 |
 | Manager | manager@kubercapital.com | manager123 |
 

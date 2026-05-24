@@ -30,6 +30,7 @@ export const copyFollowsTable = pgTable("copy_follows", {
   traderId: integer("trader_id").notNull(),
   amount: numeric("amount", { precision: 18, scale: 8 }).notNull(),
   currency: text("currency").notNull().default("USD"),
+  profitSharingPercent: integer("profit_sharing_percent").notNull().default(20),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

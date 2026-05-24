@@ -1,0 +1,598 @@
+Use this as your master enterprise-grade Replit implementation prompt.
+
+Build a production-grade fintech SaaS platform named “Kuber Quant” for:
+
+1. Investment Management
+2. EA Subscription Marketplace
+3. Algo Trading Services
+4. Copy Trading Services
+5. MT4/MT5 Account Handling Services
+6. Referral & Affiliate System
+7. Crypto & Fiat Payment Infrastructure
+
+IMPORTANT:
+This is NOT a broker platform.
+Users CANNOT place trades directly from the website.
+
+Trading execution infrastructure will run externally:
+
+- MT4/MT5 terminals hosted on Windows VPS servers
+- Copy trading infrastructure handled through tradecopier.com / Duplikium APIs
+- Website communicates with VPS and copier systems through APIs/Webhooks
+
+The platform should be enterprise-grade, scalable, highly secure, mobile responsive, and deployment-ready.
+
+==================================================
+TECH STACK
+
+Frontend:
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- Recharts
+
+Backend:
+
+- Node.js
+- NestJS or Express.js
+- REST APIs
+- WebSocket support
+
+Database:
+
+- PostgreSQL
+- Redis caching
+
+Infrastructure:
+
+- Docker containerization
+- Microservice-ready architecture
+- Queue system for financial processing
+- CDN support
+- Cloudflare integration
+
+Hosting:
+
+- Frontend/backend on Replit or VPS
+- MT4/MT5 on Windows VPS
+- Trade copier APIs externally connected
+
+==================================================
+MAIN MODULES
+
+1. Investment Platform
+2. Fiat & Crypto Wallet System
+3. ROI Automation Engine
+4. EA Marketplace
+5. EA Licensing Server
+6. Copy Trading Subscription System
+7. Account Handling Services
+8. Referral & Affiliate System
+9. KYC/AML Verification System
+10. CRM & Support Ticket System
+11. CMS & Website Builder
+12. Analytics & Reporting
+13. MT4/MT5 Integration APIs
+14. Notification System
+15. Security & Audit System
+
+==================================================
+EXTERNAL TRADING INFRASTRUCTURE
+
+Copy Trading:
+
+- Integrate with tradecopier.com or Duplikium APIs
+- Sync subscriptions with copier platform
+- Allow users to connect MT4/MT5 accounts
+- Configure risk multipliers
+- Track copier subscription status
+- Sync account statistics
+
+MT4/MT5 VPS:
+
+- Trading terminals hosted on Windows VPS
+- APIs/webhooks communicate with web platform
+- Real-time monitoring of account equity
+- Drawdown monitoring
+- Profit tracking
+- Subscription validation
+
+==================================================
+EA MARKETPLACE SYSTEM
+
+Build a professional EA marketplace similar to enterprise SaaS platforms.
+
+Users can:
+
+- Browse all EA strategies
+- Compare strategies
+- View live statistics
+- Subscribe and purchase
+- Download encrypted EX5 files
+- Renew subscriptions
+- Receive EA updates
+
+==================================================
+EA STRATEGY DISPLAY SYSTEM
+
+Create professional strategy showcase pages.
+
+Display:
+
+- Strategy name
+- MT4 or MT5 compatibility
+- Strategy category
+- Timeframe
+- Currency pairs
+- Win rate
+- Drawdown
+- Risk level
+- Profit factor
+- Monthly ROI
+- Historical performance
+- Backtest reports
+- Verified live results
+- Myfxbook integration
+- FXBlue integration
+- Number of subscribers
+- Subscription price
+- Recommended capital
+- Broker compatibility
+- VPS recommendation
+- Trading style
+- Scalping/swing/day trading tags
+- Risk warning
+- Video demonstrations
+- Screenshots
+- FAQs
+- Changelog/version history
+
+==================================================
+SUPPORTED STRATEGY TYPES
+
+Create dynamic categories for all possible EA strategies.
+
+Categories:
+
+- Scalping
+- Trend Following
+- Grid Trading
+- Martingale
+- Hedging
+- Arbitrage
+- News Trading
+- Breakout Trading
+- Mean Reversion
+- Smart Money Concepts
+- ICT Strategies
+- AI-Based Trading
+- High Frequency
+- Session Trading
+- Multi-Timeframe
+- Indicator-Based
+- Price Action
+- Volatility Trading
+- Gold Trading
+- Forex Trading
+- Crypto Trading
+- Synthetic Index Trading
+- Index Trading
+- Commodity Trading
+
+==================================================
+EA LICENSING SERVER
+
+Build enterprise-grade EA licensing infrastructure.
+
+Features:
+
+- Generate encrypted EX5 licenses
+- Bind EA to specific MT5 account number
+- Bind EA to broker server
+- Bind EA to subscription expiry date
+- Prevent usage on unauthorized MT5 accounts
+- Remote license validation server
+- Online/offline activation
+- Auto-disable expired subscriptions
+- Push update support
+- Remote revoke capability
+- Hardware/device fingerprinting
+- License renewal system
+- Automatic redirect to website for renewal
+- Subscription expiration reminders
+- Version management
+- Changelog updates
+
+==================================================
+EA PURCHASE WORKFLOW
+
+Workflow:
+
+1. User selects EA
+2. User subscribes
+3. User enters:
+   - MT4/MT5 account number
+   - Broker server
+4. Payment completed
+5. License generated
+6. EX5 encrypted and locked
+7. Download available in dashboard
+8. Renewal reminders automated
+9. Push updates available
+
+==================================================
+COPY TRADING SYSTEM
+
+Users can:
+
+- Browse master traders
+- Subscribe to copy trading
+- Connect MT4/MT5 accounts
+- Configure risk multiplier
+- View performance analytics
+- Monitor copied trades
+
+Features:
+
+- API integration with Duplikium/trade copier
+- Subscription synchronization
+- Equity monitoring
+- Drawdown alerts
+- Profit tracking
+- Master/slave account management
+- Copier subscription management
+
+==================================================
+ACCOUNT HANDLING SERVICES
+
+Build secure account handling module.
+
+Users submit:
+
+- MT4/MT5 account number
+- Broker server
+- Investor password/API access
+- Risk profile
+- Profit sharing agreement
+
+Features:
+
+- Digital agreements
+- Profit-sharing calculations
+- Performance analytics
+- Equity monitoring
+- Drawdown monitoring
+- Monthly statements
+- Manager assignment
+- Investor reporting
+
+==================================================
+INVESTMENT SYSTEM
+
+Investment plans:
+
+- Weekly
+- Monthly
+- Quarterly
+- Half-Yearly
+- Annual
+
+Features:
+
+- ROI percentage
+- Profit frequency
+- Capital return options
+- Compound ROI support
+- Auto-renew
+- Early withdrawal rules
+
+==================================================
+ROI AUTOMATION ENGINE
+
+Build automated ROI engine.
+
+Features:
+
+- Scheduled ROI payouts
+- Cron job automation
+- Compound interest engine
+- Maturity processing
+- ROI freeze option
+- Failed payout retry
+- Profit distribution logs
+- ROI history
+- Manual ROI adjustment
+
+==================================================
+FIAT PAYMENT SYSTEM
+
+Payment gateways:
+
+- Razorpay
+- PayU
+- PhonePe
+- Paytm
+- Cashfree
+- Stripe
+- PayPal
+
+Manual methods:
+
+- UPI
+- QR Code
+- IMPS
+- NEFT
+- RTGS
+- Bank Transfer
+
+Features:
+
+- Transaction proof upload mandatory
+- UTR verification
+- Manual approval workflow
+- Payment status tracking
+
+==================================================
+CRYPTO PAYMENT SYSTEM
+
+Supported:
+
+- BTC
+- ETH
+- USDT TRC20/ERC20/BEP20
+- BNB
+- SOL
+- XRP
+
+Features:
+
+- QR generation
+- Wallet address management
+- Blockchain confirmation tracking
+- Transaction verification
+- Crypto deposit analytics
+- Network validation
+
+==================================================
+KYC & AML SYSTEM
+
+Mandatory KYC before:
+
+- Deposits
+- Withdrawals
+- Investments
+- EA purchases
+- Copy trading subscriptions
+
+KYC Features:
+
+- PAN verification
+- Aadhaar/passport verification
+- Selfie verification
+- OCR document scanning
+- Address proof
+- Bank verification
+
+AML/Fraud Features:
+
+- Multiple account detection
+- IP/device fingerprinting
+- VPN/proxy detection
+- Suspicious transaction alerts
+- Withdrawal risk scoring
+- AML compliance logs
+
+==================================================
+WALLET & ACCOUNTING SYSTEM
+
+Implement enterprise accounting.
+
+Features:
+
+- Double-entry accounting
+- Internal wallet ledger
+- Debit/credit records
+- Fee deduction logs
+- Commission accounting
+- Manual adjustment logs
+- Transaction reconciliation
+- Financial audit trails
+
+Wallets:
+
+- Main wallet
+- Profit wallet
+- Referral wallet
+- Crypto wallet
+- Investment wallet
+
+==================================================
+SUPER ADMIN DASHBOARD
+
+Enterprise dashboard with:
+
+- Revenue analytics
+- User analytics
+- ROI analytics
+- Subscription analytics
+- Crypto analytics
+- KYC management
+- Deposit/withdrawal approvals
+- EA management
+- License management
+- Copy trading management
+- CMS management
+- Payment gateway management
+- Security monitoring
+- Audit logs
+- Financial accounting dashboard
+- Support ticket management
+
+==================================================
+MANAGER DASHBOARD
+
+Features:
+
+- Investor management
+- KYC review
+- Deposit verification
+- Withdrawal verification
+- CRM notes
+- Support ticket handling
+- Investor analytics
+- Referral monitoring
+
+==================================================
+USER DASHBOARD
+
+Features:
+
+- Investment portfolio
+- ROI analytics
+- Deposit/withdrawal history
+- Referral earnings
+- Active subscriptions
+- EA downloads
+- MT4/MT5 linked accounts
+- Copy trading analytics
+- Account handling reports
+- Wallet balances
+- Notification center
+
+==================================================
+CRM & SUPPORT SYSTEM
+
+Features:
+
+- Ticket system
+- Live chat
+- Telegram integration
+- WhatsApp integration
+- Internal CRM notes
+- Priority levels
+- Auto ticket assignment
+
+==================================================
+NOTIFICATION SYSTEM
+
+Notifications:
+
+- Deposit confirmation
+- Withdrawal updates
+- ROI payouts
+- Subscription expiry
+- EA renewal reminders
+- Push updates
+- KYC status
+- Marketing emails
+
+Channels:
+
+- Email
+- SMS
+- Telegram
+- WhatsApp
+- Push notifications
+
+==================================================
+AUDIT & SECURITY SYSTEM
+
+Implement:
+
+- Full audit logs
+- Admin activity logs
+- Manager activity logs
+- Login/device/IP logs
+- Financial modification logs
+- KYC audit logs
+- Secure API authentication
+- JWT + 2FA
+- Session management
+- Encryption
+- CSRF protection
+- Rate limiting
+
+==================================================
+MARKETING & AFFILIATE SYSTEM
+
+Features:
+
+- Referral links
+- Promo codes
+- Coupon system
+- Affiliate tracking
+- Landing page builder
+- Newsletter subscriptions
+- Campaign analytics
+
+==================================================
+CMS SYSTEM
+
+Features:
+
+- Drag-and-drop homepage builder
+- Banner management
+- Popup manager
+- SEO editor
+- Blog/news system
+- FAQ management
+- Footer management
+
+==================================================
+BACKUP & SCALABILITY
+
+Features:
+
+- Automated backups
+- Disaster recovery
+- Versioning
+- Redundancy
+- Redis caching
+- Queue workers
+- Docker deployment
+- Load balancing support
+
+==================================================
+API ARCHITECTURE
+
+Generate:
+
+- REST APIs
+- WebSocket APIs
+- Mobile-ready backend APIs
+- Secure token authentication
+- API rate limiting
+- API documentation
+
+==================================================
+GENERATE COMPLETE SYSTEM
+
+Generate:
+
+1. Complete database schema
+2. PostgreSQL tables
+3. Backend APIs
+4. Frontend pages
+5. Responsive dashboards
+6. EA marketplace pages
+7. Subscription workflows
+8. Payment workflows
+9. Crypto workflows
+10. KYC workflows
+11. ROI automation engine
+12. Accounting system
+13. CRM system
+14. Notification system
+15. Licensing server architecture
+16. Docker configuration
+17. Environment configuration
+18. Production-ready folder structure
+19. Role-based permissions
+20. Professional fintech UI
+21. Secure architecture
+22. Deployment-ready codebase
+
+Build a scalable enterprise fintech SaaS platform with professional UI/UX similar to premium trading, investment, and SaaS subscription platforms.

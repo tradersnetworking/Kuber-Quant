@@ -26,8 +26,17 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const user = (req as any).user as AuthPayload | undefined;
-  if (!user || user.role !== "admin") {
+  if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
     res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  next();
+}
+
+export function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user as AuthPayload | undefined;
+  if (!user || user.role !== "superadmin") {
+    res.status(403).json({ error: "Forbidden — Super Admin only" });
     return;
   }
   next();

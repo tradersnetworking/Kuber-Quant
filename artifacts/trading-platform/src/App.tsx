@@ -47,41 +47,42 @@ import AdminTicketsPage from "@/pages/admin/tickets/index";
 import AdminManagersPage from "@/pages/admin/managers/index";
 import AdminPaymentGatewaysPage from "@/pages/admin/payment-gateways/index";
 import AdminSettingsPage from "@/pages/admin/settings/index";
+import SuperAdminDashboard from "@/pages/super-admin/index";
+import Mt5RelayPage from "@/pages/mt5-relay/index";
 
 const queryClient = new QueryClient();
 
 const portal: StaffPortal = getStaffPortal();
 
 // ── Protected Route Wrapper ─────────────────────────────────────────────────
-function ProtectedRoute({ component: Component, adminOnly = false, managerOnly = false, ...rest }: any) {
+function ProtectedRoute({ component: Component, adminOnly = false, managerOnly = false, superAdminOnly = false, ...rest }: any) {
   const { user } = useAuth();
   const redirectTo = portal ? "/login" : "/login";
 
   if (!user) return <Redirect to={redirectTo} />;
-  if (adminOnly && user.role !== "admin") return <Redirect to="/dashboard" />;
-  if (managerOnly && (user.role as string) !== "manager" && (user.role as string) !== "admin") {
+  if (superAdminOnly && (user.role as string) !== "superadmin") return <Redirect to="/dashboard" />;
+  if (adminOnly && user.role !== "admin" && (user.role as string) !== "superadmin") return <Redirect to="/dashboard" />;
+  if (managerOnly && (user.role as string) !== "manager" && user.role !== "admin" && (user.role as string) !== "superadmin") {
     return <Redirect to="/dashboard" />;
   }
   return <Component {...rest} />;
 }
 
 // ── Staff Portal Guard ──────────────────────────────────────────────────────
-// On admin/manager/support subdomains, unauthenticated users see staff-login.
-// Regular users are rejected. Staff are sent to their dashboard.
-function StaffPortalGuard({ role }: { role: "admin" | "manager" | "support" }) {
+function StaffPortalGuard({ role }: { role: "admin" | "manager" | "support" | "superadmin" }) {
   const { user } = useAuth();
 
   if (!user) return <StaffLoginPage />;
 
-  if (role === "admin" && user.role === "admin") return <Redirect to="/admin" />;
-  if (role === "manager" && ((user.role as string) === "manager" || (user.role as string) === "admin")) {
+  if (role === "superadmin" && (user.role as string) === "superadmin") return <Redirect to="/super-admin" />;
+  if (role === "admin" && (user.role === "admin" || (user.role as string) === "superadmin")) return <Redirect to="/admin" />;
+  if (role === "manager" && ((user.role as string) === "manager" || user.role === "admin" || (user.role as string) === "superadmin")) {
     return <Redirect to="/manager" />;
   }
-  if (role === "support" && ((user.role as string) === "manager" || (user.role as string) === "admin")) {
+  if (role === "support" && ((user.role as string) === "manager" || user.role === "admin" || (user.role as string) === "superadmin")) {
     return <Redirect to="/manager/tickets" />;
   }
 
-  // Wrong role — force re-login
   return <StaffLoginPage />;
 }
 
@@ -251,6 +252,16 @@ function MainRouter() {
       </Route>
       <Route path="/manager/transactions">
         <ProtectedRoute component={ManagerTransactions} managerOnly />
+      </Route>
+
+      {/* MT5 Relay */}
+      <Route path="/mt5-relay">
+        <ProtectedRoute component={Mt5RelayPage} />
+      </Route>
+
+      {/* Super Admin Routes */}
+      <Route path="/super-admin">
+        <ProtectedRoute component={SuperAdminDashboard} superAdminOnly />
       </Route>
 
       {/* Admin Routes */}

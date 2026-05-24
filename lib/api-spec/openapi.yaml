@@ -493,6 +493,258 @@ paths:
               schema:
                 $ref: "#/components/schemas/MessageResponse"
 
+  /ea-strategies/catalog:
+    get:
+      operationId: getEAStrategyCatalog
+      tags: [ea-strategies]
+      responses:
+        "200":
+          description: Platform EA strategy catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EACatalogItem"
+
+  /ea-strategies/catalog/{catalogId}/subscribe:
+    post:
+      operationId: subscribeToEAStrategy
+      tags: [ea-strategies]
+      parameters:
+        - name: catalogId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EASubscribeInput"
+      responses:
+        "201":
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EASubscription"
+
+  /ea-strategies/subscriptions/my:
+    get:
+      operationId: getMyEASubscriptions
+      tags: [ea-strategies]
+      responses:
+        "200":
+          description: User EA subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EASubscription"
+
+  /ea-strategies/subscriptions/{id}/download:
+    get:
+      operationId: downloadEAStrategy
+      tags: [ea-strategies]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: EA file download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /mt5-relay:
+    post:
+      operationId: submitMt5Request
+      tags: [mt5-relay]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Mt5RelayInput"
+      responses:
+        "201":
+          description: Request submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mt5RelayRequest"
+    get:
+      operationId: getMyMt5Requests
+      tags: [mt5-relay]
+      responses:
+        "200":
+          description: User MT5 relay requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Mt5RelayRequest"
+
+  /super-admin/stats:
+    get:
+      operationId: getSuperAdminStats
+      tags: [super-admin]
+      responses:
+        "200":
+          description: Platform statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuperAdminStats"
+
+  /super-admin/users:
+    get:
+      operationId: getSuperAdminUsers
+      tags: [super-admin]
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /super-admin/users/{id}/role:
+    patch:
+      operationId: updateUserRoleSuperAdmin
+      tags: [super-admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperAdminRoleInput"
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /super-admin/mt5-requests:
+    get:
+      operationId: getSuperAdminMt5Requests
+      tags: [super-admin]
+      responses:
+        "200":
+          description: All MT5 relay requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Mt5RelayRequest"
+
+  /super-admin/mt5-requests/{id}/forward:
+    post:
+      operationId: forwardMt5Request
+      tags: [super-admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Forwarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /super-admin/mt5-requests/{id}/status:
+    patch:
+      operationId: updateMt5RequestStatus
+      tags: [super-admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Mt5RequestStatusInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /super-admin/settings/mt5-endpoint:
+    get:
+      operationId: getMt5Endpoint
+      tags: [super-admin]
+      responses:
+        "200":
+          description: MT5 external endpoint
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endpoint:
+                    type: string
+    post:
+      operationId: setMt5Endpoint
+      tags: [super-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Mt5EndpointInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /super-admin/ea-subscriptions:
+    get:
+      operationId: getSuperAdminEASubscriptions
+      tags: [super-admin]
+      responses:
+        "200":
+          description: All EA subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EASubscription"
+
   /transactions:
     get:
       operationId: listTransactions
@@ -1830,6 +2082,166 @@ components:
           enum: [scalping, swing, trend, grid, arbitrage]
         isPublic:
           type: boolean
+
+    EACatalogItem:
+      type: object
+      required: [id, name, type, description, backtestRoi, winRate, pairs, timeframe, platform, priceMonthly, priceQuarterly, priceBiannual, priceAnnual, riskLevel, category]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        backtestRoi:
+          type: number
+        winRate:
+          type: number
+        pairs:
+          type: string
+        timeframe:
+          type: string
+        platform:
+          type: string
+        priceMonthly:
+          type: number
+        priceQuarterly:
+          type: number
+        priceBiannual:
+          type: number
+        priceAnnual:
+          type: number
+        riskLevel:
+          type: string
+        category:
+          type: string
+
+    EASubscribeInput:
+      type: object
+      required: [mtAccountNumber, plan]
+      properties:
+        mtAccountNumber:
+          type: string
+        mtPlatform:
+          type: string
+          enum: [mt4, mt5]
+        plan:
+          type: string
+          enum: [monthly, quarterly, biannual, annual]
+
+    EASubscription:
+      type: object
+      required: [id, userId, strategyId, mtAccountNumber, mtPlatform, plan, licenseKey, expiresAt, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        strategyId:
+          type: integer
+        mtAccountNumber:
+          type: string
+        mtPlatform:
+          type: string
+        plan:
+          type: string
+        licenseKey:
+          type: string
+        expiresAt:
+          type: string
+        downloadCount:
+          type: integer
+        status:
+          type: string
+        isExpired:
+          type: boolean
+        strategyName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    SuperAdminRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+
+    Mt5RequestStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+        externalResponse:
+          type: string
+
+    Mt5EndpointInput:
+      type: object
+      required: [endpoint]
+      properties:
+        endpoint:
+          type: string
+
+    Mt5RelayInput:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [copy_trading, account_handling]
+        mt5AccountId:
+          type: integer
+        profitSharingPercent:
+          type: integer
+        details:
+          type: string
+
+    Mt5RelayRequest:
+      type: object
+      required: [id, userId, type, profitSharingPercent, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        mt5AccountId:
+          type: ["integer", "null"]
+        type:
+          type: string
+        profitSharingPercent:
+          type: integer
+        details:
+          type: ["string", "null"]
+        status:
+          type: string
+        externalResponse:
+          type: ["string", "null"]
+        forwardedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    SuperAdminStats:
+      type: object
+      required: [totalUsers, admins, managers, investors, pendingMt5Requests, forwardedMt5Requests, activeEASubscriptions]
+      properties:
+        totalUsers:
+          type: integer
+        admins:
+          type: integer
+        managers:
+          type: integer
+        investors:
+          type: integer
+        pendingMt5Requests:
+          type: integer
+        forwardedMt5Requests:
+          type: integer
+        activeEASubscriptions:
+          type: integer
 
     Transaction:
       type: object

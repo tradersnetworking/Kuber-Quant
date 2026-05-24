@@ -546,6 +546,120 @@ export interface EAStrategyInput {
   isPublic?: boolean;
 }
 
+export interface EACatalogItem {
+  id: number;
+  name: string;
+  type: string;
+  description: string;
+  backtestRoi: number;
+  winRate: number;
+  pairs: string;
+  timeframe: string;
+  platform: string;
+  priceMonthly: number;
+  priceQuarterly: number;
+  priceBiannual: number;
+  priceAnnual: number;
+  riskLevel: string;
+  category: string;
+}
+
+export type EASubscribeInputMtPlatform = typeof EASubscribeInputMtPlatform[keyof typeof EASubscribeInputMtPlatform];
+
+
+export const EASubscribeInputMtPlatform = {
+  mt4: 'mt4',
+  mt5: 'mt5',
+} as const;
+
+export type EASubscribeInputPlan = typeof EASubscribeInputPlan[keyof typeof EASubscribeInputPlan];
+
+
+export const EASubscribeInputPlan = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  biannual: 'biannual',
+  annual: 'annual',
+} as const;
+
+export interface EASubscribeInput {
+  mtAccountNumber: string;
+  mtPlatform?: EASubscribeInputMtPlatform;
+  plan: EASubscribeInputPlan;
+}
+
+export interface EASubscription {
+  id: number;
+  userId: number;
+  strategyId: number;
+  mtAccountNumber: string;
+  mtPlatform: string;
+  plan: string;
+  licenseKey: string;
+  expiresAt: string;
+  downloadCount?: number;
+  status: string;
+  isExpired?: boolean;
+  /** @nullable */
+  strategyName?: string | null;
+  createdAt: string;
+}
+
+export interface SuperAdminRoleInput {
+  role: string;
+}
+
+export interface Mt5RequestStatusInput {
+  status: string;
+  externalResponse?: string;
+}
+
+export interface Mt5EndpointInput {
+  endpoint: string;
+}
+
+export type Mt5RelayInputType = typeof Mt5RelayInputType[keyof typeof Mt5RelayInputType];
+
+
+export const Mt5RelayInputType = {
+  copy_trading: 'copy_trading',
+  account_handling: 'account_handling',
+} as const;
+
+export interface Mt5RelayInput {
+  type: Mt5RelayInputType;
+  mt5AccountId?: number;
+  profitSharingPercent?: number;
+  details?: string;
+}
+
+export interface Mt5RelayRequest {
+  id: number;
+  userId: number;
+  /** @nullable */
+  mt5AccountId?: number | null;
+  type: string;
+  profitSharingPercent: number;
+  /** @nullable */
+  details?: string | null;
+  status: string;
+  /** @nullable */
+  externalResponse?: string | null;
+  /** @nullable */
+  forwardedAt?: string | null;
+  createdAt: string;
+}
+
+export interface SuperAdminStats {
+  totalUsers: number;
+  admins: number;
+  managers: number;
+  investors: number;
+  pendingMt5Requests: number;
+  forwardedMt5Requests: number;
+  activeEASubscriptions: number;
+}
+
 export type TransactionType = typeof TransactionType[keyof typeof TransactionType];
 
 
@@ -1022,4 +1136,8 @@ export interface ManagerStats {
   pendingTransactions: number;
   totalClientVolume?: number;
 }
+
+export type GetMt5Endpoint200 = {
+  endpoint?: string;
+};
 

@@ -21,8 +21,11 @@ import {
   Users2,
   FileCheck,
   ClipboardList,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Crown,
+  Activity
 } from "lucide-react";
+import { SupportWidget } from "@/components/SupportWidget";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -74,10 +77,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { name: "Referral Program", href: "/referral", icon: Users2 },
     { name: "Support", href: "/support", icon: Headset },
     { name: "KYC Verification", href: "/kyc", icon: ShieldCheck },
+    { name: "MT5 Services", href: "/mt5-relay", icon: Activity },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
-  if ((user.role as string) === "manager" || user.role === "admin") {
+  if ((user.role as string) === "manager" || user.role === "admin" || (user.role as string) === "superadmin") {
     navItems.push(
       { name: "My Clients", href: "/manager/clients", icon: Users2, section: "Manager" },
       { name: "KYC Queue", href: "/manager/kyc", icon: FileCheck, section: "Manager" },
@@ -86,7 +90,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (user.role === "admin") {
+  if (user.role === "admin" || (user.role as string) === "superadmin") {
     navItems.push(
       { name: "Admin Overview", href: "/admin", icon: ShieldAlert, section: "Admin" },
       { name: "Users", href: "/admin/users", icon: Users, section: "Admin" },
@@ -98,6 +102,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       { name: "Support Tickets", href: "/admin/tickets", icon: Headset, section: "Admin" },
       { name: "Referrals", href: "/admin/referrals", icon: ArrowLeftRight, section: "Admin" },
       { name: "Site Settings", href: "/admin/settings", icon: Settings, section: "Admin" },
+    );
+  }
+
+  if ((user.role as string) === "superadmin") {
+    navItems.push(
+      { name: "Super Admin", href: "/super-admin", icon: Crown, section: "Super Admin" },
     );
   }
 
@@ -275,6 +285,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </motion.div>
           </AnimatePresence>
         </div>
+        <SupportWidget />
 
         {/* Mobile Bottom Nav */}
         <nav className="md:hidden flex items-center justify-around p-2 border-t border-border bg-card/80 backdrop-blur-lg fixed bottom-0 left-0 right-0 z-40">

@@ -31,8 +31,12 @@ import type {
   CopyTrader,
   CreateManagerInput,
   DashboardSummary,
+  EACatalogItem,
   EAStrategy,
   EAStrategyInput,
+  EASubscribeInput,
+  EASubscription,
+  GetMt5Endpoint200,
   GoogleAuthInput,
   HealthStatus,
   Investment,
@@ -47,6 +51,10 @@ import type {
   MessageResponse,
   Mt5Account,
   Mt5AccountInput,
+  Mt5EndpointInput,
+  Mt5RelayInput,
+  Mt5RelayRequest,
+  Mt5RequestStatusInput,
   Notification,
   PaymentGateway,
   PaymentGatewayInput,
@@ -56,6 +64,8 @@ import type {
   SiteSetting,
   SiteSettingsUpdate,
   StrategySubscription,
+  SuperAdminRoleInput,
+  SuperAdminStats,
   Ticket,
   TicketInput,
   TicketReplyInput,
@@ -2055,6 +2065,1037 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getActivateEAStrategyMutationOptions(options));
     }
+
+export const getGetEAStrategyCatalogUrl = () => {
+
+
+
+
+  return `/api/ea-strategies/catalog`
+}
+
+export const getEAStrategyCatalog = async ( options?: RequestInit): Promise<EACatalogItem[]> => {
+
+  return customFetch<EACatalogItem[]>(getGetEAStrategyCatalogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEAStrategyCatalogQueryKey = () => {
+    return [
+    `/api/ea-strategies/catalog`
+    ] as const;
+    }
+
+
+export const getGetEAStrategyCatalogQueryOptions = <TData = Awaited<ReturnType<typeof getEAStrategyCatalog>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEAStrategyCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEAStrategyCatalogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEAStrategyCatalog>>> = ({ signal }) => getEAStrategyCatalog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEAStrategyCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEAStrategyCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof getEAStrategyCatalog>>>
+export type GetEAStrategyCatalogQueryError = ErrorType<unknown>
+
+
+
+export function useGetEAStrategyCatalog<TData = Awaited<ReturnType<typeof getEAStrategyCatalog>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEAStrategyCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEAStrategyCatalogQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSubscribeToEAStrategyUrl = (catalogId: number,) => {
+
+
+
+
+  return `/api/ea-strategies/catalog/${catalogId}/subscribe`
+}
+
+export const subscribeToEAStrategy = async (catalogId: number,
+    eASubscribeInput: EASubscribeInput, options?: RequestInit): Promise<EASubscription> => {
+
+  return customFetch<EASubscription>(getSubscribeToEAStrategyUrl(catalogId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      eASubscribeInput,)
+  }
+);}
+
+
+
+
+export const getSubscribeToEAStrategyMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subscribeToEAStrategy>>, TError,{catalogId: number;data: BodyType<EASubscribeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof subscribeToEAStrategy>>, TError,{catalogId: number;data: BodyType<EASubscribeInput>}, TContext> => {
+
+const mutationKey = ['subscribeToEAStrategy'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof subscribeToEAStrategy>>, {catalogId: number;data: BodyType<EASubscribeInput>}> = (props) => {
+          const {catalogId,data} = props ?? {};
+
+          return  subscribeToEAStrategy(catalogId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubscribeToEAStrategyMutationResult = NonNullable<Awaited<ReturnType<typeof subscribeToEAStrategy>>>
+    export type SubscribeToEAStrategyMutationBody = BodyType<EASubscribeInput>
+    export type SubscribeToEAStrategyMutationError = ErrorType<unknown>
+
+    export const useSubscribeToEAStrategy = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subscribeToEAStrategy>>, TError,{catalogId: number;data: BodyType<EASubscribeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof subscribeToEAStrategy>>,
+        TError,
+        {catalogId: number;data: BodyType<EASubscribeInput>},
+        TContext
+      > => {
+      return useMutation(getSubscribeToEAStrategyMutationOptions(options));
+    }
+
+export const getGetMyEASubscriptionsUrl = () => {
+
+
+
+
+  return `/api/ea-strategies/subscriptions/my`
+}
+
+export const getMyEASubscriptions = async ( options?: RequestInit): Promise<EASubscription[]> => {
+
+  return customFetch<EASubscription[]>(getGetMyEASubscriptionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyEASubscriptionsQueryKey = () => {
+    return [
+    `/api/ea-strategies/subscriptions/my`
+    ] as const;
+    }
+
+
+export const getGetMyEASubscriptionsQueryOptions = <TData = Awaited<ReturnType<typeof getMyEASubscriptions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyEASubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyEASubscriptionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyEASubscriptions>>> = ({ signal }) => getMyEASubscriptions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyEASubscriptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyEASubscriptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyEASubscriptions>>>
+export type GetMyEASubscriptionsQueryError = ErrorType<unknown>
+
+
+
+export function useGetMyEASubscriptions<TData = Awaited<ReturnType<typeof getMyEASubscriptions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyEASubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyEASubscriptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDownloadEAStrategyUrl = (id: number,) => {
+
+
+
+
+  return `/api/ea-strategies/subscriptions/${id}/download`
+}
+
+export const downloadEAStrategy = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadEAStrategyUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadEAStrategyQueryKey = (id: number,) => {
+    return [
+    `/api/ea-strategies/subscriptions/${id}/download`
+    ] as const;
+    }
+
+
+export const getDownloadEAStrategyQueryOptions = <TData = Awaited<ReturnType<typeof downloadEAStrategy>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadEAStrategy>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadEAStrategyQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadEAStrategy>>> = ({ signal }) => downloadEAStrategy(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadEAStrategy>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadEAStrategyQueryResult = NonNullable<Awaited<ReturnType<typeof downloadEAStrategy>>>
+export type DownloadEAStrategyQueryError = ErrorType<unknown>
+
+
+
+export function useDownloadEAStrategy<TData = Awaited<ReturnType<typeof downloadEAStrategy>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadEAStrategy>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadEAStrategyQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSubmitMt5RequestUrl = () => {
+
+
+
+
+  return `/api/mt5-relay`
+}
+
+export const submitMt5Request = async (mt5RelayInput: Mt5RelayInput, options?: RequestInit): Promise<Mt5RelayRequest> => {
+
+  return customFetch<Mt5RelayRequest>(getSubmitMt5RequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mt5RelayInput,)
+  }
+);}
+
+
+
+
+export const getSubmitMt5RequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitMt5Request>>, TError,{data: BodyType<Mt5RelayInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitMt5Request>>, TError,{data: BodyType<Mt5RelayInput>}, TContext> => {
+
+const mutationKey = ['submitMt5Request'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitMt5Request>>, {data: BodyType<Mt5RelayInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitMt5Request(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitMt5RequestMutationResult = NonNullable<Awaited<ReturnType<typeof submitMt5Request>>>
+    export type SubmitMt5RequestMutationBody = BodyType<Mt5RelayInput>
+    export type SubmitMt5RequestMutationError = ErrorType<unknown>
+
+    export const useSubmitMt5Request = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitMt5Request>>, TError,{data: BodyType<Mt5RelayInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitMt5Request>>,
+        TError,
+        {data: BodyType<Mt5RelayInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitMt5RequestMutationOptions(options));
+    }
+
+export const getGetMyMt5RequestsUrl = () => {
+
+
+
+
+  return `/api/mt5-relay`
+}
+
+export const getMyMt5Requests = async ( options?: RequestInit): Promise<Mt5RelayRequest[]> => {
+
+  return customFetch<Mt5RelayRequest[]>(getGetMyMt5RequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyMt5RequestsQueryKey = () => {
+    return [
+    `/api/mt5-relay`
+    ] as const;
+    }
+
+
+export const getGetMyMt5RequestsQueryOptions = <TData = Awaited<ReturnType<typeof getMyMt5Requests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyMt5Requests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyMt5RequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyMt5Requests>>> = ({ signal }) => getMyMt5Requests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyMt5Requests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyMt5RequestsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyMt5Requests>>>
+export type GetMyMt5RequestsQueryError = ErrorType<unknown>
+
+
+
+export function useGetMyMt5Requests<TData = Awaited<ReturnType<typeof getMyMt5Requests>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyMt5Requests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyMt5RequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSuperAdminStatsUrl = () => {
+
+
+
+
+  return `/api/super-admin/stats`
+}
+
+export const getSuperAdminStats = async ( options?: RequestInit): Promise<SuperAdminStats> => {
+
+  return customFetch<SuperAdminStats>(getGetSuperAdminStatsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSuperAdminStatsQueryKey = () => {
+    return [
+    `/api/super-admin/stats`
+    ] as const;
+    }
+
+
+export const getGetSuperAdminStatsQueryOptions = <TData = Awaited<ReturnType<typeof getSuperAdminStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSuperAdminStatsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuperAdminStats>>> = ({ signal }) => getSuperAdminStats({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSuperAdminStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getSuperAdminStats>>>
+export type GetSuperAdminStatsQueryError = ErrorType<unknown>
+
+
+
+export function useGetSuperAdminStats<TData = Awaited<ReturnType<typeof getSuperAdminStats>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSuperAdminStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSuperAdminUsersUrl = () => {
+
+
+
+
+  return `/api/super-admin/users`
+}
+
+export const getSuperAdminUsers = async ( options?: RequestInit): Promise<User[]> => {
+
+  return customFetch<User[]>(getGetSuperAdminUsersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSuperAdminUsersQueryKey = () => {
+    return [
+    `/api/super-admin/users`
+    ] as const;
+    }
+
+
+export const getGetSuperAdminUsersQueryOptions = <TData = Awaited<ReturnType<typeof getSuperAdminUsers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSuperAdminUsersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuperAdminUsers>>> = ({ signal }) => getSuperAdminUsers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminUsers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSuperAdminUsersQueryResult = NonNullable<Awaited<ReturnType<typeof getSuperAdminUsers>>>
+export type GetSuperAdminUsersQueryError = ErrorType<unknown>
+
+
+
+export function useGetSuperAdminUsers<TData = Awaited<ReturnType<typeof getSuperAdminUsers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSuperAdminUsersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateUserRoleSuperAdminUrl = (id: number,) => {
+
+
+
+
+  return `/api/super-admin/users/${id}/role`
+}
+
+export const updateUserRoleSuperAdmin = async (id: number,
+    superAdminRoleInput: SuperAdminRoleInput, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getUpdateUserRoleSuperAdminUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      superAdminRoleInput,)
+  }
+);}
+
+
+
+
+export const getUpdateUserRoleSuperAdminMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserRoleSuperAdmin>>, TError,{id: number;data: BodyType<SuperAdminRoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserRoleSuperAdmin>>, TError,{id: number;data: BodyType<SuperAdminRoleInput>}, TContext> => {
+
+const mutationKey = ['updateUserRoleSuperAdmin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserRoleSuperAdmin>>, {id: number;data: BodyType<SuperAdminRoleInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateUserRoleSuperAdmin(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserRoleSuperAdminMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserRoleSuperAdmin>>>
+    export type UpdateUserRoleSuperAdminMutationBody = BodyType<SuperAdminRoleInput>
+    export type UpdateUserRoleSuperAdminMutationError = ErrorType<unknown>
+
+    export const useUpdateUserRoleSuperAdmin = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserRoleSuperAdmin>>, TError,{id: number;data: BodyType<SuperAdminRoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserRoleSuperAdmin>>,
+        TError,
+        {id: number;data: BodyType<SuperAdminRoleInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateUserRoleSuperAdminMutationOptions(options));
+    }
+
+export const getGetSuperAdminMt5RequestsUrl = () => {
+
+
+
+
+  return `/api/super-admin/mt5-requests`
+}
+
+export const getSuperAdminMt5Requests = async ( options?: RequestInit): Promise<Mt5RelayRequest[]> => {
+
+  return customFetch<Mt5RelayRequest[]>(getGetSuperAdminMt5RequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSuperAdminMt5RequestsQueryKey = () => {
+    return [
+    `/api/super-admin/mt5-requests`
+    ] as const;
+    }
+
+
+export const getGetSuperAdminMt5RequestsQueryOptions = <TData = Awaited<ReturnType<typeof getSuperAdminMt5Requests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminMt5Requests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSuperAdminMt5RequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuperAdminMt5Requests>>> = ({ signal }) => getSuperAdminMt5Requests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminMt5Requests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSuperAdminMt5RequestsQueryResult = NonNullable<Awaited<ReturnType<typeof getSuperAdminMt5Requests>>>
+export type GetSuperAdminMt5RequestsQueryError = ErrorType<unknown>
+
+
+
+export function useGetSuperAdminMt5Requests<TData = Awaited<ReturnType<typeof getSuperAdminMt5Requests>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminMt5Requests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSuperAdminMt5RequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getForwardMt5RequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/super-admin/mt5-requests/${id}/forward`
+}
+
+export const forwardMt5Request = async (id: number, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getForwardMt5RequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getForwardMt5RequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof forwardMt5Request>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof forwardMt5Request>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['forwardMt5Request'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof forwardMt5Request>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  forwardMt5Request(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ForwardMt5RequestMutationResult = NonNullable<Awaited<ReturnType<typeof forwardMt5Request>>>
+
+    export type ForwardMt5RequestMutationError = ErrorType<unknown>
+
+    export const useForwardMt5Request = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof forwardMt5Request>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof forwardMt5Request>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getForwardMt5RequestMutationOptions(options));
+    }
+
+export const getUpdateMt5RequestStatusUrl = (id: number,) => {
+
+
+
+
+  return `/api/super-admin/mt5-requests/${id}/status`
+}
+
+export const updateMt5RequestStatus = async (id: number,
+    mt5RequestStatusInput: Mt5RequestStatusInput, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getUpdateMt5RequestStatusUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mt5RequestStatusInput,)
+  }
+);}
+
+
+
+
+export const getUpdateMt5RequestStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMt5RequestStatus>>, TError,{id: number;data: BodyType<Mt5RequestStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMt5RequestStatus>>, TError,{id: number;data: BodyType<Mt5RequestStatusInput>}, TContext> => {
+
+const mutationKey = ['updateMt5RequestStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMt5RequestStatus>>, {id: number;data: BodyType<Mt5RequestStatusInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateMt5RequestStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMt5RequestStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateMt5RequestStatus>>>
+    export type UpdateMt5RequestStatusMutationBody = BodyType<Mt5RequestStatusInput>
+    export type UpdateMt5RequestStatusMutationError = ErrorType<unknown>
+
+    export const useUpdateMt5RequestStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMt5RequestStatus>>, TError,{id: number;data: BodyType<Mt5RequestStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMt5RequestStatus>>,
+        TError,
+        {id: number;data: BodyType<Mt5RequestStatusInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateMt5RequestStatusMutationOptions(options));
+    }
+
+export const getGetMt5EndpointUrl = () => {
+
+
+
+
+  return `/api/super-admin/settings/mt5-endpoint`
+}
+
+export const getMt5Endpoint = async ( options?: RequestInit): Promise<GetMt5Endpoint200> => {
+
+  return customFetch<GetMt5Endpoint200>(getGetMt5EndpointUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMt5EndpointQueryKey = () => {
+    return [
+    `/api/super-admin/settings/mt5-endpoint`
+    ] as const;
+    }
+
+
+export const getGetMt5EndpointQueryOptions = <TData = Awaited<ReturnType<typeof getMt5Endpoint>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMt5Endpoint>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMt5EndpointQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMt5Endpoint>>> = ({ signal }) => getMt5Endpoint({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMt5Endpoint>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMt5EndpointQueryResult = NonNullable<Awaited<ReturnType<typeof getMt5Endpoint>>>
+export type GetMt5EndpointQueryError = ErrorType<unknown>
+
+
+
+export function useGetMt5Endpoint<TData = Awaited<ReturnType<typeof getMt5Endpoint>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMt5Endpoint>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMt5EndpointQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetMt5EndpointUrl = () => {
+
+
+
+
+  return `/api/super-admin/settings/mt5-endpoint`
+}
+
+export const setMt5Endpoint = async (mt5EndpointInput: Mt5EndpointInput, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getSetMt5EndpointUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mt5EndpointInput,)
+  }
+);}
+
+
+
+
+export const getSetMt5EndpointMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMt5Endpoint>>, TError,{data: BodyType<Mt5EndpointInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMt5Endpoint>>, TError,{data: BodyType<Mt5EndpointInput>}, TContext> => {
+
+const mutationKey = ['setMt5Endpoint'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMt5Endpoint>>, {data: BodyType<Mt5EndpointInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setMt5Endpoint(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMt5EndpointMutationResult = NonNullable<Awaited<ReturnType<typeof setMt5Endpoint>>>
+    export type SetMt5EndpointMutationBody = BodyType<Mt5EndpointInput>
+    export type SetMt5EndpointMutationError = ErrorType<unknown>
+
+    export const useSetMt5Endpoint = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMt5Endpoint>>, TError,{data: BodyType<Mt5EndpointInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMt5Endpoint>>,
+        TError,
+        {data: BodyType<Mt5EndpointInput>},
+        TContext
+      > => {
+      return useMutation(getSetMt5EndpointMutationOptions(options));
+    }
+
+export const getGetSuperAdminEASubscriptionsUrl = () => {
+
+
+
+
+  return `/api/super-admin/ea-subscriptions`
+}
+
+export const getSuperAdminEASubscriptions = async ( options?: RequestInit): Promise<EASubscription[]> => {
+
+  return customFetch<EASubscription[]>(getGetSuperAdminEASubscriptionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSuperAdminEASubscriptionsQueryKey = () => {
+    return [
+    `/api/super-admin/ea-subscriptions`
+    ] as const;
+    }
+
+
+export const getGetSuperAdminEASubscriptionsQueryOptions = <TData = Awaited<ReturnType<typeof getSuperAdminEASubscriptions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminEASubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSuperAdminEASubscriptionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuperAdminEASubscriptions>>> = ({ signal }) => getSuperAdminEASubscriptions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminEASubscriptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSuperAdminEASubscriptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getSuperAdminEASubscriptions>>>
+export type GetSuperAdminEASubscriptionsQueryError = ErrorType<unknown>
+
+
+
+export function useGetSuperAdminEASubscriptions<TData = Awaited<ReturnType<typeof getSuperAdminEASubscriptions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperAdminEASubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSuperAdminEASubscriptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListTransactionsUrl = () => {
 

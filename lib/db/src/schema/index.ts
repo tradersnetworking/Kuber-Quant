@@ -13,3 +13,5 @@ export * from "./notifications";
 export * from "./referralEarnings";
 export * from "./paymentGateways";
 export * from "./siteSettings";
+export * from "./eaSubscriptions";
+export * from "./mt5Requests";
