@@ -31,7 +31,7 @@ export default function LandingPage() {
       <header className="border-b border-white/10 py-4 px-6 md:px-12 flex justify-between items-center bg-[#050A14]/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <img src={logo} alt="Kuber Quant" className="h-10 w-10 object-contain" />
-          <div className="text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent tracking-tight">
+          <div className="hidden md:block text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent tracking-tight">
             Kuber Quant
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function LandingPage() {
                       </div>
 
                       <Link href="/register">
-                        <Button className="w-full bg-white/5 hover:bg-amber-500 hover:text-black border border-white/10 group-hover:border-amber-500 transition-all">
+                        <Button className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 hover:from-amber-500 hover:to-yellow-700 text-black font-bold shadow-lg shadow-amber-500/20 transition-all">
                           Select Plan
                         </Button>
                       </Link>
