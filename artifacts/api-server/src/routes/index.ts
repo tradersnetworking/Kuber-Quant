@@ -16,6 +16,7 @@ import ticketsRouter from "./tickets";
 import notificationsRouter from "./notifications";
 import walletRouter from "./wallet";
 import managerRouter from "./manager";
+import twoFactorRouter from "./twoFactor";
 
 const router: IRouter = Router();
 
@@ -37,5 +38,6 @@ router.use("/tickets", ticketsRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/wallet", walletRouter);
 router.use("/manager", managerRouter);
+router.use("/auth/2fa", twoFactorRouter);
 
 export default router;

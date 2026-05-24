@@ -13,6 +13,20 @@ export interface MessageResponse {
   message: string;
 }
 
+export interface TwoFactorSetup {
+  secret: string;
+  otpauthUri: string;
+}
+
+export interface TwoFactorCodeInput {
+  code: string;
+}
+
+export interface TwoFactorVerifyInput {
+  tempToken: string;
+  code: string;
+}
+
 export interface RegisterInput {
   email: string;
   /** @minLength 6 */
@@ -71,6 +85,7 @@ export interface User {
   /** @nullable */
   managerId?: number | null;
   isActive?: boolean;
+  twoFactorEnabled?: boolean;
   createdAt: string;
 }
 
@@ -243,6 +258,36 @@ export const InvestmentPlanCategory = {
   elite: 'elite',
 } as const;
 
+export type InvestmentPlanPlanType = typeof InvestmentPlanPlanType[keyof typeof InvestmentPlanPlanType];
+
+
+export const InvestmentPlanPlanType = {
+  weekly: 'weekly',
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  half_yearly: 'half_yearly',
+  annual: 'annual',
+} as const;
+
+export type InvestmentPlanProfitFrequency = typeof InvestmentPlanProfitFrequency[keyof typeof InvestmentPlanProfitFrequency];
+
+
+export const InvestmentPlanProfitFrequency = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+  at_maturity: 'at_maturity',
+} as const;
+
+export type InvestmentPlanCapitalReturn = typeof InvestmentPlanCapitalReturn[keyof typeof InvestmentPlanCapitalReturn];
+
+
+export const InvestmentPlanCapitalReturn = {
+  yes: 'yes',
+  no: 'no',
+  partial: 'partial',
+} as const;
+
 export interface InvestmentPlan {
   id: number;
   name: string;
@@ -256,6 +301,16 @@ export interface InvestmentPlan {
   isActive: boolean;
   totalInvestors?: number;
   category?: InvestmentPlanCategory;
+  planType?: InvestmentPlanPlanType;
+  profitFrequency?: InvestmentPlanProfitFrequency;
+  capitalReturn?: InvestmentPlanCapitalReturn;
+  autoRenewal?: boolean;
+  earlyWithdrawalPenalty?: number;
+  features?: string[];
+  /** @nullable */
+  maxInvestors?: number | null;
+  /** @nullable */
+  createdAt?: string | null;
 }
 
 export type InvestmentPlanInputCategory = typeof InvestmentPlanInputCategory[keyof typeof InvestmentPlanInputCategory];
@@ -268,6 +323,36 @@ export const InvestmentPlanInputCategory = {
   elite: 'elite',
 } as const;
 
+export type InvestmentPlanInputPlanType = typeof InvestmentPlanInputPlanType[keyof typeof InvestmentPlanInputPlanType];
+
+
+export const InvestmentPlanInputPlanType = {
+  weekly: 'weekly',
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  half_yearly: 'half_yearly',
+  annual: 'annual',
+} as const;
+
+export type InvestmentPlanInputProfitFrequency = typeof InvestmentPlanInputProfitFrequency[keyof typeof InvestmentPlanInputProfitFrequency];
+
+
+export const InvestmentPlanInputProfitFrequency = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+  at_maturity: 'at_maturity',
+} as const;
+
+export type InvestmentPlanInputCapitalReturn = typeof InvestmentPlanInputCapitalReturn[keyof typeof InvestmentPlanInputCapitalReturn];
+
+
+export const InvestmentPlanInputCapitalReturn = {
+  yes: 'yes',
+  no: 'no',
+  partial: 'partial',
+} as const;
+
 export interface InvestmentPlanInput {
   name: string;
   description?: string;
@@ -278,6 +363,13 @@ export interface InvestmentPlanInput {
   currency: string;
   isActive?: boolean;
   category?: InvestmentPlanInputCategory;
+  planType?: InvestmentPlanInputPlanType;
+  profitFrequency?: InvestmentPlanInputProfitFrequency;
+  capitalReturn?: InvestmentPlanInputCapitalReturn;
+  autoRenewal?: boolean;
+  earlyWithdrawalPenalty?: number;
+  features?: string[];
+  maxInvestors?: number;
 }
 
 export type TradeType = typeof TradeType[keyof typeof TradeType];

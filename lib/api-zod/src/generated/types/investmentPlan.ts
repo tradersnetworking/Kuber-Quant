@@ -5,7 +5,10 @@
  * Kuber Capital Trading Platform API
  * OpenAPI spec version: 0.2.0
  */
+import type { InvestmentPlanCapitalReturn } from './investmentPlanCapitalReturn';
 import type { InvestmentPlanCategory } from './investmentPlanCategory';
+import type { InvestmentPlanPlanType } from './investmentPlanPlanType';
+import type { InvestmentPlanProfitFrequency } from './investmentPlanProfitFrequency';
 
 export interface InvestmentPlan {
   id: number;
@@ -20,4 +23,14 @@ export interface InvestmentPlan {
   isActive: boolean;
   totalInvestors?: number;
   category?: InvestmentPlanCategory;
+  planType?: InvestmentPlanPlanType;
+  profitFrequency?: InvestmentPlanProfitFrequency;
+  capitalReturn?: InvestmentPlanCapitalReturn;
+  autoRenewal?: boolean;
+  earlyWithdrawalPenalty?: number;
+  features?: string[];
+  /** @nullable */
+  maxInvestors?: number | null;
+  /** @nullable */
+  createdAt?: string | null;
 }

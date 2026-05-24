@@ -51,6 +51,7 @@ export const LoginResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "managerId": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
   "createdAt": zod.string()
 }),
   "token": zod.string()
@@ -78,7 +79,61 @@ export const GetMeResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "managerId": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
   "createdAt": zod.string()
+})
+
+
+export const TwoFactorSetupResponse = zod.object({
+  "secret": zod.string(),
+  "otpauthUri": zod.string()
+})
+
+
+export const TwoFactorEnableBody = zod.object({
+  "code": zod.string()
+})
+
+export const TwoFactorEnableResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const TwoFactorDisableBody = zod.object({
+  "code": zod.string()
+})
+
+export const TwoFactorDisableResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const TwoFactorVerifyLoginBody = zod.object({
+  "tempToken": zod.string(),
+  "code": zod.string()
+})
+
+export const TwoFactorVerifyLoginResponse = zod.object({
+  "user": zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['user', 'manager', 'admin']),
+  "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
+  "balanceFiat": zod.number().nullish(),
+  "balanceCrypto": zod.number().nullish(),
+  "totalProfit": zod.number().nullish(),
+  "referralCode": zod.string().nullish(),
+  "referralCount": zod.number().nullish(),
+  "referralEarnings": zod.number().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "managerId": zod.number().nullish(),
+  "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
+  "createdAt": zod.string()
+}),
+  "token": zod.string()
 })
 
 
@@ -391,7 +446,15 @@ export const ListPlansResponseItem = zod.object({
   "currency": zod.string(),
   "isActive": zod.boolean(),
   "totalInvestors": zod.number().optional(),
-  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional()
+  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional(),
+  "planType": zod.enum(['weekly', 'monthly', 'quarterly', 'half_yearly', 'annual']).optional(),
+  "profitFrequency": zod.enum(['daily', 'weekly', 'monthly', 'at_maturity']).optional(),
+  "capitalReturn": zod.enum(['yes', 'no', 'partial']).optional(),
+  "autoRenewal": zod.boolean().optional(),
+  "earlyWithdrawalPenalty": zod.number().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "maxInvestors": zod.number().nullish(),
+  "createdAt": zod.string().nullish()
 })
 export const ListPlansResponse = zod.array(ListPlansResponseItem)
 
@@ -411,7 +474,15 @@ export const GetPlanResponse = zod.object({
   "currency": zod.string(),
   "isActive": zod.boolean(),
   "totalInvestors": zod.number().optional(),
-  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional()
+  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional(),
+  "planType": zod.enum(['weekly', 'monthly', 'quarterly', 'half_yearly', 'annual']).optional(),
+  "profitFrequency": zod.enum(['daily', 'weekly', 'monthly', 'at_maturity']).optional(),
+  "capitalReturn": zod.enum(['yes', 'no', 'partial']).optional(),
+  "autoRenewal": zod.boolean().optional(),
+  "earlyWithdrawalPenalty": zod.number().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "maxInvestors": zod.number().nullish(),
+  "createdAt": zod.string().nullish()
 })
 
 
@@ -684,6 +755,7 @@ export const ListAdminUsersResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "managerId": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 export const ListAdminUsersResponse = zod.array(ListAdminUsersResponseItem)
@@ -709,6 +781,7 @@ export const GetAdminUserResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "managerId": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 
@@ -742,6 +815,7 @@ export const UpdateAdminUserResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "managerId": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 
@@ -896,7 +970,15 @@ export const ListAdminPlansResponseItem = zod.object({
   "currency": zod.string(),
   "isActive": zod.boolean(),
   "totalInvestors": zod.number().optional(),
-  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional()
+  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional(),
+  "planType": zod.enum(['weekly', 'monthly', 'quarterly', 'half_yearly', 'annual']).optional(),
+  "profitFrequency": zod.enum(['daily', 'weekly', 'monthly', 'at_maturity']).optional(),
+  "capitalReturn": zod.enum(['yes', 'no', 'partial']).optional(),
+  "autoRenewal": zod.boolean().optional(),
+  "earlyWithdrawalPenalty": zod.number().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "maxInvestors": zod.number().nullish(),
+  "createdAt": zod.string().nullish()
 })
 export const ListAdminPlansResponse = zod.array(ListAdminPlansResponseItem)
 
@@ -910,7 +992,14 @@ export const CreateAdminPlanBody = zod.object({
   "durationDays": zod.number(),
   "currency": zod.string(),
   "isActive": zod.boolean().optional(),
-  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional()
+  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional(),
+  "planType": zod.enum(['weekly', 'monthly', 'quarterly', 'half_yearly', 'annual']).optional(),
+  "profitFrequency": zod.enum(['daily', 'weekly', 'monthly', 'at_maturity']).optional(),
+  "capitalReturn": zod.enum(['yes', 'no', 'partial']).optional(),
+  "autoRenewal": zod.boolean().optional(),
+  "earlyWithdrawalPenalty": zod.number().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "maxInvestors": zod.number().optional()
 })
 
 
@@ -927,7 +1016,14 @@ export const UpdateAdminPlanBody = zod.object({
   "durationDays": zod.number(),
   "currency": zod.string(),
   "isActive": zod.boolean().optional(),
-  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional()
+  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional(),
+  "planType": zod.enum(['weekly', 'monthly', 'quarterly', 'half_yearly', 'annual']).optional(),
+  "profitFrequency": zod.enum(['daily', 'weekly', 'monthly', 'at_maturity']).optional(),
+  "capitalReturn": zod.enum(['yes', 'no', 'partial']).optional(),
+  "autoRenewal": zod.boolean().optional(),
+  "earlyWithdrawalPenalty": zod.number().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "maxInvestors": zod.number().optional()
 })
 
 export const UpdateAdminPlanResponse = zod.object({
@@ -941,7 +1037,15 @@ export const UpdateAdminPlanResponse = zod.object({
   "currency": zod.string(),
   "isActive": zod.boolean(),
   "totalInvestors": zod.number().optional(),
-  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional()
+  "category": zod.enum(['starter', 'growth', 'premium', 'elite']).optional(),
+  "planType": zod.enum(['weekly', 'monthly', 'quarterly', 'half_yearly', 'annual']).optional(),
+  "profitFrequency": zod.enum(['daily', 'weekly', 'monthly', 'at_maturity']).optional(),
+  "capitalReturn": zod.enum(['yes', 'no', 'partial']).optional(),
+  "autoRenewal": zod.boolean().optional(),
+  "earlyWithdrawalPenalty": zod.number().optional(),
+  "features": zod.array(zod.string()).optional(),
+  "maxInvestors": zod.number().nullish(),
+  "createdAt": zod.string().nullish()
 })
 
 
@@ -1166,6 +1270,7 @@ export const ListAdminManagersResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "managerId": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 export const ListAdminManagersResponse = zod.array(ListAdminManagersResponseItem)
@@ -1213,6 +1318,7 @@ export const ListManagerClientsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "managerId": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
+  "twoFactorEnabled": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 export const ListManagerClientsResponse = zod.array(ListManagerClientsResponseItem)

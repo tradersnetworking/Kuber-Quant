@@ -99,6 +99,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
 
+  /auth/2fa/setup:
+    post:
+      operationId: twoFactorSetup
+      tags: [auth]
+      responses:
+        "200":
+          description: 2FA setup info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TwoFactorSetup"
+
+  /auth/2fa/enable:
+    post:
+      operationId: twoFactorEnable
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFactorCodeInput"
+      responses:
+        "200":
+          description: 2FA enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/2fa/disable:
+    post:
+      operationId: twoFactorDisable
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFactorCodeInput"
+      responses:
+        "200":
+          description: 2FA disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/2fa/verify-login:
+    post:
+      operationId: twoFactorVerifyLogin
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TwoFactorVerifyInput"
+      responses:
+        "200":
+          description: Login verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -1262,6 +1328,31 @@ components:
           type: string
       required: [message]
 
+    TwoFactorSetup:
+      type: object
+      required: [secret, otpauthUri]
+      properties:
+        secret:
+          type: string
+        otpauthUri:
+          type: string
+
+    TwoFactorCodeInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+
+    TwoFactorVerifyInput:
+      type: object
+      required: [tempToken, code]
+      properties:
+        tempToken:
+          type: string
+        code:
+          type: string
+
     RegisterInput:
       type: object
       required: [email, password, fullName]
@@ -1331,6 +1422,8 @@ components:
         managerId:
           type: ["integer", "null"]
         isActive:
+          type: boolean
+        twoFactorEnabled:
           type: boolean
         createdAt:
           type: string
@@ -1487,6 +1580,27 @@ components:
         category:
           type: string
           enum: [starter, growth, premium, elite]
+        planType:
+          type: string
+          enum: [weekly, monthly, quarterly, half_yearly, annual]
+        profitFrequency:
+          type: string
+          enum: [daily, weekly, monthly, at_maturity]
+        capitalReturn:
+          type: string
+          enum: [yes, no, partial]
+        autoRenewal:
+          type: boolean
+        earlyWithdrawalPenalty:
+          type: number
+        features:
+          type: array
+          items:
+            type: string
+        maxInvestors:
+          type: ["integer", "null"]
+        createdAt:
+          type: ["string", "null"]
 
     InvestmentPlanInput:
       type: object
@@ -1511,6 +1625,25 @@ components:
         category:
           type: string
           enum: [starter, growth, premium, elite]
+        planType:
+          type: string
+          enum: [weekly, monthly, quarterly, half_yearly, annual]
+        profitFrequency:
+          type: string
+          enum: [daily, weekly, monthly, at_maturity]
+        capitalReturn:
+          type: string
+          enum: [yes, no, partial]
+        autoRenewal:
+          type: boolean
+        earlyWithdrawalPenalty:
+          type: number
+        features:
+          type: array
+          items:
+            type: string
+        maxInvestors:
+          type: integer
 
     Trade:
       type: object

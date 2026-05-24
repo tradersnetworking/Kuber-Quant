@@ -23,6 +23,10 @@ export const usersTable = pgTable("users", {
   referredBy: integer("referred_by"),
   managerId: integer("manager_id"),
   isActive: boolean("is_active").notNull().default(true),
+  // 2FA fields
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  twoFactorSecret: text("two_factor_secret"),
+  twoFactorTempSecret: text("two_factor_temp_secret"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

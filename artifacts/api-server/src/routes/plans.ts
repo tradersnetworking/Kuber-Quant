@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { db, investmentPlansTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 
-function mapPlan(p: any) {
+export function mapPlan(p: any) {
   return {
     id: p.id,
     name: p.name,
@@ -17,6 +17,14 @@ function mapPlan(p: any) {
     isActive: p.isActive,
     totalInvestors: p.totalInvestors,
     category: p.category,
+    planType: p.planType || "monthly",
+    profitFrequency: p.profitFrequency || "monthly",
+    capitalReturn: p.capitalReturn || "yes",
+    autoRenewal: p.autoRenewal || false,
+    earlyWithdrawalPenalty: Number(p.earlyWithdrawalPenalty || 0),
+    features: (() => { try { return p.features ? JSON.parse(p.features) : []; } catch { return []; } })(),
+    maxInvestors: p.maxInvestors || null,
+    createdAt: p.createdAt?.toISOString?.() || null,
   };
 }
 
@@ -36,4 +44,3 @@ router.get("/:id", async (req, res) => {
 });
 
 export default router;
-export { mapPlan };

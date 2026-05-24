@@ -33,5 +33,6 @@ export interface User {
   /** @nullable */
   managerId?: number | null;
   isActive?: boolean;
+  twoFactorEnabled?: boolean;
   createdAt: string;
 }

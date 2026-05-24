@@ -181,7 +181,8 @@ router.get("/plans", requireAuth, requireAdmin, async (_req, res) => {
 });
 
 router.post("/plans", requireAuth, requireAdmin, async (req, res) => {
-  const { name, description, minAmount, maxAmount, roiPercent, durationDays, currency, isActive, category } = req.body;
+  const { name, description, minAmount, maxAmount, roiPercent, durationDays, currency, isActive, category,
+    planType, profitFrequency, capitalReturn, autoRenewal, earlyWithdrawalPenalty, features, maxInvestors } = req.body;
   if (!name || !minAmount || !maxAmount || !roiPercent || !durationDays) {
     res.status(400).json({ error: "name, minAmount, maxAmount, roiPercent, durationDays are required" }); return;
   }
@@ -191,13 +192,21 @@ router.post("/plans", requireAuth, requireAdmin, async (req, res) => {
     roiPercent: String(roiPercent), durationDays,
     currency: currency || "USD", isActive: isActive !== false,
     category: category || "starter",
+    planType: planType || "monthly",
+    profitFrequency: profitFrequency || "monthly",
+    capitalReturn: capitalReturn || "yes",
+    autoRenewal: autoRenewal || false,
+    earlyWithdrawalPenalty: String(earlyWithdrawalPenalty || 0),
+    features: features ? JSON.stringify(features) : null,
+    maxInvestors: maxInvestors || null,
   }).returning();
   res.status(201).json(mapPlan(plan));
 });
 
 router.patch("/plans/:id", requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(String(req.params.id));
-  const { name, description, minAmount, maxAmount, roiPercent, durationDays, currency, isActive, category } = req.body;
+  const { name, description, minAmount, maxAmount, roiPercent, durationDays, currency, isActive, category,
+    planType, profitFrequency, capitalReturn, autoRenewal, earlyWithdrawalPenalty, features, maxInvestors } = req.body;
   const updates: any = {};
   if (name !== undefined) updates.name = name;
   if (description !== undefined) updates.description = description;
@@ -208,6 +217,13 @@ router.patch("/plans/:id", requireAuth, requireAdmin, async (req, res) => {
   if (currency !== undefined) updates.currency = currency;
   if (isActive !== undefined) updates.isActive = isActive;
   if (category !== undefined) updates.category = category;
+  if (planType !== undefined) updates.planType = planType;
+  if (profitFrequency !== undefined) updates.profitFrequency = profitFrequency;
+  if (capitalReturn !== undefined) updates.capitalReturn = capitalReturn;
+  if (autoRenewal !== undefined) updates.autoRenewal = autoRenewal;
+  if (earlyWithdrawalPenalty !== undefined) updates.earlyWithdrawalPenalty = String(earlyWithdrawalPenalty);
+  if (features !== undefined) updates.features = JSON.stringify(features);
+  if (maxInvestors !== undefined) updates.maxInvestors = maxInvestors;
   const [plan] = await db.update(investmentPlansTable).set(updates).where(eq(investmentPlansTable.id, id)).returning();
   if (!plan) { res.status(404).json({ error: "Plan not found" }); return; }
   res.json(mapPlan(plan));
@@ -366,7 +382,8 @@ router.get("/site-settings", requireAuth, requireAdmin, async (_req, res) => {
   const settings = await db.select().from(siteSettingsTable).orderBy(asc(siteSettingsTable.category));
   if (settings.length === 0) {
     await db.insert(siteSettingsTable).values(DEFAULT_SETTINGS);
-    return res.json(DEFAULT_SETTINGS.map(s => ({ ...s, description: s.description || null, updatedAt: new Date().toISOString() })));
+    res.json(DEFAULT_SETTINGS.map(s => ({ ...s, description: s.description || null, updatedAt: new Date().toISOString() })));
+    return;
   }
   res.json(settings.map(s => ({ ...s, description: s.description || null, updatedAt: s.updatedAt.toISOString() })));
 });

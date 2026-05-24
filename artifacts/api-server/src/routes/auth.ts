@@ -1,17 +1,19 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, signToken } from "../middlewares/auth";
 import { randomBytes } from "crypto";
 
 const router = Router();
+const JWT_SECRET = process.env.SESSION_SECRET || "kubercapital-secret-key";
 
 function generateReferralCode(): string {
-  return "KC" + randomBytes(3).toString("hex").toUpperCase();
+  return "KQ" + randomBytes(3).toString("hex").toUpperCase();
 }
 
-function mapUser(user: any) {
+export function mapUser(user: any) {
   return {
     id: user.id,
     email: user.email,
@@ -28,6 +30,7 @@ function mapUser(user: any) {
     avatarUrl: user.avatarUrl || null,
     managerId: user.managerId || null,
     isActive: user.isActive,
+    twoFactorEnabled: user.twoFactorEnabled || false,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -90,6 +93,14 @@ router.post("/login", async (req, res) => {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
+
+  // If 2FA is enabled, return temp token instead of full token
+  if (user.twoFactorEnabled && user.twoFactorSecret) {
+    const tempToken = jwt.sign({ userId: user.id }, JWT_SECRET + "-2fa-temp", { expiresIn: "5m" });
+    res.json({ requiresTwoFactor: true, tempToken });
+    return;
+  }
+
   const token = signToken({ userId: user.id, role: user.role });
   res.json({ user: mapUser(user), token });
 });
@@ -109,4 +120,3 @@ router.get("/me", requireAuth, async (req, res) => {
 });
 
 export default router;
-export { mapUser };
