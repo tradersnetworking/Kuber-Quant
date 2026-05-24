@@ -46,15 +46,34 @@ router.get("/:id", requireAuth, async (req, res) => {
 router.post("/:id/follow", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
   const traderId = parseInt(String(req.params.id));
-  const { amount, currency } = req.body;
+  const { amount, currency, mt5Login, platform, profitSharingPercent } = req.body;
   const [trader] = await db.select().from(copyTradersTable).where(eq(copyTradersTable.id, traderId)).limit(1);
   if (!trader) { res.status(404).json({ error: "Trader not found" }); return; }
+
   await db.insert(copyFollowsTable).values({
-    userId, traderId, amount: String(amount || 100), currency: currency || "USD",
+    userId, traderId,
+    amount: String(amount || 100),
+    currency: currency || "USD",
+    profitSharingPercent: profitSharingPercent || 20,
   });
   await db.update(copyTradersTable)
     .set({ followers: trader.followers + 1 })
     .where(eq(copyTradersTable.id, traderId));
+
+  // ── Optionally register slave on Trade Copier API ─────────────────────────
+  if (mt5Login) {
+    try {
+      const { registerSlave } = await import("../helpers/tradeCopier");
+      await registerSlave({
+        slaveLogin: String(mt5Login),
+        slaveName: `User #${userId}`,
+        profitSharingPercent: profitSharingPercent || 20,
+        platform: platform || "mt5",
+        details: `Following trader: ${trader.name}`,
+      });
+    } catch { /* Trade Copier API unavailable — follow still recorded locally */ }
+  }
+
   res.json({ message: "Now following trader" });
 });
 

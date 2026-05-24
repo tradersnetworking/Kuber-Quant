@@ -60,9 +60,26 @@ router.post("/mt5-requests/:id/forward", async (req, res) => {
   const [setting] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, "mt5_external_endpoint")).limit(1);
   const externalUrl = setting?.value;
 
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, request.userId)).limit(1);
+
+  // ── Call Trade Copier API for copy_trading requests ──────────────────────
+  if (request.type === "copy_trading") {
+    try {
+      const { registerSlave } = await import("../helpers/tradeCopier");
+      const platform = request.details?.match(/Platform:\s*(MT[45])/i)?.[1]?.toLowerCase() || "mt5";
+      await registerSlave({
+        slaveLogin: String(request.mt5AccountId || request.userId),
+        slaveName: user?.fullName || `User #${request.userId}`,
+        profitSharingPercent: request.profitSharingPercent ?? 20,
+        platform,
+        details: request.details || "",
+      });
+    } catch { /* Trade Copier API unavailable — continue */ }
+  }
+
+  // ── Forward to external relay endpoint if configured ─────────────────────
   if (externalUrl) {
     try {
-      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, request.userId)).limit(1);
       const payload = {
         requestId: request.id,
         type: request.type,
@@ -112,6 +129,40 @@ router.post("/settings/mt5-endpoint", async (req, res) => {
     await db.insert(siteSettingsTable).values({ key: "mt5_external_endpoint", value: endpoint, label: "MT5 External Endpoint", category: "mt5" });
   }
   res.json({ message: "MT5 external endpoint updated" });
+});
+
+// ── Trade Copier API Settings ─────────────────────────────────────────────────
+router.get("/settings/trade-copier", async (_req, res) => {
+  const { getTradeCopierConfig } = await import("../helpers/tradeCopier");
+  const cfg = await getTradeCopierConfig();
+  res.json({ ...cfg, password: cfg.password ? "••••••••" : "", apiKey: cfg.apiKey ? "••••••••" : "" });
+});
+
+router.post("/settings/trade-copier", async (req, res) => {
+  const { saveTradeCopierConfig, getTradeCopierConfig } = await import("../helpers/tradeCopier");
+  const existing = await getTradeCopierConfig();
+  const { baseUrl, authType, apiKey, username, password, masterAccountId } = req.body;
+  await saveTradeCopierConfig({
+    baseUrl: baseUrl ?? existing.baseUrl,
+    authType: authType ?? existing.authType,
+    apiKey: (apiKey && apiKey !== "••••••••") ? apiKey : existing.apiKey,
+    username: username ?? existing.username,
+    password: (password && password !== "••••••••") ? password : existing.password,
+    masterAccountId: masterAccountId ?? existing.masterAccountId,
+  });
+  res.json({ message: "Trade Copier API settings saved" });
+});
+
+router.post("/settings/trade-copier/test", async (_req, res) => {
+  const { testTradeCopierConnection } = await import("../helpers/tradeCopier");
+  const result = await testTradeCopierConnection();
+  res.json(result);
+});
+
+router.get("/settings/trade-copier/slaves", async (_req, res) => {
+  const { listSlaves } = await import("../helpers/tradeCopier");
+  const result = await listSlaves();
+  res.json(result);
 });
 
 // ── EA Subscriptions Overview ────────────────────────────────────────────────
