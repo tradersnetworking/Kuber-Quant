@@ -842,6 +842,83 @@ export interface AdminReferralStats {
   topReferrers?: AdminReferralStatsTopReferrersItem[];
 }
 
+export type PaymentGatewayType = typeof PaymentGatewayType[keyof typeof PaymentGatewayType];
+
+
+export const PaymentGatewayType = {
+  crypto: 'crypto',
+  fiat: 'fiat',
+  upi: 'upi',
+  bank: 'bank',
+} as const;
+
+export type PaymentGatewayExtraConfig = {[key: string]: string};
+
+export interface PaymentGateway {
+  id: number;
+  name: string;
+  type: PaymentGatewayType;
+  /** @nullable */
+  symbol?: string | null;
+  /** @nullable */
+  network?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  walletAddress?: string | null;
+  /** @nullable */
+  upiId?: string | null;
+  /** @nullable */
+  qrCodeUrl?: string | null;
+  minAmount?: number;
+  /** @nullable */
+  maxAmount?: number | null;
+  isEnabled: boolean;
+  sortOrder: number;
+  extraConfig?: PaymentGatewayExtraConfig;
+  createdAt: string;
+}
+
+export type PaymentGatewayInputExtraConfig = { [key: string]: unknown };
+
+export interface PaymentGatewayInput {
+  name: string;
+  type: string;
+  symbol?: string;
+  network?: string;
+  description?: string;
+  walletAddress?: string;
+  upiId?: string;
+  qrCodeUrl?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  isEnabled?: boolean;
+  sortOrder?: number;
+  extraConfig?: PaymentGatewayInputExtraConfig;
+}
+
+export interface SiteSetting {
+  key: string;
+  value: string;
+  label: string;
+  category: string;
+  /** @nullable */
+  description?: string | null;
+  updatedAt?: string;
+}
+
+/**
+ * Key-value map of settings to update
+ */
+export interface SiteSettingsUpdate {[key: string]: string}
+
+export interface CreateManagerInput {
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string;
+}
+
 export interface ManagerStats {
   totalClients: number;
   pendingTickets: number;

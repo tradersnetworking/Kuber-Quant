@@ -943,6 +943,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InvestmentPlan"
+    delete:
+      operationId: deleteAdminPlan
+      tags: [admin]
+      summary: Delete an investment plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Plan deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
 
   /admin/wallet-adjust:
     post:
@@ -1002,6 +1019,163 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminReferralStats"
+
+  /admin/payment-gateways:
+    get:
+      operationId: listPaymentGateways
+      tags: [admin]
+      summary: List all payment gateways
+      responses:
+        "200":
+          description: Payment gateways
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentGateway"
+    post:
+      operationId: createPaymentGateway
+      tags: [admin]
+      summary: Create a payment gateway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentGatewayInput"
+      responses:
+        "201":
+          description: Gateway created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentGateway"
+
+  /admin/payment-gateways/{id}:
+    patch:
+      operationId: updatePaymentGateway
+      tags: [admin]
+      summary: Update a payment gateway
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentGatewayInput"
+      responses:
+        "200":
+          description: Gateway updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentGateway"
+    delete:
+      operationId: deletePaymentGateway
+      tags: [admin]
+      summary: Delete a payment gateway
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Gateway deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /admin/site-settings:
+    get:
+      operationId: getSiteSettings
+      tags: [admin]
+      summary: Get all site settings
+      responses:
+        "200":
+          description: Site settings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SiteSetting"
+    patch:
+      operationId: updateSiteSettings
+      tags: [admin]
+      summary: Update site settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteSettingsUpdate"
+      responses:
+        "200":
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /admin/managers:
+    get:
+      operationId: listAdminManagers
+      tags: [admin]
+      summary: List all managers
+      responses:
+        "200":
+          description: Managers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createAdminManager
+      tags: [admin]
+      summary: Create a new manager account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateManagerInput"
+      responses:
+        "201":
+          description: Manager created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /admin/managers/{id}:
+    delete:
+      operationId: deleteAdminManager
+      tags: [admin]
+      summary: Demote manager to user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Manager demoted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
 
   /manager/clients:
     get:
@@ -1888,6 +2062,111 @@ components:
               earnings:
                 type: number
             required: [userId, userName, referralCount, earnings]
+
+    PaymentGateway:
+      type: object
+      required: [id, name, type, isEnabled, sortOrder, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [crypto, fiat, upi, bank]
+        symbol:
+          type: ["string", "null"]
+        network:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        walletAddress:
+          type: ["string", "null"]
+        upiId:
+          type: ["string", "null"]
+        qrCodeUrl:
+          type: ["string", "null"]
+        minAmount:
+          type: number
+        maxAmount:
+          type: ["number", "null"]
+        isEnabled:
+          type: boolean
+        sortOrder:
+          type: integer
+        extraConfig:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+
+    PaymentGatewayInput:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        symbol:
+          type: string
+        network:
+          type: string
+        description:
+          type: string
+        walletAddress:
+          type: string
+        upiId:
+          type: string
+        qrCodeUrl:
+          type: string
+        minAmount:
+          type: number
+        maxAmount:
+          type: number
+        isEnabled:
+          type: boolean
+        sortOrder:
+          type: integer
+        extraConfig:
+          type: object
+
+    SiteSetting:
+      type: object
+      required: [key, value, label, category]
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        label:
+          type: string
+        category:
+          type: string
+        description:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+
+    SiteSettingsUpdate:
+      type: object
+      description: Key-value map of settings to update
+      additionalProperties:
+        type: string
+
+    CreateManagerInput:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        fullName:
+          type: string
+        phone:
+          type: string
 
     ManagerStats:
       type: object

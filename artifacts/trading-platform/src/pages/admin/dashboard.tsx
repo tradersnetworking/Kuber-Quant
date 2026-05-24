@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
-import { Users, FileCheck, Ticket, Briefcase, LayoutGrid, ClipboardList, TrendingUp } from "lucide-react";
+import { Users, FileCheck, Ticket, Briefcase, LayoutGrid, ClipboardList, TrendingUp, CreditCard, Settings, UserCheck } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const { data: stats, isLoading } = useGetAdminStats();
@@ -12,9 +12,12 @@ export default function AdminDashboardPage() {
     { label: "Manage Users", href: "/admin/users", icon: <Users className="w-4 h-4" /> },
     { label: "KYC Queue", href: "/admin/kyc", icon: <FileCheck className="w-4 h-4" /> },
     { label: "Support Tickets", href: "/admin/tickets", icon: <Ticket className="w-4 h-4" /> },
-    { label: "Review Transactions", href: "/admin/transactions", icon: <ClipboardList className="w-4 h-4" /> },
+    { label: "Transactions", href: "/admin/transactions", icon: <ClipboardList className="w-4 h-4" /> },
     { label: "Investment Plans", href: "/admin/plans", icon: <LayoutGrid className="w-4 h-4" /> },
     { label: "Referral Stats", href: "/admin/referrals", icon: <TrendingUp className="w-4 h-4" /> },
+    { label: "Managers", href: "/admin/managers", icon: <UserCheck className="w-4 h-4" /> },
+    { label: "Payment Gateways", href: "/admin/payment-gateways", icon: <CreditCard className="w-4 h-4" /> },
+    { label: "Site Settings", href: "/admin/settings", icon: <Settings className="w-4 h-4" /> },
   ];
 
   return (
@@ -42,7 +45,7 @@ export default function AdminDashboardPage() {
 
         <div>
           <h2 className="text-xl font-semibold mb-4 text-white">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-4">
             {quickActions.map((action) => (
               <Link key={action.href} href={action.href}>
                 <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors cursor-pointer group">

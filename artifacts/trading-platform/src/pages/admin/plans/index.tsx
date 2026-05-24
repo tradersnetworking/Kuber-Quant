@@ -1,4 +1,4 @@
-import { useListAdminPlans, useCreateAdminPlan, useUpdateAdminPlan } from "@workspace/api-client-react";
+import { useListAdminPlans, useCreateAdminPlan, useUpdateAdminPlan, useDeleteAdminPlan } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2 } from "lucide-react";
+import { Plus, Edit2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,9 +25,11 @@ export default function AdminPlansPage() {
   const { data: plans, isLoading, refetch } = useListAdminPlans();
   const createMutation = useCreateAdminPlan();
   const updateMutation = useUpdateAdminPlan();
+  const deleteMutation = useDeleteAdminPlan();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -138,7 +141,7 @@ export default function AdminPlansPage() {
                     <TableRow key={plan.id} className="border-white/10 hover:bg-white/5">
                       <TableCell className="font-medium text-white">{plan.name}</TableCell>
                       <TableCell className="capitalize text-amber-400">{plan.category}</TableCell>
-                      <TableCell className="font-bold">{plan.roiPercentage}%</TableCell>
+                      <TableCell className="font-bold">{plan.roiPercent}%</TableCell>
                       <TableCell>{plan.durationDays} Days</TableCell>
                       <TableCell>
                         ${plan.minAmount} - ${plan.maxAmount}
@@ -156,9 +159,14 @@ export default function AdminPlansPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(plan)} className="text-amber-400 hover:text-amber-500 hover:bg-amber-500/10">
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(plan)} className="text-amber-400 hover:text-amber-500 hover:bg-amber-500/10">
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(plan)} className="text-red-400 hover:text-red-500 hover:bg-red-500/10">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -272,6 +280,35 @@ export default function AdminPlansPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent className="bg-card border-white/10">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Investment Plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the <span className="font-semibold text-amber-400">{deleteTarget?.name}</span> plan. Users with active investments will not be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!deleteTarget) return;
+                deleteMutation.mutate({ id: deleteTarget.id }, {
+                  onSuccess: () => {
+                    toast({ title: "Plan deleted" });
+                    setDeleteTarget(null);
+                    refetch();
+                  },
+                });
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete Plan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

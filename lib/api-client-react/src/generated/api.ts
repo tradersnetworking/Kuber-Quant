@@ -29,6 +29,7 @@ import type {
   ChartPoint,
   CopyTradeInput,
   CopyTrader,
+  CreateManagerInput,
   DashboardSummary,
   EAStrategy,
   EAStrategyInput,
@@ -46,9 +47,13 @@ import type {
   Mt5Account,
   Mt5AccountInput,
   Notification,
+  PaymentGateway,
+  PaymentGatewayInput,
   ReferralEarning,
   ReferralStats,
   RegisterInput,
+  SiteSetting,
+  SiteSettingsUpdate,
   StrategySubscription,
   Ticket,
   TicketInput,
@@ -3977,6 +3982,76 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getUpdateAdminPlanMutationOptions(options));
     }
 
+export const getDeleteAdminPlanUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/plans/${id}`
+}
+
+/**
+ * @summary Delete an investment plan
+ */
+export const deleteAdminPlan = async (id: number, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteAdminPlanUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAdminPlanMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPlan>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPlan>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAdminPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminPlan>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAdminPlan(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminPlanMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminPlan>>>
+
+    export type DeleteAdminPlanMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete an investment plan
+ */
+export const useDeleteAdminPlan = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPlan>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminPlan>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAdminPlanMutationOptions(options));
+    }
+
 export const getAdminWalletAdjustUrl = () => {
 
 
@@ -4260,6 +4335,662 @@ export function useGetAdminReferralStats<TData = Awaited<ReturnType<typeof getAd
 
 
 
+
+export const getListPaymentGatewaysUrl = () => {
+
+
+
+
+  return `/api/admin/payment-gateways`
+}
+
+/**
+ * @summary List all payment gateways
+ */
+export const listPaymentGateways = async ( options?: RequestInit): Promise<PaymentGateway[]> => {
+
+  return customFetch<PaymentGateway[]>(getListPaymentGatewaysUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPaymentGatewaysQueryKey = () => {
+    return [
+    `/api/admin/payment-gateways`
+    ] as const;
+    }
+
+
+export const getListPaymentGatewaysQueryOptions = <TData = Awaited<ReturnType<typeof listPaymentGateways>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentGateways>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPaymentGatewaysQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPaymentGateways>>> = ({ signal }) => listPaymentGateways({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPaymentGateways>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPaymentGatewaysQueryResult = NonNullable<Awaited<ReturnType<typeof listPaymentGateways>>>
+export type ListPaymentGatewaysQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all payment gateways
+ */
+
+export function useListPaymentGateways<TData = Awaited<ReturnType<typeof listPaymentGateways>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentGateways>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPaymentGatewaysQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreatePaymentGatewayUrl = () => {
+
+
+
+
+  return `/api/admin/payment-gateways`
+}
+
+/**
+ * @summary Create a payment gateway
+ */
+export const createPaymentGateway = async (paymentGatewayInput: PaymentGatewayInput, options?: RequestInit): Promise<PaymentGateway> => {
+
+  return customFetch<PaymentGateway>(getCreatePaymentGatewayUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      paymentGatewayInput,)
+  }
+);}
+
+
+
+
+export const getCreatePaymentGatewayMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentGateway>>, TError,{data: BodyType<PaymentGatewayInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPaymentGateway>>, TError,{data: BodyType<PaymentGatewayInput>}, TContext> => {
+
+const mutationKey = ['createPaymentGateway'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPaymentGateway>>, {data: BodyType<PaymentGatewayInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPaymentGateway(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaymentGatewayMutationResult = NonNullable<Awaited<ReturnType<typeof createPaymentGateway>>>
+    export type CreatePaymentGatewayMutationBody = BodyType<PaymentGatewayInput>
+    export type CreatePaymentGatewayMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a payment gateway
+ */
+export const useCreatePaymentGateway = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentGateway>>, TError,{data: BodyType<PaymentGatewayInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPaymentGateway>>,
+        TError,
+        {data: BodyType<PaymentGatewayInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePaymentGatewayMutationOptions(options));
+    }
+
+export const getUpdatePaymentGatewayUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/payment-gateways/${id}`
+}
+
+/**
+ * @summary Update a payment gateway
+ */
+export const updatePaymentGateway = async (id: number,
+    paymentGatewayInput: PaymentGatewayInput, options?: RequestInit): Promise<PaymentGateway> => {
+
+  return customFetch<PaymentGateway>(getUpdatePaymentGatewayUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      paymentGatewayInput,)
+  }
+);}
+
+
+
+
+export const getUpdatePaymentGatewayMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePaymentGateway>>, TError,{id: number;data: BodyType<PaymentGatewayInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePaymentGateway>>, TError,{id: number;data: BodyType<PaymentGatewayInput>}, TContext> => {
+
+const mutationKey = ['updatePaymentGateway'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePaymentGateway>>, {id: number;data: BodyType<PaymentGatewayInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePaymentGateway(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePaymentGatewayMutationResult = NonNullable<Awaited<ReturnType<typeof updatePaymentGateway>>>
+    export type UpdatePaymentGatewayMutationBody = BodyType<PaymentGatewayInput>
+    export type UpdatePaymentGatewayMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a payment gateway
+ */
+export const useUpdatePaymentGateway = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePaymentGateway>>, TError,{id: number;data: BodyType<PaymentGatewayInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePaymentGateway>>,
+        TError,
+        {id: number;data: BodyType<PaymentGatewayInput>},
+        TContext
+      > => {
+      return useMutation(getUpdatePaymentGatewayMutationOptions(options));
+    }
+
+export const getDeletePaymentGatewayUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/payment-gateways/${id}`
+}
+
+/**
+ * @summary Delete a payment gateway
+ */
+export const deletePaymentGateway = async (id: number, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeletePaymentGatewayUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeletePaymentGatewayMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePaymentGateway>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePaymentGateway>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deletePaymentGateway'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePaymentGateway>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePaymentGateway(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePaymentGatewayMutationResult = NonNullable<Awaited<ReturnType<typeof deletePaymentGateway>>>
+
+    export type DeletePaymentGatewayMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a payment gateway
+ */
+export const useDeletePaymentGateway = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePaymentGateway>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePaymentGateway>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeletePaymentGatewayMutationOptions(options));
+    }
+
+export const getGetSiteSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/site-settings`
+}
+
+/**
+ * @summary Get all site settings
+ */
+export const getSiteSettings = async ( options?: RequestInit): Promise<SiteSetting[]> => {
+
+  return customFetch<SiteSetting[]>(getGetSiteSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSiteSettingsQueryKey = () => {
+    return [
+    `/api/admin/site-settings`
+    ] as const;
+    }
+
+
+export const getGetSiteSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSiteSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSiteSettings>>> = ({ signal }) => getSiteSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSiteSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getSiteSettings>>>
+export type GetSiteSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get all site settings
+ */
+
+export function useGetSiteSettings<TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSiteSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateSiteSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/site-settings`
+}
+
+/**
+ * @summary Update site settings
+ */
+export const updateSiteSettings = async (siteSettingsUpdate: SiteSettingsUpdate, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getUpdateSiteSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      siteSettingsUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateSiteSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSiteSettings>>, TError,{data: BodyType<SiteSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSiteSettings>>, TError,{data: BodyType<SiteSettingsUpdate>}, TContext> => {
+
+const mutationKey = ['updateSiteSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSiteSettings>>, {data: BodyType<SiteSettingsUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateSiteSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSiteSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateSiteSettings>>>
+    export type UpdateSiteSettingsMutationBody = BodyType<SiteSettingsUpdate>
+    export type UpdateSiteSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update site settings
+ */
+export const useUpdateSiteSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSiteSettings>>, TError,{data: BodyType<SiteSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSiteSettings>>,
+        TError,
+        {data: BodyType<SiteSettingsUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateSiteSettingsMutationOptions(options));
+    }
+
+export const getListAdminManagersUrl = () => {
+
+
+
+
+  return `/api/admin/managers`
+}
+
+/**
+ * @summary List all managers
+ */
+export const listAdminManagers = async ( options?: RequestInit): Promise<User[]> => {
+
+  return customFetch<User[]>(getListAdminManagersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminManagersQueryKey = () => {
+    return [
+    `/api/admin/managers`
+    ] as const;
+    }
+
+
+export const getListAdminManagersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminManagers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminManagers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminManagersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminManagers>>> = ({ signal }) => listAdminManagers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminManagers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminManagersQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminManagers>>>
+export type ListAdminManagersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all managers
+ */
+
+export function useListAdminManagers<TData = Awaited<ReturnType<typeof listAdminManagers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminManagers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminManagersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateAdminManagerUrl = () => {
+
+
+
+
+  return `/api/admin/managers`
+}
+
+/**
+ * @summary Create a new manager account
+ */
+export const createAdminManager = async (createManagerInput: CreateManagerInput, options?: RequestInit): Promise<User> => {
+
+  return customFetch<User>(getCreateAdminManagerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createManagerInput,)
+  }
+);}
+
+
+
+
+export const getCreateAdminManagerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminManager>>, TError,{data: BodyType<CreateManagerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminManager>>, TError,{data: BodyType<CreateManagerInput>}, TContext> => {
+
+const mutationKey = ['createAdminManager'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminManager>>, {data: BodyType<CreateManagerInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminManager(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminManagerMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminManager>>>
+    export type CreateAdminManagerMutationBody = BodyType<CreateManagerInput>
+    export type CreateAdminManagerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new manager account
+ */
+export const useCreateAdminManager = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminManager>>, TError,{data: BodyType<CreateManagerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminManager>>,
+        TError,
+        {data: BodyType<CreateManagerInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAdminManagerMutationOptions(options));
+    }
+
+export const getDeleteAdminManagerUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/managers/${id}`
+}
+
+/**
+ * @summary Demote manager to user
+ */
+export const deleteAdminManager = async (id: number, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteAdminManagerUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAdminManagerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminManager>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminManager>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAdminManager'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminManager>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAdminManager(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminManagerMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminManager>>>
+
+    export type DeleteAdminManagerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Demote manager to user
+ */
+export const useDeleteAdminManager = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminManager>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminManager>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAdminManagerMutationOptions(options));
+    }
 
 export const getListManagerClientsUrl = () => {
 

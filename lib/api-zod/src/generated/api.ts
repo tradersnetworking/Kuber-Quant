@@ -946,6 +946,18 @@ export const UpdateAdminPlanResponse = zod.object({
 
 
 /**
+ * @summary Delete an investment plan
+ */
+export const DeleteAdminPlanParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAdminPlanResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
  * @summary Manually adjust a user wallet
  */
 export const AdminWalletAdjustBody = zod.object({
@@ -1007,6 +1019,178 @@ export const GetAdminReferralStatsResponse = zod.object({
   "referralCount": zod.number(),
   "earnings": zod.number()
 })).optional()
+})
+
+
+/**
+ * @summary List all payment gateways
+ */
+export const ListPaymentGatewaysResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "type": zod.enum(['crypto', 'fiat', 'upi', 'bank']),
+  "symbol": zod.string().nullish(),
+  "network": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "walletAddress": zod.string().nullish(),
+  "upiId": zod.string().nullish(),
+  "qrCodeUrl": zod.string().nullish(),
+  "minAmount": zod.number().optional(),
+  "maxAmount": zod.number().nullish(),
+  "isEnabled": zod.boolean(),
+  "sortOrder": zod.number(),
+  "extraConfig": zod.record(zod.string(), zod.string()).optional(),
+  "createdAt": zod.string()
+})
+export const ListPaymentGatewaysResponse = zod.array(ListPaymentGatewaysResponseItem)
+
+
+/**
+ * @summary Create a payment gateway
+ */
+export const CreatePaymentGatewayBody = zod.object({
+  "name": zod.string(),
+  "type": zod.string(),
+  "symbol": zod.string().optional(),
+  "network": zod.string().optional(),
+  "description": zod.string().optional(),
+  "walletAddress": zod.string().optional(),
+  "upiId": zod.string().optional(),
+  "qrCodeUrl": zod.string().optional(),
+  "minAmount": zod.number().optional(),
+  "maxAmount": zod.number().optional(),
+  "isEnabled": zod.boolean().optional(),
+  "sortOrder": zod.number().optional(),
+  "extraConfig": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
+ * @summary Update a payment gateway
+ */
+export const UpdatePaymentGatewayParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePaymentGatewayBody = zod.object({
+  "name": zod.string(),
+  "type": zod.string(),
+  "symbol": zod.string().optional(),
+  "network": zod.string().optional(),
+  "description": zod.string().optional(),
+  "walletAddress": zod.string().optional(),
+  "upiId": zod.string().optional(),
+  "qrCodeUrl": zod.string().optional(),
+  "minAmount": zod.number().optional(),
+  "maxAmount": zod.number().optional(),
+  "isEnabled": zod.boolean().optional(),
+  "sortOrder": zod.number().optional(),
+  "extraConfig": zod.object({
+
+}).passthrough().optional()
+})
+
+export const UpdatePaymentGatewayResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "type": zod.enum(['crypto', 'fiat', 'upi', 'bank']),
+  "symbol": zod.string().nullish(),
+  "network": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "walletAddress": zod.string().nullish(),
+  "upiId": zod.string().nullish(),
+  "qrCodeUrl": zod.string().nullish(),
+  "minAmount": zod.number().optional(),
+  "maxAmount": zod.number().nullish(),
+  "isEnabled": zod.boolean(),
+  "sortOrder": zod.number(),
+  "extraConfig": zod.record(zod.string(), zod.string()).optional(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a payment gateway
+ */
+export const DeletePaymentGatewayParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePaymentGatewayResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get all site settings
+ */
+export const GetSiteSettingsResponseItem = zod.object({
+  "key": zod.string(),
+  "value": zod.string(),
+  "label": zod.string(),
+  "category": zod.string(),
+  "description": zod.string().nullish(),
+  "updatedAt": zod.string().optional()
+})
+export const GetSiteSettingsResponse = zod.array(GetSiteSettingsResponseItem)
+
+
+/**
+ * @summary Update site settings
+ */
+export const UpdateSiteSettingsBody = zod.record(zod.string(), zod.string()).describe('Key-value map of settings to update')
+
+export const UpdateSiteSettingsResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List all managers
+ */
+export const ListAdminManagersResponseItem = zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['user', 'manager', 'admin']),
+  "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
+  "balanceFiat": zod.number().nullish(),
+  "balanceCrypto": zod.number().nullish(),
+  "totalProfit": zod.number().nullish(),
+  "referralCode": zod.string().nullish(),
+  "referralCount": zod.number().nullish(),
+  "referralEarnings": zod.number().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "managerId": zod.number().nullish(),
+  "isActive": zod.boolean().optional(),
+  "createdAt": zod.string()
+})
+export const ListAdminManagersResponse = zod.array(ListAdminManagersResponseItem)
+
+
+/**
+ * @summary Create a new manager account
+ */
+export const CreateAdminManagerBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string(),
+  "fullName": zod.string(),
+  "phone": zod.string().optional()
+})
+
+
+/**
+ * @summary Demote manager to user
+ */
+export const DeleteAdminManagerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAdminManagerResponse = zod.object({
+  "message": zod.string()
 })
 
 

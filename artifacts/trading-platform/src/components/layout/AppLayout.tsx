@@ -86,7 +86,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (user.role === "admin") {
-    navItems.push({ name: "Admin Panel", href: "/admin", icon: ShieldAlert, section: "Admin" });
+    navItems.push(
+      { name: "Admin Overview", href: "/admin", icon: ShieldAlert, section: "Admin" },
+      { name: "Users", href: "/admin/users", icon: Users, section: "Admin" },
+      { name: "KYC Review", href: "/admin/kyc", icon: FileCheck, section: "Admin" },
+      { name: "Transactions", href: "/admin/transactions", icon: ClipboardList, section: "Admin" },
+      { name: "Investment Plans", href: "/admin/plans", icon: TrendingUp, section: "Admin" },
+      { name: "Managers", href: "/admin/managers", icon: Users2, section: "Admin" },
+      { name: "Payment Gateways", href: "/admin/payment-gateways", icon: LineChart, section: "Admin" },
+      { name: "Support Tickets", href: "/admin/tickets", icon: Headset, section: "Admin" },
+      { name: "Referrals", href: "/admin/referrals", icon: ArrowLeftRight, section: "Admin" },
+      { name: "Site Settings", href: "/admin/settings", icon: Settings, section: "Admin" },
+    );
   }
 
   const mobileNavItems: NavItem[] = [

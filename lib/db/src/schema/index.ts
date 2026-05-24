@@ -11,3 +11,5 @@ export * from "./mt5Accounts";
 export * from "./tickets";
 export * from "./notifications";
 export * from "./referralEarnings";
+export * from "./paymentGateways";
+export * from "./siteSettings";

@@ -1,0 +1,12 @@
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+
+export const siteSettingsTable = pgTable("site_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull().default(""),
+  label: text("label").notNull(),
+  category: text("category").notNull().default("general"),
+  description: text("description"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type SiteSetting = typeof siteSettingsTable.$inferSelect;

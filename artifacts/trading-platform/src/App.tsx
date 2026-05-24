@@ -40,6 +40,9 @@ import AdminKycPage from "@/pages/admin/kyc/index";
 import AdminPlansPage from "@/pages/admin/plans/index";
 import AdminReferralsPage from "@/pages/admin/referrals/index";
 import AdminTicketsPage from "@/pages/admin/tickets/index";
+import AdminManagersPage from "@/pages/admin/managers/index";
+import AdminPaymentGatewaysPage from "@/pages/admin/payment-gateways/index";
+import AdminSettingsPage from "@/pages/admin/settings/index";
 
 const queryClient = new QueryClient();
 
@@ -159,6 +162,15 @@ function Router() {
       </Route>
       <Route path="/admin/tickets">
         <ProtectedRoute component={AdminTicketsPage} adminOnly />
+      </Route>
+      <Route path="/admin/managers">
+        <ProtectedRoute component={AdminManagersPage} adminOnly />
+      </Route>
+      <Route path="/admin/payment-gateways">
+        <ProtectedRoute component={AdminPaymentGatewaysPage} adminOnly />
+      </Route>
+      <Route path="/admin/settings">
+        <ProtectedRoute component={AdminSettingsPage} adminOnly />
       </Route>
 
       <Route component={NotFound} />
