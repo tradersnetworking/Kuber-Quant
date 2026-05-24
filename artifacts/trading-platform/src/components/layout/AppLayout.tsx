@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import logo from "@/assets/kuber-quant-logo.png";
+import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/use-auth";
 import { 
   LayoutDashboard, 

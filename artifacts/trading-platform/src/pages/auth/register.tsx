@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRegister } from "@workspace/api-client-react";
-import logo from "@/assets/kuber-quant-logo.png";
+import logo from "@/assets/logo.png";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import logo from "@/assets/kuber-quant-logo.png";
+import logo from "@/assets/logo.png";
 import { Cpu, Users, ArrowRightLeft, Shield, BarChart3, Globe, ChevronRight, TrendingUp, Award, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { useListPlans, type InvestmentPlan } from "@workspace/api-client-react";
