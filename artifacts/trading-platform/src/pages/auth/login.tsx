@@ -130,6 +130,11 @@ export default function LoginPage() {
                     className="bg-white/5 border-white/10 text-white focus:border-amber-500/50 h-12"
                   />
                 </div>
+                <div className="flex justify-end">
+                  <Link href="/forgot-password" className="text-xs text-amber-500 hover:text-amber-400 hover:underline transition-colors">
+                    Forgot password?
+                  </Link>
+                </div>
                 <Button
                   type="submit"
                   className="w-full h-12 bg-gradient-to-r from-amber-400 to-yellow-600 hover:from-amber-500 hover:to-yellow-700 text-black font-bold text-base shadow-lg shadow-amber-500/20"
@@ -139,11 +144,17 @@ export default function LoginPage() {
                 </Button>
               </form>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-2">
               <p className="text-sm text-zinc-400 text-center w-full">
                 Don't have an account?{" "}
                 <Link href="/register" className="text-amber-500 hover:text-amber-400 hover:underline font-semibold">
-                  Register here
+                  Create account
+                </Link>
+              </p>
+              <p className="text-xs text-zinc-600 text-center">
+                Admin or Manager?{" "}
+                <Link href="/staff-login" className="text-zinc-500 hover:text-amber-500 hover:underline transition-colors">
+                  Use staff portal →
                 </Link>
               </p>
             </CardFooter>

@@ -10,6 +10,7 @@ import LandingPage from "@/pages/landing";
 import LoginPage from "@/pages/auth/login";
 import RegisterPage from "@/pages/auth/register";
 import StaffLoginPage from "@/pages/auth/staff-login";
+import ForgotPasswordPage from "@/pages/auth/forgot-password";
 import DashboardPage from "@/pages/dashboard";
 
 import InvestmentsPage from "@/pages/investments/index";
@@ -183,6 +184,7 @@ function MainRouter() {
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/staff-login" component={StaffLoginPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/register" component={RegisterPage} />
 
       <Route path="/dashboard">
