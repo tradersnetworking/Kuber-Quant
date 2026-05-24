@@ -100,7 +100,7 @@ export default function LoginPage() {
           <Card className="w-full max-w-md border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
             <CardHeader className="space-y-1">
               <div className="flex justify-center mb-4 md:hidden">
-                <span className="text-3xl font-bold text-amber-500 tracking-tight">Kuber Capital</span>
+                <img src={logo} alt="Kuber Quant" className="h-14 w-14 object-contain" />
               </div>
               <CardTitle className="text-3xl font-bold text-center text-white">Sign In</CardTitle>
               <CardDescription className="text-center text-zinc-400">
