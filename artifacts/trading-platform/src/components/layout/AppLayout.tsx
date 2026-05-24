@@ -183,10 +183,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               {navItems.find(i => i.href === location)?.name || "Dashboard"}
             </h2>
             <div className="md:hidden flex items-center gap-2">
-              <img src={logo} alt="Kuber Quant" className="h-7 w-7 object-contain" />
-              <h1 className="text-lg font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-                Kuber Quant
-              </h1>
+              <img src={logo} alt="Kuber Quant" className="h-8 w-8 object-contain" />
             </div>
           </div>
 
@@ -222,10 +219,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
-                  <img src={logo} alt="Kuber Quant" className="h-9 w-9 object-contain" />
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-                    Kuber Quant
-                  </h1>
+                  <img src={logo} alt="Kuber Quant" className="h-10 w-10 object-contain" />
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
                   <LogOut className="h-6 w-6 rotate-180" />

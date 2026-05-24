@@ -1,0 +1,422 @@
+Create highly professional registration and onboarding forms for an Investment, Algo Trading, Copy Trading, and EA Subscription Platform.
+
+The forms must:
+
+- Be mobile responsive
+- Have step-by-step onboarding wizard
+- Include progress indicators
+- Support file uploads
+- Include validation and verification
+- Save drafts automatically
+- Support dark/light mode
+- Include tooltips and guidance
+- Include OTP verification
+- Have professional fintech UI/UX
+
+Use:
+
+- Next.js
+- React
+- Tailwind CSS
+- TypeScript
+- React Hook Form
+- Zod validation
+
+==================================================
+USER / INVESTOR REGISTRATION FORM
+
+Create a multi-step investor onboarding form.
+
+---
+
+STEP 1 — ACCOUNT CREATION
+
+Fields:
+
+- Full Name
+- Username
+- Email Address
+- Mobile Number
+- Country Code
+- Password
+- Confirm Password
+- Referral Code (optional)
+- Accept Terms & Conditions checkbox
+- Accept Risk Disclosure checkbox
+
+Features:
+
+- Email OTP verification
+- Mobile OTP verification
+- Password strength indicator
+- CAPTCHA protection
+- Duplicate account detection
+
+---
+
+STEP 2 — PERSONAL INFORMATION
+
+Fields:
+
+- Date of Birth
+- Gender
+- Nationality
+- Country
+- State
+- City
+- Full Residential Address
+- Postal/ZIP Code
+
+Features:
+
+- Address autocomplete
+- Country/state dynamic dropdowns
+
+---
+
+STEP 3 — IDENTITY & KYC VERIFICATION
+
+Fields:
+
+- PAN Card Number
+- Aadhaar Number / Passport Number
+- Tax Identification Number (optional)
+
+Uploads:
+
+- PAN Card image
+- Aadhaar front image
+- Aadhaar back image
+- Passport image (optional)
+- Selfie verification
+- Address proof
+- Signature upload
+
+Features:
+
+- OCR document scanning support
+- Image preview
+- File type validation
+- File size validation
+- Blur detection
+- Duplicate document detection
+
+---
+
+STEP 4 — BANKING DETAILS
+
+Fields:
+
+- Account Holder Name
+- Bank Name
+- Account Number
+- Confirm Account Number
+- IFSC/SWIFT Code
+- Branch Name
+- UPI ID
+
+Uploads:
+
+- Cancelled cheque/passbook image
+
+Features:
+
+- Bank verification
+- UPI validation
+- Secure encrypted storage
+
+---
+
+STEP 5 — CRYPTO WALLET DETAILS
+
+Fields:
+
+- BTC Wallet Address
+- ETH Wallet Address
+- USDT TRC20 Wallet
+- USDT ERC20 Wallet
+- USDT BEP20 Wallet
+- BNB Wallet
+- XRP Wallet
+
+Features:
+
+- Wallet address validation
+- QR scanner support
+- Copy/paste validation
+- Network validation
+
+---
+
+STEP 6 — INVESTMENT PROFILE
+
+Fields:
+
+- Occupation
+- Annual Income Range
+- Investment Experience
+- Risk Appetite
+- Preferred Investment Type
+- Source of Funds
+
+Options:
+
+- Conservative
+- Moderate
+- Aggressive
+
+---
+
+STEP 7 — TRADING SERVICES INTEREST
+
+Checkbox Options:
+
+- Investment Plans
+- Algo Trading
+- Copy Trading
+- Account Handling
+- EA Marketplace
+- Signal Services
+
+---
+
+STEP 8 — SECURITY SETTINGS
+
+Fields:
+
+- Enable 2FA
+- Google Authenticator setup
+- Security questions
+- Withdrawal PIN
+
+Features:
+
+- QR code for authenticator
+- Backup recovery codes
+
+---
+
+STEP 9 — AGREEMENTS & CONSENT
+
+Checkboxes:
+
+- Terms & Conditions
+- Privacy Policy
+- Risk Disclosure
+- AML/KYC Compliance
+- Profit Sharing Agreement
+- Electronic Signature Consent
+
+Features:
+
+- Digital signature support
+- Timestamp recording
+- IP/device logging
+
+---
+
+FINAL SUBMISSION
+
+After submission:
+
+- Generate unique Investor ID
+- Send welcome email
+- Send onboarding notifications
+- Trigger KYC review workflow
+- Generate dashboard access
+- Assign referral hierarchy
+
+==================================================
+MANAGER REGISTRATION FORM
+
+Manager onboarding must be stricter and more detailed than user registration.
+
+---
+
+STEP 1 — ACCOUNT CREATION
+
+Fields:
+
+- Full Name
+- Username
+- Official Email
+- Mobile Number
+- Password
+- Confirm Password
+
+Features:
+
+- OTP verification
+- Strong password policy
+- CAPTCHA
+
+---
+
+STEP 2 — PERSONAL INFORMATION
+
+Fields:
+
+- Date of Birth
+- Gender
+- Nationality
+- Country
+- State
+- City
+- Full Address
+
+---
+
+STEP 3 — PROFESSIONAL DETAILS
+
+Fields:
+
+- Years of Experience
+- Financial/Trading Experience
+- Specialization
+- Previous Company
+- LinkedIn Profile
+- Certifications
+
+Uploads:
+
+- Resume/CV
+- Professional certificates
+- ID proof
+
+---
+
+STEP 4 — IDENTITY VERIFICATION
+
+Fields:
+
+- PAN Number
+- Aadhaar/Passport
+- Tax ID
+
+Uploads:
+
+- Government ID
+- Selfie verification
+- Address proof
+
+---
+
+STEP 5 — BANKING DETAILS
+
+Fields:
+
+- Account Holder Name
+- Bank Name
+- Account Number
+- IFSC/SWIFT
+- UPI ID
+
+---
+
+STEP 6 — CRYPTO WALLET DETAILS
+
+Fields:
+
+- BTC Wallet
+- ETH Wallet
+- USDT Wallets
+- BNB Wallet
+
+---
+
+STEP 7 — ROLE & PERMISSIONS
+
+Fields:
+
+- Assigned Region
+- Assigned Investor Group
+- Permission Level
+- Access Scope
+
+Options:
+
+- KYC Verification
+- Deposit Verification
+- Withdrawal Verification
+- Support Management
+- Investor Management
+
+---
+
+STEP 8 — SECURITY SETTINGS
+
+Fields:
+
+- Enable mandatory 2FA
+- Security PIN
+- Device authorization
+
+Features:
+
+- IP/device tracking
+- Session restrictions
+
+---
+
+STEP 9 — AGREEMENTS
+
+Checkboxes:
+
+- NDA Agreement
+- Confidentiality Agreement
+- AML Compliance
+- Platform Policies
+- Employee/Contractor Agreement
+
+---
+
+FINAL APPROVAL WORKFLOW
+
+Manager registration workflow:
+
+1. Manager submits application
+2. Super Admin reviews
+3. Verify documents
+4. Approve/reject
+5. Assign permissions
+6. Generate manager dashboard access
+
+==================================================
+ADDITIONAL FORM FEATURES
+
+Implement:
+
+- Auto-save drafts
+- Multi-language support
+- Dynamic validation
+- Real-time error handling
+- Progress bar
+- Responsive wizard UI
+- Document preview
+- Secure uploads
+- AES encrypted sensitive data storage
+- Accessibility support
+
+==================================================
+ADMIN CONFIGURATION OPTIONS
+
+Super Admin can:
+
+- Make fields mandatory/optional
+- Enable/disable registration
+- Configure KYC requirements
+- Configure upload limits
+- Configure allowed countries
+- Configure referral rules
+- Configure approval workflow
+- Configure verification requirements
+
+Generate:
+
+- Complete frontend forms
+- Backend validation APIs
+- PostgreSQL schema
+- File upload system
+- KYC workflow
+- OTP verification system
+- Professional responsive onboarding UI

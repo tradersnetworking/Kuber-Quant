@@ -1,9 +1,10 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
+import { getStaffPortal, type StaffPortal } from "@/lib/subdomain";
 
 import LandingPage from "@/pages/landing";
 import LoginPage from "@/pages/auth/login";
@@ -47,37 +48,147 @@ import AdminSettingsPage from "@/pages/admin/settings/index";
 
 const queryClient = new QueryClient();
 
-// Protected Route wrapper
+const portal: StaffPortal = getStaffPortal();
+
+// ── Protected Route Wrapper ─────────────────────────────────────────────────
 function ProtectedRoute({ component: Component, adminOnly = false, managerOnly = false, ...rest }: any) {
   const { user } = useAuth();
-  
-  if (!user) {
-    return <Redirect to="/login" />;
-  }
-  
-  if (adminOnly && user.role !== "admin") {
-    return <Redirect to="/dashboard" />;
-  }
+  const redirectTo = portal ? "/login" : "/login";
 
+  if (!user) return <Redirect to={redirectTo} />;
+  if (adminOnly && user.role !== "admin") return <Redirect to="/dashboard" />;
   if (managerOnly && (user.role as string) !== "manager" && (user.role as string) !== "admin") {
     return <Redirect to="/dashboard" />;
   }
-  
   return <Component {...rest} />;
 }
 
-function Router() {
+// ── Staff Portal Guard ──────────────────────────────────────────────────────
+// On admin/manager/support subdomains, unauthenticated users see staff-login.
+// Regular users are rejected. Staff are sent to their dashboard.
+function StaffPortalGuard({ role }: { role: "admin" | "manager" | "support" }) {
+  const { user } = useAuth();
+
+  if (!user) return <StaffLoginPage />;
+
+  if (role === "admin" && user.role === "admin") return <Redirect to="/admin" />;
+  if (role === "manager" && ((user.role as string) === "manager" || (user.role as string) === "admin")) {
+    return <Redirect to="/manager" />;
+  }
+  if (role === "support" && ((user.role as string) === "manager" || (user.role as string) === "admin")) {
+    return <Redirect to="/manager/tickets" />;
+  }
+
+  // Wrong role — force re-login
+  return <StaffLoginPage />;
+}
+
+// ── Admin Subdomain Router ──────────────────────────────────────────────────
+function AdminPortalRouter() {
+  return (
+    <Switch>
+      <Route path="/login" component={StaffLoginPage} />
+      <Route path="/staff-login" component={StaffLoginPage} />
+      <Route path="/">
+        {() => <StaffPortalGuard role="admin" />}
+      </Route>
+      <Route path="/admin">
+        <ProtectedRoute component={AdminDashboardPage} adminOnly />
+      </Route>
+      <Route path="/admin/users">
+        <ProtectedRoute component={AdminUsersPage} adminOnly />
+      </Route>
+      <Route path="/admin/users/:id">
+        <ProtectedRoute component={AdminUserDetail} adminOnly />
+      </Route>
+      <Route path="/admin/transactions">
+        <ProtectedRoute component={AdminTransactionsPage} adminOnly />
+      </Route>
+      <Route path="/admin/kyc">
+        <ProtectedRoute component={AdminKycPage} adminOnly />
+      </Route>
+      <Route path="/admin/plans">
+        <ProtectedRoute component={AdminPlansPage} adminOnly />
+      </Route>
+      <Route path="/admin/referrals">
+        <ProtectedRoute component={AdminReferralsPage} adminOnly />
+      </Route>
+      <Route path="/admin/tickets">
+        <ProtectedRoute component={AdminTicketsPage} adminOnly />
+      </Route>
+      <Route path="/admin/managers">
+        <ProtectedRoute component={AdminManagersPage} adminOnly />
+      </Route>
+      <Route path="/admin/payment-gateways">
+        <ProtectedRoute component={AdminPaymentGatewaysPage} adminOnly />
+      </Route>
+      <Route path="/admin/settings">
+        <ProtectedRoute component={AdminSettingsPage} adminOnly />
+      </Route>
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+// ── Manager Subdomain Router ────────────────────────────────────────────────
+function ManagerPortalRouter() {
+  return (
+    <Switch>
+      <Route path="/login" component={StaffLoginPage} />
+      <Route path="/staff-login" component={StaffLoginPage} />
+      <Route path="/">
+        {() => <StaffPortalGuard role="manager" />}
+      </Route>
+      <Route path="/manager">
+        <ProtectedRoute component={ManagerDashboard} managerOnly />
+      </Route>
+      <Route path="/manager/clients">
+        <ProtectedRoute component={ManagerClients} managerOnly />
+      </Route>
+      <Route path="/manager/kyc">
+        <ProtectedRoute component={ManagerKyc} managerOnly />
+      </Route>
+      <Route path="/manager/transactions">
+        <ProtectedRoute component={ManagerTransactions} managerOnly />
+      </Route>
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+// ── Support Subdomain Router ────────────────────────────────────────────────
+function SupportPortalRouter() {
+  return (
+    <Switch>
+      <Route path="/login" component={StaffLoginPage} />
+      <Route path="/staff-login" component={StaffLoginPage} />
+      <Route path="/">
+        {() => <StaffPortalGuard role="support" />}
+      </Route>
+      <Route path="/manager">
+        <ProtectedRoute component={ManagerDashboard} managerOnly />
+      </Route>
+      <Route path="/manager/tickets">
+        <ProtectedRoute component={ManagerTransactions} managerOnly />
+      </Route>
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+// ── Main App Router ─────────────────────────────────────────────────────────
+function MainRouter() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/staff-login" component={StaffLoginPage} />
       <Route path="/register" component={RegisterPage} />
-      
+
       <Route path="/dashboard">
         <ProtectedRoute component={DashboardPage} />
       </Route>
-      
+
       {/* User Routes */}
       <Route path="/wallet">
         <ProtectedRoute component={WalletPage} />
@@ -100,7 +211,6 @@ function Router() {
       <Route path="/notifications">
         <ProtectedRoute component={NotificationsPage} />
       </Route>
-
       <Route path="/investments">
         <ProtectedRoute component={InvestmentsPage} />
       </Route>
@@ -180,13 +290,21 @@ function Router() {
   );
 }
 
+// ── Root ────────────────────────────────────────────────────────────────────
+function ActiveRouter() {
+  if (portal === "admin") return <AdminPortalRouter />;
+  if (portal === "manager") return <ManagerPortalRouter />;
+  if (portal === "support") return <SupportPortalRouter />;
+  return <MainRouter />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
+            <ActiveRouter />
           </WouterRouter>
         </AuthProvider>
         <Toaster />

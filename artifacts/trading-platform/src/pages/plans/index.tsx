@@ -83,7 +83,7 @@ export default function PlansPage() {
       return;
     }
     createMutation.mutate({
-      data: { amount, planName: selectedPlan.name, type: selectedPlan.category as any, currency: "USD" }
+      data: { amount, planName: selectedPlan.name, planId: selectedPlan.id, type: "plan", currency: "USD" }
     }, {
       onSuccess: () => {
         toast({ title: "Investment Successful!", description: `You have successfully invested $${amount.toLocaleString()} in ${selectedPlan.name}` });
