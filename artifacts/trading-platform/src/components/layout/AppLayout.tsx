@@ -193,7 +193,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               {navItems.find(i => i.href === location)?.name || "Dashboard"}
             </h2>
             <div className="md:hidden flex items-center gap-2">
-              <img src={logo} alt="Kuber Quant" className="h-8 w-8 object-contain" />
+              <img src={logo} alt="Kuber Quant" className="h-10 w-10 object-contain drop-shadow-[0_0_8px_rgba(212,175,55,0.5)]" />
+              <span className="text-base font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent tracking-tight">
+                Kuber Quant
+              </span>
             </div>
           </div>
 

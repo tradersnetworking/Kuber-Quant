@@ -49,6 +49,10 @@ import AdminPaymentGatewaysPage from "@/pages/admin/payment-gateways/index";
 import AdminSettingsPage from "@/pages/admin/settings/index";
 import SuperAdminDashboard from "@/pages/super-admin/index";
 import Mt5RelayPage from "@/pages/mt5-relay/index";
+import PrivacyPolicyPage from "@/pages/legal/privacy-policy";
+import TermsOfServicePage from "@/pages/legal/terms-of-service";
+import RiskDisclosurePage from "@/pages/legal/risk-disclosure";
+import CookiePolicyPage from "@/pages/legal/cookie-policy";
 
 const queryClient = new QueryClient();
 
@@ -298,6 +302,12 @@ function MainRouter() {
       <Route path="/admin/settings">
         <ProtectedRoute component={AdminSettingsPage} adminOnly />
       </Route>
+
+      {/* Legal Pages */}
+      <Route path="/privacy-policy" component={PrivacyPolicyPage} />
+      <Route path="/terms-of-service" component={TermsOfServicePage} />
+      <Route path="/risk-disclosure" component={RiskDisclosurePage} />
+      <Route path="/cookie-policy" component={CookiePolicyPage} />
 
       <Route component={NotFound} />
     </Switch>

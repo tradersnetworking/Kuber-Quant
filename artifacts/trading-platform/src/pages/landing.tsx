@@ -302,10 +302,10 @@ export default function LandingPage() {
           <div>
             <h4 className="text-white font-bold mb-6">Legal</h4>
             <ul className="space-y-4 text-white/40">
-              <li><a href="#" className="hover:text-amber-400 transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-amber-400 transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-amber-400 transition-colors">Risk Disclosure</a></li>
-              <li><a href="#" className="hover:text-amber-400 transition-colors">Cookie Policy</a></li>
+              <li><a href="/privacy-policy" className="hover:text-amber-400 transition-colors">Privacy Policy</a></li>
+              <li><a href="/terms-of-service" className="hover:text-amber-400 transition-colors">Terms of Service</a></li>
+              <li><a href="/risk-disclosure" className="hover:text-amber-400 transition-colors">Risk Disclosure</a></li>
+              <li><a href="/cookie-policy" className="hover:text-amber-400 transition-colors">Cookie Policy</a></li>
             </ul>
           </div>
         </div>

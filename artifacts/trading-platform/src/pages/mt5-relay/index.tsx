@@ -8,11 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Users, Activity, Clock, CheckCircle, XCircle, Send, TrendingUp } from "lucide-react";
+import {
+  Users, Activity, Clock, CheckCircle, XCircle, Send,
+  TrendingUp, Briefcase, Info, Monitor, ChevronRight, Shield
+} from "lucide-react";
 
 const API_BASE = "/api";
 const getToken = () => localStorage.getItem("token");
@@ -42,13 +46,48 @@ const STATUS_ICONS: Record<string, any> = {
   completed: TrendingUp,
 };
 
+const SERVICE_FEATURES = {
+  copy_trading: {
+    icon: Users,
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20",
+    title: "Copy Trading",
+    desc: "Automatically mirror trades from our expert traders to your MT4/MT5 account in real time.",
+    features: [
+      "Real-time trade mirroring on MT4 or MT5",
+      "Choose from vetted expert signal traders",
+      "Fully automated — no manual intervention needed",
+      "Set profit-sharing terms that work for you",
+      "Stop copying any time with one click",
+    ],
+  },
+  account_handling: {
+    icon: Briefcase,
+    color: "text-purple-400",
+    bg: "bg-purple-500/10",
+    border: "border-purple-500/20",
+    title: "Account Handling",
+    desc: "Our institutional trading team manages your MT4/MT5 account using proven strategies.",
+    features: [
+      "Managed by our professional trading desk",
+      "Institutional-grade risk management",
+      "Supports both MT4 and MT5 accounts",
+      "Transparent trade logs available 24/7",
+      "Performance-based profit sharing — you only pay when you profit",
+    ],
+  },
+};
+
 export default function Mt5RelayPage() {
   const { toast } = useToast();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedService, setSelectedService] = useState<"copy_trading" | "account_handling">("copy_trading");
   const [form, setForm] = useState({
     type: "copy_trading",
+    platform: "mt5",
     mt5AccountId: "",
     profitSharingPercent: 30,
     details: "",
@@ -58,6 +97,11 @@ export default function Mt5RelayPage() {
     apiFetch("/mt5-relay/my").then(setRequests).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  function selectService(service: "copy_trading" | "account_handling") {
+    setSelectedService(service);
+    setForm(f => ({ ...f, type: service }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -65,62 +109,128 @@ export default function Mt5RelayPage() {
       const payload: any = {
         type: form.type,
         profitSharingPercent: form.profitSharingPercent,
-        details: form.details || undefined,
+        details: `Platform: ${form.platform.toUpperCase()}${form.details ? " | " + form.details : ""}`,
       };
       if (form.mt5AccountId) payload.mt5AccountId = parseInt(form.mt5AccountId);
       const result = await apiFetch("/mt5-relay", { method: "POST", body: JSON.stringify(payload) });
       setRequests(r => [{ ...result }, ...r]);
-      setForm({ type: "copy_trading", mt5AccountId: "", profitSharingPercent: 30, details: "" });
-      toast({ title: "Request submitted", description: "Our team will review and contact you shortly." });
+      setForm(f => ({ ...f, mt5AccountId: "", profitSharingPercent: 30, details: "" }));
+      toast({ title: "Request submitted", description: "Our team will review and contact you within 24 hours." });
     } catch (e: any) {
       toast({ title: "Submission failed", description: e.message, variant: "destructive" });
     } finally { setSubmitting(false); }
   }
 
+  const currentService = SERVICE_FEATURES[selectedService];
+  const ServiceIcon = currentService.icon;
+
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
+        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-            MT5 Account Services
+            MT4 / MT5 Services
           </h1>
           <p className="text-muted-foreground mt-1">
-            Request copy trading or account handling services with profit-sharing arrangements.
+            Professional account services for MetaTrader 4 and MetaTrader 5. Choose copy trading or full account management with flexible profit sharing.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Service Selector Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(["copy_trading", "account_handling"] as const).map(svc => {
+            const s = SERVICE_FEATURES[svc];
+            const Icon = s.icon;
+            const isSelected = selectedService === svc;
+            return (
+              <button
+                key={svc}
+                onClick={() => selectService(svc)}
+                className={`text-left p-5 rounded-xl border-2 transition-all ${
+                  isSelected
+                    ? "border-amber-500/60 bg-amber-500/5 shadow-[0_0_20px_rgba(245,158,11,0.1)]"
+                    : "border-white/10 bg-white/5 hover:border-white/20"
+                }`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`p-2.5 rounded-lg ${s.bg} border ${s.border} shrink-0`}>
+                    <Icon className={`h-5 w-5 ${s.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className={`font-semibold ${isSelected ? "text-amber-400" : "text-white"}`}>{s.title}</h3>
+                      {isSelected && <Badge className="bg-amber-500/20 text-amber-400 text-xs">Selected</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{s.desc}</p>
+                    <ul className="mt-2 space-y-1">
+                      {s.features.slice(0, 3).map(f => (
+                        <li key={f} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${isSelected ? "text-amber-400 rotate-90" : "text-muted-foreground"}`} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Request Form */}
-          <Card className="bg-white/5 border-white/10">
+          <Card className="lg:col-span-3 bg-white/5 border-white/10">
             <CardHeader>
-              <CardTitle>Submit a Request</CardTitle>
-              <CardDescription>
-                Choose a service type and configure your profit-sharing terms. Our team will review and connect your MT5 account.
-              </CardDescription>
+              <div className="flex items-center gap-2">
+                <div className={`p-1.5 rounded-md ${currentService.bg}`}>
+                  <ServiceIcon className={`h-4 w-4 ${currentService.color}`} />
+                </div>
+                <CardTitle className="text-base">{currentService.title} — Request Form</CardTitle>
+              </div>
+              <CardDescription>Fill in your details and preferred profit-sharing terms.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Platform */}
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Service Type</Label>
-                  <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
-                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="copy_trading">
-                        <div className="flex items-center gap-2"><Users className="h-4 w-4 text-blue-400" /><span>Copy Trading</span></div>
-                      </SelectItem>
-                      <SelectItem value="account_handling">
-                        <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-purple-400" /><span>Account Handling</span></div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {form.type === "copy_trading"
-                      ? "Automatically mirror trades from our expert traders to your MT5 account."
-                      : "Our team manages your MT5 account on your behalf, applying institutional strategies."}
-                  </p>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Trading Platform</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {["mt4", "mt5"].map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, platform: p }))}
+                        className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                          form.platform === p
+                            ? "border-amber-500/60 bg-amber-500/10 text-amber-400"
+                            : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20"
+                        }`}
+                      >
+                        <Monitor className="h-4 w-4" />
+                        {p.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Profit Sharing */}
+                {/* MT5 Account ID */}
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {form.platform.toUpperCase()} Account Number (optional)
+                  </Label>
+                  <Input
+                    placeholder={`Your ${form.platform.toUpperCase()} broker account number`}
+                    value={form.mt5AccountId}
+                    onChange={e => setForm(f => ({ ...f, mt5AccountId: e.target.value }))}
+                    className="bg-white/5 border-white/10"
+                    type="number"
+                  />
+                  <p className="text-xs text-muted-foreground">You can also provide this later when our team contacts you.</p>
+                </div>
+
+                {/* Profit Sharing Slider */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">Profit Sharing</Label>
@@ -130,109 +240,136 @@ export default function Mt5RelayPage() {
                     value={[form.profitSharingPercent]}
                     onValueChange={([v]) => setForm(f => ({ ...f, profitSharingPercent: v }))}
                     min={10} max={50} step={5}
-                    className="[&>span]:bg-amber-500"
+                    className="[&_[role=slider]]:border-amber-500 [&_[role=slider]]:bg-amber-500"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>10% (Min)</span>
                     <span>50% (Max)</span>
                   </div>
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs space-y-1">
-                    <p className="text-amber-300 font-medium">Profit Sharing Breakdown</p>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">You receive</span>
-                      <span className="text-green-400 font-medium">{100 - form.profitSharingPercent}% of profits</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase mb-1">You Keep</p>
+                      <p className="text-xl font-bold text-green-400">{100 - form.profitSharingPercent}%</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Kuber Quant receives</span>
-                      <span className="text-amber-400 font-medium">{form.profitSharingPercent}% of profits</span>
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase mb-1">Kuber Quant</p>
+                      <p className="text-xl font-bold text-amber-400">{form.profitSharingPercent}%</p>
                     </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span>Performance fee applies to net profits only. No monthly fees. You keep losses — we only earn when you do.</span>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">MT5 Account ID (optional)</Label>
-                  <Input
-                    placeholder="Your MT5 account ID from the platform"
-                    value={form.mt5AccountId}
-                    onChange={e => setForm(f => ({ ...f, mt5AccountId: e.target.value }))}
-                    className="bg-white/5 border-white/10"
-                    type="number"
-                  />
-                </div>
-
+                {/* Additional Details */}
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">Additional Details</Label>
                   <Textarea
-                    placeholder="Any specific requirements, preferred trading pairs, risk level, etc."
+                    placeholder={
+                      selectedService === "copy_trading"
+                        ? "Preferred trading pairs, risk tolerance, maximum lot size, etc."
+                        : "Current account balance, preferred strategy type, risk appetite, broker name, etc."
+                    }
                     value={form.details}
                     onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
-                    className="bg-white/5 border-white/10 min-h-[80px]"
+                    className="bg-white/5 border-white/10 min-h-[90px]"
                   />
                 </div>
 
-                <Button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold h-11">
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold h-12 text-sm"
+                >
                   <Send className="h-4 w-4 mr-2" />
-                  {submitting ? "Submitting..." : "Submit Request"}
+                  {submitting ? "Submitting..." : `Submit ${currentService.title} Request`}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          {/* My Requests */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">My Requests</h2>
-            {loading ? (
-              Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-32 w-full" />)
-            ) : requests.length === 0 ? (
-              <Card className="bg-white/5 border-white/10 p-8 text-center">
-                <Activity className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">No requests yet. Submit your first request to get started.</p>
-              </Card>
-            ) : requests.map(r => {
-              const StatusIcon = STATUS_ICONS[r.status] || Clock;
-              return (
-                <Card key={r.id} className="bg-white/5 border-white/10">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {r.type === "copy_trading"
-                          ? <Users className="h-4 w-4 text-blue-400" />
-                          : <Activity className="h-4 w-4 text-purple-400" />}
-                        <span className="font-medium text-sm">
-                          {r.type === "copy_trading" ? "Copy Trading" : "Account Handling"}
-                        </span>
-                      </div>
-                      <Badge className={`text-xs flex items-center gap-1 ${STATUS_COLORS[r.status] || "bg-gray-500/20 text-gray-400"}`}>
-                        <StatusIcon className="h-3 w-3" />
-                        {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
-                      </Badge>
+          {/* Right Column */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* How it Works */}
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-amber-400" />
+                  How It Works
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { step: "1", title: "Submit Request", desc: "Choose your service and fill in your preferences." },
+                  { step: "2", title: "Team Review (24h)", desc: "Our trading desk reviews and contacts you to confirm details." },
+                  { step: "3", title: "Account Connected", desc: "We connect your MT4/MT5 account and begin operations." },
+                  { step: "4", title: "Track Performance", desc: "Monitor your account live via the dashboard." },
+                ].map(item => (
+                  <div key={item.step} className="flex gap-3">
+                    <div className="h-6 w-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xs font-bold shrink-0 mt-0.5">
+                      {item.step}
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-black/30 rounded-lg p-2 border border-white/5">
-                        <p className="text-[10px] text-muted-foreground uppercase">Your Share</p>
-                        <p className="text-lg font-bold text-green-400">{100 - r.profitSharingPercent}%</p>
-                      </div>
-                      <div className="bg-black/30 rounded-lg p-2 border border-white/5">
-                        <p className="text-[10px] text-muted-foreground uppercase">Platform Share</p>
-                        <p className="text-lg font-bold text-amber-400">{r.profitSharingPercent}%</p>
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.desc}</p>
                     </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
-                    {r.details && <p className="text-xs text-muted-foreground">{r.details}</p>}
-                    {r.externalResponse && (
-                      <div className="bg-white/5 rounded p-2">
-                        <p className="text-xs text-muted-foreground">Response: {r.externalResponse}</p>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Submitted {new Date(r.createdAt).toLocaleDateString()}
-                      {r.forwardedAt && ` · Forwarded ${new Date(r.forwardedAt).toLocaleDateString()}`}
-                    </p>
-                  </CardContent>
+            {/* My Requests */}
+            <div>
+              <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">My Requests</h2>
+              {loading ? (
+                Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-28 w-full mb-3" />)
+              ) : requests.length === 0 ? (
+                <Card className="bg-white/5 border-white/10 p-6 text-center">
+                  <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground text-xs">No requests yet. Submit your first request above.</p>
                 </Card>
-              );
-            })}
+              ) : requests.map(r => {
+                const StatusIcon = STATUS_ICONS[r.status] || Clock;
+                const isCopyTrading = r.type === "copy_trading";
+                return (
+                  <Card key={r.id} className="bg-white/5 border-white/10 mb-3">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isCopyTrading
+                            ? <Users className="h-4 w-4 text-blue-400" />
+                            : <Briefcase className="h-4 w-4 text-purple-400" />}
+                          <span className="font-medium text-sm">
+                            {isCopyTrading ? "Copy Trading" : "Account Handling"}
+                          </span>
+                        </div>
+                        <Badge className={`text-xs flex items-center gap-1 ${STATUS_COLORS[r.status] || "bg-gray-500/20 text-gray-400"}`}>
+                          <StatusIcon className="h-3 w-3" />
+                          {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-black/30 rounded-lg p-2 border border-white/5 text-center">
+                          <p className="text-[10px] text-muted-foreground">Your Share</p>
+                          <p className="text-base font-bold text-green-400">{100 - r.profitSharingPercent}%</p>
+                        </div>
+                        <div className="bg-black/30 rounded-lg p-2 border border-white/5 text-center">
+                          <p className="text-[10px] text-muted-foreground">Platform</p>
+                          <p className="text-base font-bold text-amber-400">{r.profitSharingPercent}%</p>
+                        </div>
+                      </div>
+
+                      {r.details && <p className="text-xs text-muted-foreground line-clamp-2">{r.details}</p>}
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(r.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
