@@ -67,7 +67,7 @@
 }
 
 :root {
-  /* Default to dark theme for Kuber Capital */
+  /* Default to dark theme for Kuber Quant */
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
   --opaque-button-border-intensity: 9;

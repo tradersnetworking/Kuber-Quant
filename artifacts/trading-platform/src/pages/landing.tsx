@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import logo from "@/assets/kuber-quant-logo.png";
 import { Cpu, Users, ArrowRightLeft, Shield, BarChart3, Globe, ChevronRight, TrendingUp, Award, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { useListPlans, type InvestmentPlan } from "@workspace/api-client-react";
@@ -29,11 +30,9 @@ export default function LandingPage() {
       {/* Navigation */}
       <header className="border-b border-white/10 py-4 px-6 md:px-12 flex justify-between items-center bg-[#050A14]/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-yellow-600 rounded-lg flex items-center justify-center font-bold text-black text-xl shadow-lg shadow-amber-500/20">
-            KC
-          </div>
+          <img src={logo} alt="Kuber Quant" className="h-10 w-10 object-contain" />
           <div className="text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent tracking-tight">
-            Kuber Capital
+            Kuber Quant
           </div>
         </div>
         <div className="hidden md:flex gap-8 items-center mr-8">
@@ -256,7 +255,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-500/5 to-transparent" />
           <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
             <h2 className="text-5xl md:text-7xl font-bold mb-8 tracking-tighter">Ready to multiply your <span className="text-amber-500">wealth?</span></h2>
-            <p className="text-xl text-white/50 mb-12 max-w-2xl mx-auto">Join 10,000+ investors who trust Kuber Capital for their wealth management needs.</p>
+            <p className="text-xl text-white/50 mb-12 max-w-2xl mx-auto">Join 10,000+ investors who trust Kuber Quant for their wealth management needs.</p>
             <Link href="/register">
               <Button size="lg" className="h-16 px-12 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold text-xl rounded-full hover:scale-105 transition-all shadow-2xl shadow-amber-500/30 border-0">
                 Create Your Account Now
@@ -271,11 +270,9 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-yellow-600 rounded-md flex items-center justify-center font-bold text-black text-sm">
-                KC
-              </div>
+              <img src={logo} alt="Kuber Quant" className="h-8 w-8 object-contain" />
               <div className="text-xl font-bold text-white tracking-tight">
-                Kuber Capital
+                Kuber Quant
               </div>
             </div>
             <p className="text-white/40 max-w-sm mb-6 leading-relaxed">
@@ -314,7 +311,7 @@ export default function LandingPage() {
         </div>
         
         <div className="max-w-6xl mx-auto pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-white/30">
-          <div>&copy; {new Date().getFullYear()} Kuber Capital. All rights reserved.</div>
+          <div>&copy; {new Date().getFullYear()} Kuber Quant. All rights reserved.</div>
           <div className="flex gap-8">
             <span>Powered by Institutional Grade Algorithms</span>
           </div>

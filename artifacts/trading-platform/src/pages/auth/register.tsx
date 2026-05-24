@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRegister } from "@workspace/api-client-react";
+import logo from "@/assets/kuber-quant-logo.png";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,14 +38,14 @@ export default function RegisterPage() {
         
         <div className="relative z-10 max-w-lg">
           <div className="mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 mb-6">
-              <span className="text-black font-bold text-3xl">KC</span>
+            <div className="mb-6">
+              <img src={logo} alt="Kuber Quant" className="h-20 w-20 object-contain" />
             </div>
             <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-              Kuber <span className="text-amber-500">Capital</span>
+              Kuber <span className="text-amber-500">Quant</span>
             </h1>
             <p className="text-xl text-zinc-400 font-light leading-relaxed">
-              Join the elite circle of investors. Secure your financial future with Kuber Capital's institutional-grade trading infrastructure.
+              Join the elite circle of investors. Secure your financial future with Kuber Quant's institutional-grade trading infrastructure.
             </p>
           </div>
           
@@ -71,11 +72,11 @@ export default function RegisterPage() {
         <Card className="w-full max-w-md border-white/10 bg-white/5 backdrop-blur-md shadow-2xl my-8">
           <CardHeader className="space-y-1 pt-8">
             <div className="flex justify-center mb-6 md:hidden">
-              <div className="text-3xl font-bold text-amber-500 tracking-tight">Kuber Capital</div>
+              <div className="text-3xl font-bold text-amber-500 tracking-tight">Kuber Quant</div>
             </div>
             <CardTitle className="text-3xl font-bold text-center text-white">Create Account</CardTitle>
             <CardDescription className="text-center text-zinc-400">
-              Start your journey with Kuber Capital today
+              Start your journey with Kuber Quant today
             </CardDescription>
           </CardHeader>
           <CardContent>

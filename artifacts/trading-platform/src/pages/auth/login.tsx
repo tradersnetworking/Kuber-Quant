@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogin } from "@workspace/api-client-react";
+import logo from "@/assets/kuber-quant-logo.png";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,14 +39,14 @@ export default function LoginPage() {
         
         <div className="relative z-10 max-w-lg">
           <div className="mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 mb-6">
-              <span className="text-black font-bold text-3xl">KC</span>
+            <div className="mb-6">
+              <img src={logo} alt="Kuber Quant" className="h-20 w-20 object-contain" />
             </div>
             <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-              Kuber <span className="text-amber-500">Capital</span>
+              Kuber <span className="text-amber-500">Quant</span>
             </h1>
             <p className="text-xl text-zinc-400 font-light leading-relaxed">
-              "Where Wealth Multiplies" — Experience premium hedge-fund management and institutional-grade trading solutions.
+              "Precision. Profit. Performance." — Experience premium hedge-fund management and institutional-grade trading solutions.
             </p>
           </div>
           
@@ -67,7 +68,7 @@ export default function LoginPage() {
         <Card className="w-full max-w-md border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-6 md:hidden">
-              <div className="text-3xl font-bold text-amber-500 tracking-tight">Kuber Capital</div>
+              <div className="text-3xl font-bold text-amber-500 tracking-tight">Kuber Quant</div>
             </div>
             <CardTitle className="text-3xl font-bold text-center text-white">Sign In</CardTitle>
             <CardDescription className="text-center text-zinc-400">

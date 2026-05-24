@@ -190,7 +190,7 @@ export default function AdminManagersPage() {
                 type="email"
                 value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
-                placeholder="manager@kubercapital.com"
+                placeholder="manager@kuberquant.com"
                 className="bg-white/5 border-white/10 focus:border-amber-500"
                 required
               />

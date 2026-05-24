@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import logo from "@/assets/kuber-quant-logo.png";
 import { useAuth } from "@/hooks/use-auth";
 import { 
   LayoutDashboard, 
@@ -114,11 +115,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card/50 backdrop-blur-xl">
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center font-bold text-black text-xl">
-              KC
-            </div>
+            <img src={logo} alt="Kuber Quant" className="h-9 w-9 object-contain" />
             <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-              Kuber Capital
+              Kuber Quant
             </h1>
           </div>
         </div>
@@ -184,11 +183,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               {navItems.find(i => i.href === location)?.name || "Dashboard"}
             </h2>
             <div className="md:hidden flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center font-bold text-black text-sm">
-                KC
-              </div>
+              <img src={logo} alt="Kuber Quant" className="h-7 w-7 object-contain" />
               <h1 className="text-lg font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-                Kuber Capital
+                Kuber Quant
               </h1>
             </div>
           </div>
@@ -225,11 +222,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center font-bold text-black text-xl">
-                    KC
-                  </div>
+                  <img src={logo} alt="Kuber Quant" className="h-9 w-9 object-contain" />
                   <h1 className="text-xl font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-                    Kuber Capital
+                    Kuber Quant
                   </h1>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>

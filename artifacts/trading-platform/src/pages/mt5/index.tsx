@@ -63,7 +63,7 @@ export default function Mt5Page() {
             <DialogContent className="bg-[#050A14] border-white/10">
               <DialogHeader>
                 <DialogTitle>Link MT5 Account</DialogTitle>
-                <DialogDescription>Enter your MetaTrader 5 credentials to link with Kuber Capital.</DialogDescription>
+                <DialogDescription>Enter your MetaTrader 5 credentials to link with Kuber Quant.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-4 pt-4">
                 <div className="space-y-2">
@@ -101,7 +101,7 @@ export default function Mt5Page() {
                 <div className="p-3 bg-white/5 border border-white/10 rounded-lg flex items-start gap-2">
                    <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                     By linking your account, you authorize Kuber Capital to read your trading history and current equity for performance tracking. We will never execute trades without your explicit consent.
+                     By linking your account, you authorize Kuber Quant to read your trading history and current equity for performance tracking. We will never execute trades without your explicit consent.
                    </p>
                 </div>
                 <Button type="submit" className="w-full bg-amber-500 text-black font-bold" disabled={createMutation.isPending}>
