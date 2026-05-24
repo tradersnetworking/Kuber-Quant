@@ -261,7 +261,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </AnimatePresence>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto p-4 pb-24 md:pb-8 md:p-8 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
           <AnimatePresence mode="wait">
             <motion.div
               key={location}
