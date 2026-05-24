@@ -7,10 +7,82 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Shield, ShieldCheck, ShieldOff, Smartphone, Copy, CheckCircle, AlertTriangle, ExternalLink, Key } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, Smartphone, Copy, CheckCircle, AlertTriangle, ExternalLink, Key, Monitor, Globe, Clock, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import * as ApiHooks from "@workspace/api-client-react";
 import QRCode from "qrcode";
+
+const getToken = () => localStorage.getItem("token");
+
+function LoginHistoryCard() {
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const r = await fetch("/api/audit-logs/my-login-history", {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (r.ok) { const d = await r.json(); setHistory(d); }
+    } catch { /* ignore */ }
+    finally { setLoading(false); setLoaded(true); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-amber-400" />
+            <CardTitle className="text-base">Login History</CardTitle>
+          </div>
+          <Button size="sm" variant="ghost" onClick={load} disabled={loading}
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-white">
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+        <CardDescription>Recent sign-in activity on your account.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!loaded || loading ? (
+          <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-12 bg-white/5 animate-pulse rounded-lg" />
+          ))}</div>
+        ) : history.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No login history available.</p>
+        ) : (
+          <div className="space-y-2">
+            {history.slice(0, 10).map((h: any, i: number) => (
+              <div key={i} className={`flex items-center justify-between py-2.5 px-3 rounded-lg border ${i === 0 ? "border-amber-500/20 bg-amber-500/5" : "border-white/5 bg-white/3"}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${h.success ? "bg-green-500" : "bg-red-500"}`} />
+                  <Monitor className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs font-medium">
+                      {h.browser || "Unknown browser"} · {h.device || "Desktop"}
+                      {i === 0 && <Badge className="ml-2 text-[10px] py-0 bg-amber-500/20 text-amber-400">Current</Badge>}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{h.ipAddress || "Unknown IP"}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {h.createdAt ? new Date(h.createdAt).toLocaleString() : "—"}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function QRCodeCanvas({ uri }: { uri: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -200,6 +272,9 @@ export default function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Login History */}
+        <LoginHistoryCard />
       </div>
 
       {/* ── 2FA Setup Dialog ── */}

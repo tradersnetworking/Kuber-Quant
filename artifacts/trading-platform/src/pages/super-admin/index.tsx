@@ -12,7 +12,8 @@ import {
   Users, Shield, Activity, Globe, RefreshCw,
   Send, CheckCircle, XCircle, Clock, Zap, Key, Settings2,
   Link2, Wifi, WifiOff, Eye, EyeOff, Copy, ExternalLink,
-  Code2, Database, AlertCircle, ChevronDown, ChevronUp
+  Code2, Database, AlertCircle, ChevronDown, ChevronUp,
+  Tag, FileText, Plus, Trash2, ToggleLeft, ToggleRight, Search
 } from "lucide-react";
 import { Redirect } from "wouter";
 import {
@@ -37,6 +38,16 @@ export default function SuperAdminDashboard() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
+  function handleTabChange(tab: string) {
+    setActiveTab(tab);
+    if (tab === "promo-codes" && !promoLoaded) {
+      apiFetch("/promo-codes").then(d => { setPromoCodes(d); setPromoLoaded(true); }).catch(() => setPromoLoaded(true));
+    }
+    if (tab === "audit-logs" && !auditLoaded) {
+      apiFetch("/audit-logs?limit=100").then(d => { setAuditLogs(d); setAuditLoaded(true); }).catch(() => setAuditLoaded(true));
+    }
+  }
+
   // ── Global state ──────────────────────────────────────────────────────────
   const [mt5Endpoint, setMt5Endpoint] = useState("");
   const [endpointSaved, setEndpointSaved] = useState(false);
@@ -46,6 +57,18 @@ export default function SuperAdminDashboard() {
   const [eaSubs, setEaSubs] = useState<any[]>([]);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
+
+  // ── Promo Codes state ─────────────────────────────────────────────────────
+  const [promoCodes, setPromoCodes] = useState<any[]>([]);
+  const [promoForm, setPromoForm] = useState({ code: "", type: "percentage", discountValue: "", appliesTo: "deposit", minAmount: "", maxUses: "", expiresAt: "" });
+  const [promoLoaded, setPromoLoaded] = useState(false);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [showPromoCreate, setShowPromoCreate] = useState(false);
+
+  // ── Audit Logs state ──────────────────────────────────────────────────────
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLoaded, setAuditLoaded] = useState(false);
+  const [auditFilter, setAuditFilter] = useState("");
 
   // ── Trade Copier API state ────────────────────────────────────────────────
   const [tcConfig, setTcConfig] = useState({
@@ -235,7 +258,7 @@ export default function SuperAdminDashboard() {
           </Button>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="mt5">MT5 Relay</TabsTrigger>
@@ -247,6 +270,12 @@ export default function SuperAdminDashboard() {
               {tcIsConfigured
                 ? <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
                 : <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />}
+            </TabsTrigger>
+            <TabsTrigger value="promo-codes" className="flex items-center gap-1.5">
+              <Tag className="h-3.5 w-3.5" />Promo Codes
+            </TabsTrigger>
+            <TabsTrigger value="audit-logs" className="flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5" />Audit Logs
             </TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -788,6 +817,202 @@ export default function SuperAdminDashboard() {
                 ))}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── Promo Codes ── */}
+          <TabsContent value="promo-codes" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Promo Codes</h3>
+                <p className="text-sm text-muted-foreground">Create and manage discount codes for deposits, investments, and EA subscriptions.</p>
+              </div>
+              <Button onClick={() => { setShowPromoCreate(v => !v); }} className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold">
+                <Plus className="h-4 w-4 mr-2" />Create Code
+              </Button>
+            </div>
+
+            {showPromoCreate && (
+              <Card className="bg-white/5 border-amber-500/20">
+                <CardHeader><CardTitle className="text-base text-amber-400">New Promo Code</CardTitle></CardHeader>
+                <CardContent>
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    setPromoLoading(true);
+                    try {
+                      await apiFetch("/promo-codes", { method: "POST", body: JSON.stringify({ ...promoForm, discountValue: Number(promoForm.discountValue), minAmount: promoForm.minAmount ? Number(promoForm.minAmount) : undefined, maxUses: promoForm.maxUses ? Number(promoForm.maxUses) : undefined, expiresAt: promoForm.expiresAt || undefined }) });
+                      const d = await apiFetch("/promo-codes"); setPromoCodes(d); setPromoLoaded(true);
+                      setPromoForm({ code: "", type: "percentage", discountValue: "", appliesTo: "deposit", minAmount: "", maxUses: "", expiresAt: "" });
+                      setShowPromoCreate(false);
+                      toast({ title: "Promo code created!" });
+                    } catch (err: any) { toast({ title: "Error", description: err.message, variant: "destructive" }); }
+                    finally { setPromoLoading(false); }
+                  }} className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Code</Label>
+                      <Input required value={promoForm.code} onChange={e => setPromoForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="SAVE20" className="bg-white/5 border-white/10 uppercase" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Applies To</Label>
+                      <Select value={promoForm.appliesTo} onValueChange={v => setPromoForm(f => ({ ...f, appliesTo: v }))}>
+                        <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="deposit">Deposit</SelectItem>
+                          <SelectItem value="investment">Investment</SelectItem>
+                          <SelectItem value="ea_subscription">EA Subscription</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Discount Type</Label>
+                      <Select value={promoForm.type} onValueChange={v => setPromoForm(f => ({ ...f, type: v }))}>
+                        <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">Percentage (%)</SelectItem>
+                          <SelectItem value="fixed">Fixed ($)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Discount Value</Label>
+                      <Input required type="number" value={promoForm.discountValue} onChange={e => setPromoForm(f => ({ ...f, discountValue: e.target.value }))} placeholder={promoForm.type === "percentage" ? "20" : "50"} className="bg-white/5 border-white/10" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Min Amount ($, optional)</Label>
+                      <Input type="number" value={promoForm.minAmount} onChange={e => setPromoForm(f => ({ ...f, minAmount: e.target.value }))} placeholder="100" className="bg-white/5 border-white/10" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Max Uses (optional)</Label>
+                      <Input type="number" value={promoForm.maxUses} onChange={e => setPromoForm(f => ({ ...f, maxUses: e.target.value }))} placeholder="100" className="bg-white/5 border-white/10" />
+                    </div>
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Expiry Date (optional)</Label>
+                      <Input type="date" value={promoForm.expiresAt} onChange={e => setPromoForm(f => ({ ...f, expiresAt: e.target.value }))} className="bg-white/5 border-white/10" />
+                    </div>
+                    <div className="col-span-2 flex gap-2 pt-1">
+                      <Button type="submit" disabled={promoLoading} className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold">
+                        {promoLoading ? "Creating..." : "Create Promo Code"}
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => setShowPromoCreate(false)}>Cancel</Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card className="bg-white/5 border-white/10">
+              <CardContent className="p-0">
+                {!promoLoaded ? (
+                  <div className="p-6 space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+                ) : promoCodes.length === 0 ? (
+                  <div className="p-12 text-center text-muted-foreground">
+                    <Tag className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p>No promo codes yet. Create your first one above.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {promoCodes.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-2 w-2 rounded-full ${p.isActive ? "bg-green-500" : "bg-gray-500"}`} />
+                          <div>
+                            <p className="font-mono font-bold text-amber-400">{p.code}</p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {p.type === "percentage" ? `${p.discountValue}% off` : `$${p.discountValue} off`} · {p.appliesTo?.replace("_", " ")}
+                              {p.maxUses ? ` · ${p.usedCount}/${p.maxUses} used` : ""}
+                              {p.expiresAt ? ` · Expires ${new Date(p.expiresAt).toLocaleDateString()}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={p.isActive ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}>
+                            {p.isActive ? "Active" : "Disabled"}
+                          </Badge>
+                          <Button size="sm" variant="ghost" onClick={async () => {
+                            await apiFetch(`/promo-codes/${p.id}`, { method: "PATCH", body: JSON.stringify({ isActive: !p.isActive }) });
+                            setPromoCodes(ps => ps.map(x => x.id === p.id ? { ...x, isActive: !x.isActive } : x));
+                          }} className="h-7 w-7 p-0 text-muted-foreground hover:text-white">
+                            {p.isActive ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={async () => {
+                            if (!confirm("Delete this promo code?")) return;
+                            await apiFetch(`/promo-codes/${p.id}`, { method: "DELETE" });
+                            setPromoCodes(ps => ps.filter(x => x.id !== p.id));
+                            toast({ title: "Deleted" });
+                          }} className="h-7 w-7 p-0 text-red-500 hover:text-red-400 hover:bg-red-500/10">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── Audit Logs ── */}
+          <TabsContent value="audit-logs" className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold">Audit Logs</h3>
+              <p className="text-sm text-muted-foreground">Immutable record of all administrative and user actions.</p>
+            </div>
+
+            {!auditLoaded && (
+              <Button onClick={async () => {
+                const d = await apiFetch("/audit-logs?limit=100");
+                setAuditLogs(d); setAuditLoaded(true);
+              }} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white">
+                <FileText className="h-4 w-4 mr-2" />Load Audit Logs
+              </Button>
+            )}
+
+            {auditLoaded && (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input value={auditFilter} onChange={e => setAuditFilter(e.target.value)} placeholder="Filter by action, email, or entity..." className="bg-white/5 border-white/10 pl-10" />
+                </div>
+                <Card className="bg-white/5 border-white/10">
+                  <CardContent className="p-0">
+                    {auditLogs.length === 0 ? (
+                      <div className="p-12 text-center text-muted-foreground">
+                        <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                        <p>No audit logs yet.</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-white/5 max-h-[600px] overflow-auto">
+                        {auditLogs
+                          .filter((l: any) => !auditFilter || JSON.stringify(l).toLowerCase().includes(auditFilter.toLowerCase()))
+                          .map((l: any, i: number) => (
+                            <div key={i} className="px-4 py-3 hover:bg-white/5 transition-colors">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2 min-w-0">
+                                  <Badge className="bg-amber-500/20 text-amber-400 text-xs shrink-0 mt-0.5">{l.action}</Badge>
+                                  <div className="min-w-0">
+                                    <p className="text-xs text-muted-foreground">
+                                      {l.entityType && <span className="text-white/60">{l.entityType}</span>}
+                                      {l.entityId && <span className="text-white/40"> #{l.entityId}</span>}
+                                    </p>
+                                    {l.details && (
+                                      <p className="text-xs text-white/40 font-mono truncate max-w-sm">
+                                        {typeof l.details === "object" ? JSON.stringify(l.details) : l.details}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-xs text-muted-foreground">{l.ipAddress || "—"}</p>
+                                  <p className="text-xs text-white/40">{l.createdAt ? new Date(l.createdAt).toLocaleString() : "—"}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>

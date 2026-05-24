@@ -20,6 +20,7 @@ import TradesPage from "@/pages/trades/index";
 import AlgoTradingPage from "@/pages/algo-trading/index";
 import CopyTradingPage from "@/pages/copy-trading/index";
 import EAStrategiesPage from "@/pages/ea-strategies/index";
+import EAStrategyDetailPage from "@/pages/ea-strategies/[id]";
 import TransactionsPage from "@/pages/transactions/index";
 import SettingsPage from "@/pages/settings/index";
 
@@ -236,6 +237,9 @@ function MainRouter() {
       </Route>
       <Route path="/ea-strategies">
         <ProtectedRoute component={EAStrategiesPage} />
+      </Route>
+      <Route path="/ea-strategies/:id">
+        <ProtectedRoute component={EAStrategyDetailPage} />
       </Route>
       <Route path="/transactions">
         <ProtectedRoute component={TransactionsPage} />

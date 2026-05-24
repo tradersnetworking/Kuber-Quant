@@ -15,3 +15,7 @@ export * from "./paymentGateways";
 export * from "./siteSettings";
 export * from "./eaSubscriptions";
 export * from "./mt5Requests";
+export * from "./auditLogs";
+export * from "./roiPayouts";
+export * from "./loginHistory";
+export * from "./promoCodes";

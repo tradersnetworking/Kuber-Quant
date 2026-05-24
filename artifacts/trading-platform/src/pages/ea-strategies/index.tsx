@@ -10,7 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Cpu, Zap, Key, Clock, CheckCircle } from "lucide-react";
+import { Download, Cpu, Zap, Key, Clock, CheckCircle, ExternalLink } from "lucide-react";
+import { Link } from "wouter";
 
 const API_BASE = "/api";
 const getToken = () => localStorage.getItem("token");
@@ -205,14 +206,19 @@ export default function EAStrategiesPage() {
                           <span className="text-xl font-bold text-white">${s.priceMonthly}<span className="text-xs text-muted-foreground font-normal">/mo</span></span>
                         </div>
                       </CardContent>
-                      <CardFooter className="pt-3">
+                      <CardFooter className="pt-3 flex gap-2">
+                        <Link href={`/ea-strategies/${s.id}`} className="flex-1">
+                          <Button variant="outline" className="w-full border-white/10 hover:border-amber-500/40 hover:text-amber-400 text-xs">
+                            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />Details
+                          </Button>
+                        </Link>
                         {activeSub ? (
-                          <Button className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-semibold" onClick={() => setTab("subscriptions")}>
-                            <Download className="h-4 w-4 mr-2" />View Subscription
+                          <Button className="flex-1 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-semibold text-xs" onClick={() => setTab("subscriptions")}>
+                            <Download className="h-3.5 w-3.5 mr-1.5" />My Sub
                           </Button>
                         ) : (
-                          <Button className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-semibold hover:opacity-90" onClick={() => { setSubDialog({ open: true, strategy: s }); setSubForm({ mtAccountNumber: "", mtPlatform: "mt5", plan: "monthly" }); }}>
-                            <Zap className="h-4 w-4 mr-2" />Subscribe & Download
+                          <Button className="flex-1 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-semibold hover:opacity-90 text-xs" onClick={() => { setSubDialog({ open: true, strategy: s }); setSubForm({ mtAccountNumber: "", mtPlatform: "mt5", plan: "monthly" }); }}>
+                            <Zap className="h-3.5 w-3.5 mr-1.5" />Subscribe
                           </Button>
                         )}
                       </CardFooter>

@@ -19,6 +19,9 @@ import notificationsRouter from "./notifications";
 import walletRouter from "./wallet";
 import managerRouter from "./manager";
 import twoFactorRouter from "./twoFactor";
+import roiEngineRouter from "./roiEngine";
+import auditLogsRouter from "./auditLogs";
+import promoCodesRouter from "./promoCodes";
 
 const router: IRouter = Router();
 
@@ -43,5 +46,8 @@ router.use("/notifications", notificationsRouter);
 router.use("/wallet", walletRouter);
 router.use("/manager", managerRouter);
 router.use("/auth/2fa", twoFactorRouter);
+router.use("/roi", roiEngineRouter);
+router.use("/audit-logs", auditLogsRouter);
+router.use("/promo-codes", promoCodesRouter);
 
 export default router;

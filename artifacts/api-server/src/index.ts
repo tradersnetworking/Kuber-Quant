@@ -1,5 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import cron from "node-cron";
+import { processMaturedInvestments } from "./helpers/roiEngine";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +24,14 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // ── ROI Automation Engine — runs every hour ─────────────────────────────
+  cron.schedule("0 * * * *", async () => {
+    logger.info("ROI automation: starting cycle");
+    const result = await processMaturedInvestments();
+    if (result.processed > 0 || result.errors > 0) {
+      logger.info({ ...result }, "ROI automation: cycle complete");
+    }
+  });
+  logger.info("ROI automation engine scheduled (every hour)");
 });

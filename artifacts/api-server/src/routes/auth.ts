@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, loginHistoryTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, signToken } from "../middlewares/auth";
 import { randomBytes } from "crypto";
@@ -103,6 +103,16 @@ router.post("/login", async (req, res) => {
   }
 
   const token = signToken({ userId: user.id, role: user.role });
+
+  // Track login history
+  try {
+    const ua = req.headers["user-agent"] || "";
+    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+    const browser = ua.includes("Chrome") ? "Chrome" : ua.includes("Firefox") ? "Firefox" : ua.includes("Safari") ? "Safari" : "Other";
+    const device = ua.includes("Mobile") ? "Mobile" : "Desktop";
+    await db.insert(loginHistoryTable).values({ userId: user.id, ipAddress: ip, userAgent: ua, browser, device, success: true });
+  } catch { /* non-fatal */ }
+
   res.json({ user: mapUser(user), token });
 });
 
