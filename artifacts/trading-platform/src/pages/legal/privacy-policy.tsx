@@ -66,7 +66,7 @@ export default function PrivacyPolicyPage() {
           <li>Data portability — receive your data in a structured format</li>
           <li>Withdraw consent for optional processing at any time</li>
         </ul>
-        <p>To exercise your rights, contact us at <span className="text-amber-400">privacy@kubercapital.com</span></p>
+        <p>To exercise your rights, contact us at <span className="text-amber-400">privacy@kuberquant.com</span></p>
       </section>
 
       <section>
@@ -93,7 +93,7 @@ export default function PrivacyPolicyPage() {
       <section>
         <h2>10. Contact Us</h2>
         <p>
-          For privacy-related queries or complaints, contact our Data Protection Officer at <span className="text-amber-400">privacy@kubercapital.com</span> or via our <a href="/support" className="text-amber-400 hover:underline">Support Centre</a>.
+          For privacy-related queries or complaints, contact our Data Protection Officer at <span className="text-amber-400">privacy@kuberquant.com</span> or via our <a href="/support" className="text-amber-400 hover:underline">Support Centre</a>.
         </p>
       </section>
     </LegalLayout>

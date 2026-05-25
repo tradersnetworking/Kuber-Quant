@@ -157,7 +157,7 @@ export default function StaffLoginPage() {
                   <Label className="text-zinc-400 text-xs font-mono tracking-widest uppercase">Staff Email</Label>
                   <Input
                     type="email"
-                    placeholder="admin@kubercapital.com"
+                    placeholder="admin@kuberquant.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required

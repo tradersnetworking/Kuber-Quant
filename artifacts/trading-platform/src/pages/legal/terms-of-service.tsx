@@ -118,7 +118,7 @@ export default function TermsOfServicePage() {
       <section>
         <h2>13. Contact</h2>
         <p>
-          For questions about these Terms, contact us at <span className="text-amber-400">legal@kubercapital.com</span>.
+          For questions about these Terms, contact us at <span className="text-amber-400">legal@kuberquant.com</span>.
         </p>
       </section>
     </LegalLayout>

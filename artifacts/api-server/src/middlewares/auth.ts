@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.SESSION_SECRET || "kubercapital-secret-key";
+const JWT_SECRET = process.env.SESSION_SECRET || "kuberquant-secret-key";
 
 export interface AuthPayload {
   userId: number;

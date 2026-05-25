@@ -7,12 +7,117 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Shield, ShieldCheck, ShieldOff, Smartphone, Copy, CheckCircle, AlertTriangle, ExternalLink, Key, Monitor, Globe, Clock, RefreshCw } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, Smartphone, Copy, CheckCircle, AlertTriangle, ExternalLink, Key, Monitor, Globe, Clock, RefreshCw, Lock, Eye, EyeOff } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import * as ApiHooks from "@workspace/api-client-react";
 import QRCode from "qrcode";
 
 const getToken = () => localStorage.getItem("token");
+
+function ChangePasswordCard() {
+  const { toast } = useToast();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      toast({ title: "Password too short", description: "New password must be at least 8 characters.", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Passwords don't match", description: "New password and confirmation must match.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to change password");
+      toast({ title: "Password changed", description: "Your password has been updated successfully." });
+      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to change password.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Lock className="h-4 w-4 text-amber-400" /> Change Password
+        </CardTitle>
+        <CardDescription>Update your account password. Use a strong, unique password.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Current Password</Label>
+            <div className="relative">
+              <Input
+                type={showCurrent ? "text" : "password"}
+                value={currentPassword}
+                onChange={e => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password"
+                required
+                className="bg-white/5 border-white/10 text-white placeholder:text-zinc-600 focus:border-amber-500/50 pr-10"
+              />
+              <button type="button" onClick={() => setShowCurrent(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">New Password</Label>
+            <div className="relative">
+              <Input
+                type={showNew ? "text" : "password"}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Min. 8 characters"
+                required minLength={8}
+                className="bg-white/5 border-white/10 text-white placeholder:text-zinc-600 focus:border-amber-500/50 pr-10"
+              />
+              <button type="button" onClick={() => setShowNew(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Confirm New Password</Label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="Repeat new password"
+              required
+              className="bg-white/5 border-white/10 text-white placeholder:text-zinc-600 focus:border-amber-500/50"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={loading || !currentPassword || !newPassword || !confirmPassword}
+            className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 hover:from-amber-500 hover:to-yellow-700 text-black font-bold border-0"
+          >
+            {loading ? "Updating..." : "Update Password"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 function LoginHistoryCard() {
   const [history, setHistory] = useState<any[]>([]);
@@ -191,6 +296,9 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Change Password */}
+        <ChangePasswordCard />
 
         {/* Two-Factor Auth */}
         <Card className="bg-white/5 backdrop-blur-sm border-white/10">

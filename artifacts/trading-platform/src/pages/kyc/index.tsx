@@ -12,6 +12,24 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardFooter } from "@/components/ui/card";
 
+const COUNTRY_CODES = [
+  { code: "+91", flag: "🇮🇳", name: "India" },
+  { code: "+1",  flag: "🇺🇸", name: "USA" },
+  { code: "+44", flag: "🇬🇧", name: "UK" },
+  { code: "+61", flag: "🇦🇺", name: "Australia" },
+  { code: "+1",  flag: "🇨🇦", name: "Canada" },
+  { code: "+971",flag: "🇦🇪", name: "UAE" },
+  { code: "+65", flag: "🇸🇬", name: "Singapore" },
+  { code: "+49", flag: "🇩🇪", name: "Germany" },
+  { code: "+33", flag: "🇫🇷", name: "France" },
+  { code: "+81", flag: "🇯🇵", name: "Japan" },
+  { code: "+86", flag: "🇨🇳", name: "China" },
+  { code: "+7",  flag: "🇷🇺", name: "Russia" },
+  { code: "+55", flag: "🇧🇷", name: "Brazil" },
+  { code: "+27", flag: "🇿🇦", name: "South Africa" },
+  { code: "+60", flag: "🇲🇾", name: "Malaysia" },
+];
+
 export default function KycPage() {
   const useGetKyc = (ApiHooks as any).useGetKyc;
   const useSubmitKyc = (ApiHooks as any).useSubmitKyc;
@@ -166,7 +184,28 @@ export default function KycPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Phone Number</Label>
-                    <Input name="phone" placeholder="+1 (555) 000-0000" value={formData.phone} onChange={handleInputChange} required />
+                    <div className="flex gap-2">
+                      <select
+                        value={formData.phone.match(/^\+\d+/)?.[0] || "+91"}
+                        onChange={e => {
+                          const num = formData.phone.replace(/^\+\d+\s*/, "");
+                          setFormData(prev => ({ ...prev, phone: `${e.target.value} ${num}` }));
+                        }}
+                        className="h-10 rounded-md border border-white/10 bg-white/5 text-white text-sm px-2 focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-28 shrink-0"
+                      >
+                        {COUNTRY_CODES.map(c => <option key={c.code} value={c.code} className="bg-[#050A14]">{c.flag} {c.code}</option>)}
+                      </select>
+                      <Input
+                        placeholder="9876543210"
+                        value={formData.phone.replace(/^\+\d+\s*/, "")}
+                        onChange={e => {
+                          const code = formData.phone.match(/^\+\d+/)?.[0] || "+91";
+                          setFormData(prev => ({ ...prev, phone: `${code} ${e.target.value}` }));
+                        }}
+                        required
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">

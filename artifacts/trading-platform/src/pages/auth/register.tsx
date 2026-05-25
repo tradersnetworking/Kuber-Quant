@@ -19,6 +19,14 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const TOTAL_STEPS = 4;
 
+const COUNTRY_CODES = [
+  { code: "+91", flag: "🇮🇳" }, { code: "+1",  flag: "🇺🇸" }, { code: "+44", flag: "🇬🇧" },
+  { code: "+61", flag: "🇦🇺" }, { code: "+971",flag: "🇦🇪" }, { code: "+65", flag: "🇸🇬" },
+  { code: "+49", flag: "🇩🇪" }, { code: "+33", flag: "🇫🇷" }, { code: "+81", flag: "🇯🇵" },
+  { code: "+86", flag: "🇨🇳" }, { code: "+7",  flag: "🇷🇺" }, { code: "+55", flag: "🇧🇷" },
+  { code: "+27", flag: "🇿🇦" }, { code: "+60", flag: "🇲🇾" }, { code: "+966",flag: "🇸🇦" },
+];
+
 const STEPS = [
   { num: 1, label: "Account",    icon: User },
   { num: 2, label: "Profile",    icon: Globe },
@@ -72,7 +80,9 @@ export default function RegisterPage() {
   // Step 1 — Account
   const [fullName, setFullName]       = useState("");
   const [email, setEmail]             = useState("");
-  const [phone, setPhone]             = useState("");
+  const [phoneCode, setPhoneCode]     = useState("+91");
+  const [phoneNum, setPhoneNum]       = useState("");
+  const phone = phoneNum ? `${phoneCode} ${phoneNum}` : "";
   const [password, setPassword]       = useState("");
   const [confirmPw, setConfirmPw]     = useState("");
   const [referralCode, setReferralCode] = useState("");
@@ -252,10 +262,16 @@ export default function RegisterPage() {
 
                     <div className="space-y-1.5">
                       <Label className="text-zinc-300 text-xs uppercase tracking-wider">Mobile Number</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3.5 h-4 w-4 text-zinc-600" />
-                        <Input type="tel" placeholder="+1 (555) 000-0000" value={phone} onChange={e => setPhone(e.target.value)}
-                          className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-zinc-700 focus:border-amber-500/50 h-11" />
+                      <div className="flex gap-2">
+                        <select value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
+                          className="h-11 rounded-md border border-white/10 bg-white/5 text-white text-sm px-2 focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-24 shrink-0">
+                          {COUNTRY_CODES.map(c => <option key={c.code + c.flag} value={c.code} className="bg-[#050A14]">{c.flag} {c.code}</option>)}
+                        </select>
+                        <div className="relative flex-1">
+                          <Phone className="absolute left-3 top-3.5 h-4 w-4 text-zinc-600" />
+                          <Input type="tel" placeholder="9876543210" value={phoneNum} onChange={e => setPhoneNum(e.target.value)}
+                            className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-zinc-700 focus:border-amber-500/50 h-11" />
+                        </div>
                       </div>
                     </div>
 

@@ -203,6 +203,11 @@ export default function LoginPage() {
                   Use staff portal →
                 </Link>
               </p>
+              <div className="w-full pt-1 border-t border-white/5 mt-1">
+                <Link href="/" className="flex items-center justify-center gap-1.5 text-xs text-zinc-600 hover:text-amber-500 transition-colors w-full py-1">
+                  ← Back to Home
+                </Link>
+              </div>
             </CardFooter>
           </Card>
         ) : (

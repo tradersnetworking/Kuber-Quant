@@ -147,7 +147,7 @@ export default function CookiePolicyPage() {
       <section>
         <h2>7. Contact Us</h2>
         <p>
-          For questions about our use of cookies, contact us at <span className="text-amber-400">privacy@kubercapital.com</span>.
+          For questions about our use of cookies, contact us at <span className="text-amber-400">privacy@kuberquant.com</span>.
         </p>
       </section>
     </LegalLayout>

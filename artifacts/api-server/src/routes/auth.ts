@@ -8,7 +8,7 @@ import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
 
 const router = Router();
-const JWT_SECRET = process.env.SESSION_SECRET || "kubercapital-secret-key";
+const JWT_SECRET = process.env.SESSION_SECRET || "kuberquant-secret-key";
 
 function generateReferralCode(): string {
   return "KQ" + randomBytes(3).toString("hex").toUpperCase();
@@ -173,6 +173,26 @@ router.post("/google", async (req, res) => {
 
   const token = signToken({ userId: user.id, role: user.role });
   res.json({ user: mapUser(user), token });
+});
+
+router.put("/change-password", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({ error: "currentPassword and newPassword are required" });
+    return;
+  }
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: "New password must be at least 8 characters" });
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) { res.status(400).json({ error: "Current password is incorrect" }); return; }
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await db.update(usersTable).set({ passwordHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+  res.json({ message: "Password changed successfully" });
 });
 
 router.post("/logout", (_req, res) => {

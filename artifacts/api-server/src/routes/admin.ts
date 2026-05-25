@@ -358,16 +358,16 @@ router.delete("/payment-gateways/:id", requireAuth, requireAdmin, async (req, re
 
 // ── Site Settings ──────────────────────────────────────────────────────────
 const DEFAULT_SETTINGS = [
-  { key: "site_name", value: "Kuber Capital", label: "Site Name", category: "general", description: "Platform name shown in header and emails" },
+  { key: "site_name", value: "Kuber Quant", label: "Site Name", category: "general", description: "Platform name shown in header and emails" },
   { key: "site_tagline", value: "Where Wealth Multiplies", label: "Tagline", category: "general", description: "Hero tagline on landing page" },
   { key: "announcement_text", value: "", label: "Announcement Text", category: "general", description: "Global banner shown to all users (leave empty to hide)" },
   { key: "announcement_enabled", value: "false", label: "Announcement Enabled", category: "general", description: "Show/hide the global announcement banner" },
   { key: "maintenance_mode", value: "false", label: "Maintenance Mode", category: "general", description: "Puts the platform in maintenance mode" },
-  { key: "support_email", value: "support@kubercapital.com", label: "Support Email", category: "contact", description: "Primary support email address" },
+  { key: "support_email", value: "support@kuberquant.com", label: "Support Email", category: "contact", description: "Primary support email address" },
   { key: "support_phone", value: "", label: "Support Phone", category: "contact", description: "Support phone number" },
   { key: "support_telegram", value: "", label: "Telegram Handle", category: "contact", description: "Telegram username or link" },
   { key: "support_whatsapp", value: "", label: "WhatsApp Number", category: "contact", description: "WhatsApp support number" },
-  { key: "footer_text", value: "© 2025 Kuber Capital. All rights reserved.", label: "Footer Text", category: "general", description: "Footer copyright text" },
+  { key: "footer_text", value: "© 2025 Kuber Quant. All rights reserved.", label: "Footer Text", category: "general", description: "Footer copyright text" },
   { key: "referral_commission_rate", value: "5", label: "Referral Commission %", category: "financial", description: "Percentage commission paid on referral investments" },
   { key: "min_deposit_fiat", value: "100", label: "Min Fiat Deposit ($)", category: "financial", description: "Minimum fiat deposit amount" },
   { key: "min_withdrawal_fiat", value: "50", label: "Min Fiat Withdrawal ($)", category: "financial", description: "Minimum fiat withdrawal amount" },

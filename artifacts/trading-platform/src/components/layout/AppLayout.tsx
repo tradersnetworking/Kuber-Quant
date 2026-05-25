@@ -42,6 +42,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: any;
+  color?: string;
   section?: string;
   onClick?: () => void;
 }
@@ -66,50 +67,50 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const unreadCount = notifications?.filter((n: Notification) => !n.isRead).length || 0;
 
   const navItems: NavItem[] = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Wallet", href: "/wallet", icon: Wallet },
-    { name: "Investments", href: "/investments", icon: Briefcase },
-    { name: "Investment Plans", href: "/plans", icon: TrendingUp },
-    { name: "Copy Trading", href: "/copy-trading", icon: Users },
-    { name: "Algo Trading", href: "/algo-trading", icon: Cpu },
-    { name: "EA Strategies", href: "/ea-strategies", icon: Cpu },
-    { name: "MT5 Accounts", href: "/mt5-accounts", icon: History },
-    { name: "Transactions", href: "/transactions", icon: ArrowRightLeft },
-    { name: "Referral Program", href: "/referral", icon: Users2 },
-    { name: "Support", href: "/support", icon: Headset },
-    { name: "KYC Verification", href: "/kyc", icon: ShieldCheck },
-    { name: "MT5 Services", href: "/mt5-relay", icon: Activity },
-    { name: "Legal Agreements", href: "/agreements", icon: FileText },
-    { name: "Settings", href: "/settings", icon: Settings },
+    { name: "Dashboard",        href: "/dashboard",    icon: LayoutDashboard, color: "text-blue-400" },
+    { name: "Wallet",           href: "/wallet",       icon: Wallet,          color: "text-emerald-400" },
+    { name: "Investments",      href: "/investments",  icon: Briefcase,       color: "text-amber-400" },
+    { name: "Investment Plans", href: "/plans",        icon: TrendingUp,      color: "text-yellow-400" },
+    { name: "Copy Trading",     href: "/copy-trading", icon: Users,           color: "text-cyan-400" },
+    { name: "Algo Trading",     href: "/algo-trading", icon: Cpu,             color: "text-indigo-400" },
+    { name: "EA Strategies",    href: "/ea-strategies",icon: Activity,        color: "text-purple-400" },
+    { name: "MT5 Accounts",     href: "/mt5-accounts", icon: History,         color: "text-sky-400" },
+    { name: "Transactions",     href: "/transactions", icon: ArrowRightLeft,  color: "text-orange-400" },
+    { name: "Referral Program", href: "/referral",     icon: Users2,          color: "text-pink-400" },
+    { name: "Support",          href: "/support",      icon: Headset,         color: "text-rose-400" },
+    { name: "KYC Verification", href: "/kyc",          icon: ShieldCheck,     color: "text-teal-400" },
+    { name: "MT5 Services",     href: "/mt5-relay",    icon: LineChart,       color: "text-violet-400" },
+    { name: "Legal Agreements", href: "/agreements",   icon: FileText,        color: "text-lime-400" },
+    { name: "Settings",         href: "/settings",     icon: Settings,        color: "text-zinc-400" },
   ];
 
   if ((user.role as string) === "manager" || user.role === "admin" || (user.role as string) === "superadmin") {
     navItems.push(
-      { name: "My Clients", href: "/manager/clients", icon: Users2, section: "Manager" },
-      { name: "KYC Queue", href: "/manager/kyc", icon: FileCheck, section: "Manager" },
-      { name: "Tickets", href: "/manager/tickets", icon: ClipboardList, section: "Manager" },
-      { name: "Manager Trans.", href: "/manager/transactions", icon: ArrowLeftRight, section: "Manager" }
+      { name: "My Clients",     href: "/manager/clients",      icon: Users2,       color: "text-cyan-400",   section: "Manager" },
+      { name: "KYC Queue",      href: "/manager/kyc",          icon: FileCheck,    color: "text-emerald-400",section: "Manager" },
+      { name: "Tickets",        href: "/manager/tickets",      icon: ClipboardList,color: "text-amber-400",  section: "Manager" },
+      { name: "Manager Trans.", href: "/manager/transactions", icon: ArrowLeftRight,color: "text-orange-400", section: "Manager" }
     );
   }
 
   if (user.role === "admin" || (user.role as string) === "superadmin") {
     navItems.push(
-      { name: "Admin Overview", href: "/admin", icon: ShieldAlert, section: "Admin" },
-      { name: "Users", href: "/admin/users", icon: Users, section: "Admin" },
-      { name: "KYC Review", href: "/admin/kyc", icon: FileCheck, section: "Admin" },
-      { name: "Transactions", href: "/admin/transactions", icon: ClipboardList, section: "Admin" },
-      { name: "Investment Plans", href: "/admin/plans", icon: TrendingUp, section: "Admin" },
-      { name: "Managers", href: "/admin/managers", icon: Users2, section: "Admin" },
-      { name: "Payment Gateways", href: "/admin/payment-gateways", icon: LineChart, section: "Admin" },
-      { name: "Support Tickets", href: "/admin/tickets", icon: Headset, section: "Admin" },
-      { name: "Referrals", href: "/admin/referrals", icon: ArrowLeftRight, section: "Admin" },
-      { name: "Site Settings", href: "/admin/settings", icon: Settings, section: "Admin" },
+      { name: "Admin Overview",    href: "/admin",                  icon: ShieldAlert,   color: "text-red-400",    section: "Admin" },
+      { name: "Users",             href: "/admin/users",            icon: Users,         color: "text-blue-400",   section: "Admin" },
+      { name: "KYC Review",        href: "/admin/kyc",              icon: FileCheck,     color: "text-emerald-400",section: "Admin" },
+      { name: "Transactions",      href: "/admin/transactions",     icon: ClipboardList, color: "text-amber-400",  section: "Admin" },
+      { name: "Investment Plans",  href: "/admin/plans",            icon: TrendingUp,    color: "text-yellow-400", section: "Admin" },
+      { name: "Managers",          href: "/admin/managers",         icon: Users2,        color: "text-cyan-400",   section: "Admin" },
+      { name: "Payment Gateways",  href: "/admin/payment-gateways",icon: LineChart,     color: "text-purple-400", section: "Admin" },
+      { name: "Support Tickets",   href: "/admin/tickets",          icon: Headset,       color: "text-rose-400",   section: "Admin" },
+      { name: "Referrals",         href: "/admin/referrals",        icon: ArrowLeftRight,color: "text-pink-400",   section: "Admin" },
+      { name: "Site Settings",     href: "/admin/settings",         icon: Settings,      color: "text-zinc-400",   section: "Admin" },
     );
   }
 
   if ((user.role as string) === "superadmin") {
     navItems.push(
-      { name: "Super Admin", href: "/super-admin", icon: Crown, section: "Super Admin" },
+      { name: "Super Admin", href: "/super-admin", icon: Crown, color: "text-amber-400", section: "Super Admin" },
     );
   }
 
@@ -158,7 +159,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                       />
                     )}
-                    <item.icon className={cn("h-5 w-5 relative z-10", isActive ? "text-primary" : "group-hover:text-primary transition-colors")} />
+                    <item.icon className={cn("h-5 w-5 relative z-10 shrink-0", isActive ? (item.color || "text-primary") : cn("text-muted-foreground group-hover:transition-colors", item.color ? `group-hover:${item.color}` : "group-hover:text-primary"))} />
                     <span className="relative z-10">{item.name}</span>
                   </Link>
                 </li>
@@ -258,7 +259,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                           "flex items-center gap-3 px-4 py-3 rounded-lg text-lg transition-colors",
                           isActive ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground active:bg-white/5"
                         )}>
-                          <item.icon className={cn("h-6 w-6", isActive ? "text-primary" : "text-muted-foreground")} />
+                          <item.icon className={cn("h-6 w-6", isActive ? (item.color || "text-primary") : (item.color ? `${item.color}/60` : "text-muted-foreground"))} />
                           {item.name}
                         </Link>
                       </li>
