@@ -1,10 +1,11 @@
 {
   "framework": "express",
   "nodeVersion": "20",
+  "packageManager": "npm",
   "installCommand": "node scripts/hostinger-install.mjs",
   "buildCommand": "HOSTINGER_SKIP_INSTALL=1 node scripts/hostinger-build.mjs",
   "startCommand": "node server.js",
   "outputDirectory": "artifacts/trading-platform/dist/public",
   "entryFile": "server.js",
-  "notes": "Do NOT use Corepack on Hostinger — it fails with ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING. Use installCommand above. If hPanel has separate Install/Build fields: Install = node scripts/hostinger-install.mjs, Build = HOSTINGER_SKIP_INSTALL=1 node scripts/hostinger-build.mjs. Or use a single Build command: node scripts/hostinger-build.mjs"
+  "notes": "Hostinger Node.js Web Apps: set Package manager to npm (NOT pnpm — Corepack fails with ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING). Install = node scripts/hostinger-install.mjs, Build = HOSTINGER_SKIP_INSTALL=1 node scripts/hostinger-build.mjs, Start = node server.js. Or single Build: node scripts/hostinger-build.mjs. Hostinger sets PORT automatically — do not hardcode."
 }

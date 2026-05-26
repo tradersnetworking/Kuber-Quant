@@ -31,16 +31,20 @@ Set at minimum:
 | `CORS_ORIGINS` | `https://yourdomain.com` |
 | `SMTP_*` | Hostinger mail credentials |
 
-## 3. Install & Build
+## 3. Hostinger Node.js Web Apps (hPanel)
 
-Hostinger **must not use Corepack** for pnpm (it fails with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` on alt-nodejs).
+In **Websites → Node.js Apps → your app → Settings**, use these values:
 
-In **hPanel → Node.js** set:
-
-| Field | Value |
-|-------|--------|
+| Setting | Value |
+|---------|--------|
+| **Node.js version** | `20` |
+| **Framework** | Express (or Other) |
+| **Package manager** | **`npm`** — not pnpm (Corepack pnpm fails on Hostinger alt-nodejs) |
 | **Install command** | `node scripts/hostinger-install.mjs` |
 | **Build command** | `HOSTINGER_SKIP_INSTALL=1 node scripts/hostinger-build.mjs` |
+| **Start command** | `node server.js` |
+| **Entry / startup file** | `server.js` |
+| **Output directory** | `artifacts/trading-platform/dist/public` |
 
 Or use a **single build command** (install + build):
 
@@ -48,16 +52,45 @@ Or use a **single build command** (install + build):
 node scripts/hostinger-build.mjs
 ```
 
-Manual SSH equivalent:
+Then click **Redeploy**.
+
+The install script bootstraps pnpm via npm and never uses Corepack, avoiding `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`.
+
+### Required environment variables (hPanel → Environment)
+
+Hostinger injects `PORT` automatically — do not override it with a fixed value.
+
+| Variable | Example |
+|----------|---------|
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `SESSION_SECRET` | Random 32+ character string |
+| `ENCRYPTION_KEY` | Random 32+ character string |
+| `APP_URL` | `https://yourdomain.com` |
+| `API_URL` | `https://yourdomain.com` |
+| `CORS_ORIGINS` | `https://yourdomain.com` |
+| `SMTP_*` | Hostinger mail credentials |
+
+After first deploy (SSH or Hostinger terminal if available):
+
+```bash
+node node_modules/pnpm/bin/pnpm.cjs run db:push
+node node_modules/pnpm/bin/pnpm.cjs run db:seed
+```
+
+### Manual SSH equivalent
 
 ```bash
 corepack disable
-npm install -g pnpm@9.15.0
-pnpm install --frozen-lockfile
-pnpm run build:prod
+npm install pnpm@9.15.0 --no-save --no-package-lock
+node node_modules/pnpm/bin/pnpm.cjs install --frozen-lockfile --config.minimumReleaseAge=0
+node node_modules/pnpm/bin/pnpm.cjs run build:prod
+node server.js
 ```
 
-## 4. Start with PM2
+## 4. Hostinger VPS (optional — PM2 / Docker)
+
+For VPS with SSH access instead of Node.js Web Apps:
 
 ```bash
 npm install -g pm2
@@ -67,15 +100,15 @@ pm2 save
 pm2 startup
 ```
 
-## 5. Hostinger Node.js Panel
+## 5. Hostinger Node.js Panel (legacy note)
 
-In hPanel → Websites → Node.js:
+If your panel only has **startup file** and **Node version**:
 
-- **Application root**: project root
-- **Application startup file**: `artifacts/api-server/dist/index.mjs`
-- **Node.js version**: 20 or 22
+- **Application root**: project root (where `package.json` and `server.js` live)
+- **Application startup file**: `server.js`
+- **Node.js version**: 20
 
-The API serves both `/api/*` routes and the built React frontend in production.
+`server.js` starts the Express API, which also serves the built React frontend in production.
 
 ## 6. SSL & Domain
 
@@ -114,7 +147,9 @@ pg_dump $DATABASE_URL > /home/user/backups/kuber-$(date +%F).sql
 
 ## 10. Troubleshooting
 
-- **502 errors**: Check PM2 logs with `pm2 logs kuber-quant-api`
+- **ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING**: Package manager is set to pnpm — change it to **npm** and set Install command to `node scripts/hostinger-install.mjs`, then redeploy.
+- **Failed to install dependencies**: Same as above; never use Corepack pnpm on Hostinger.
+- **502 errors**: Check deploy logs; confirm `PORT` is set by Hostinger (do not hardcode in env).
 - **DB connection**: Verify `DATABASE_URL` and firewall rules
 - **Uploads**: Ensure `uploads/` directory is writable
 - **CORS**: Match `CORS_ORIGINS` exactly to your domain
