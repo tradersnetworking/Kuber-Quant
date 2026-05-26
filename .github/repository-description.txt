@@ -1,0 +1,1 @@
+Kuber Quant — Node.js investment platform (React + Express + PostgreSQL). Demo logins after db:seed — Super Admin: superadmin@kuberquant.com / superadmin123 | Admin: admin@kuberquant.com / admin123 | Manager: manager@kuberquant.com / manager123 | Support: support@kuberquant.com / support123 | Investor: user@kuberquant.com / user123

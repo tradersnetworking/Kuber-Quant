@@ -2,6 +2,20 @@
 
 Institutional-grade algorithmic trading and wealth management platform.
 
+## Demo login (after `pnpm db:seed`)
+
+Use these on **http://127.0.0.1:3000/login** (investor) or **/staff-login** (staff roles):
+
+| Role | Email | Password | Login page |
+|------|-------|----------|------------|
+| Super Admin | superadmin@kuberquant.com | superadmin123 | `/staff-login` |
+| Admin | admin@kuberquant.com | admin123 | `/staff-login` |
+| Manager | manager@kuberquant.com | manager123 | `/staff-login` |
+| Support | support@kuberquant.com | support123 | `/staff-login` |
+| Investor | user@kuberquant.com | user123 | `/login` |
+
+Change all passwords before any shared or production deployment.
+
 ## Stack
 
 | Layer | Technology |
@@ -69,10 +83,13 @@ scripts/            Seed + utilities
 
 ## Default dev accounts (after seed)
 
-| Email | Password | Role |
-|-------|----------|------|
-| superadmin@kuberquant.com | superadmin123 | Super Admin |
-| user@kuberquant.com | user123 | Investor |
+| Role | Email | Password | Login |
+|------|-------|----------|-------|
+| Super Admin | superadmin@kuberquant.com | superadmin123 | `/staff-login` |
+| Admin | admin@kuberquant.com | admin123 | `/staff-login` |
+| Manager | manager@kuberquant.com | manager123 | `/staff-login` |
+| Support | support@kuberquant.com | support123 | `/staff-login` |
+| Investor | user@kuberquant.com | user123 | `/login` |
 
 Change these immediately in any shared environment.
 

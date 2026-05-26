@@ -130,12 +130,13 @@ Configure webhook URLs in each provider dashboard:
 
 After seeding:
 
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | superadmin@kuberquant.com | superadmin123 |
-| Admin | admin@kuberquant.com | admin123 |
-| Manager | manager@kuberquant.com | manager123 |
-| User | user@kuberquant.com | user123 |
+| Role | Email | Password | Login |
+|------|-------|----------|-------|
+| Super Admin | superadmin@kuberquant.com | superadmin123 | `/staff-login` |
+| Admin | admin@kuberquant.com | admin123 | `/staff-login` |
+| Manager | manager@kuberquant.com | manager123 | `/staff-login` |
+| Support | support@kuberquant.com | support123 | `/staff-login` |
+| Investor | user@kuberquant.com | user123 | `/login` |
 
 **Change all passwords immediately after first login.**
 
