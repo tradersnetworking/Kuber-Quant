@@ -62,7 +62,8 @@ nano .env
 | `REDIS_PASSWORD` | strong random password |
 | `SESSION_SECRET` | 32+ random characters |
 | `ENCRYPTION_KEY` | 32+ random characters |
-| `SMTP_USER` / `SMTP_PASS` | Hostinger email |
+| `SMTP_USER` / `SMTP_PASS` | Hostinger email (outbound mail) |
+| `SUPPORT_IMAP_USER` / `SUPPORT_IMAP_PASS` | Same mailbox for inbound support inbox sync (optional) |
 
 ## 3. Build and start
 

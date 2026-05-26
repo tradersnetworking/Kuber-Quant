@@ -36,12 +36,12 @@ export function WizardShell({
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="relative z-10 w-full max-w-xs mx-auto">
           <div className="flex items-center justify-between mb-6">
-            <BrandLogo className="h-16 w-16" />
+            <BrandLogo className="h-20 w-auto max-w-[220px]" />
             <Button type="button" variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
           </div>
-          <h1 className="text-2xl font-black mb-1">Kuber <span className="text-primary">Quant</span></h1>
+          <h1 className="text-2xl font-black mb-1 sr-only">Kuber Quant</h1>
           <p className="text-muted-foreground text-xs uppercase tracking-widest mb-8">{title}</p>
           <div className="space-y-2">
             {steps.map(s => {
@@ -77,7 +77,7 @@ export function WizardShell({
           <motion.div className="h-full bg-primary" animate={{ width: `${progress}%` }} transition={{ duration: 0.35 }} />
         </div>
         <div className="flex items-center justify-between px-4 py-3 md:hidden border-b border-border">
-          <BrandLogo className="h-8 w-8" />
+          <BrandLogo className="h-9 w-auto max-w-[110px]" />
           <div className="flex gap-1">
             {steps.map(s => (
               <div key={s.num} className={`h-1.5 rounded-full transition-all ${s.num <= currentStep ? "bg-primary w-6" : "bg-muted w-3"}`} />

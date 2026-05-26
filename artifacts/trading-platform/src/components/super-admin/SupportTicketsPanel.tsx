@@ -37,7 +37,7 @@ export function SupportTicketsPanel() {
     if (!selected || !reply.trim()) return;
     setPending(true);
     try {
-      await replyToTicketAsStaff(selected.id, reply, "admin");
+      await replyToTicketAsStaff(selected.id, reply, "superadmin");
       toast({ title: "Reply sent" });
       setReply("");
       const fresh = await staffFetch<any[]>("/admin/tickets");

@@ -52,7 +52,6 @@ export const UserRole = {
   user: 'user',
   manager: 'manager',
   support: 'support',
-  admin: 'admin',
   superadmin: 'superadmin',
 } as const;
 
@@ -107,7 +106,6 @@ export const AdminUserUpdateRole = {
   user: 'user',
   manager: 'manager',
   support: 'support',
-  admin: 'admin',
   superadmin: 'superadmin',
 } as const;
 
@@ -703,7 +701,7 @@ export interface Mt5RelayRequest {
 
 export interface SuperAdminStats {
   totalUsers: number;
-  admins: number;
+  superAdmins: number;
   managers: number;
   investors: number;
   pendingMt5Requests: number;

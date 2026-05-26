@@ -19,6 +19,7 @@ import {
   type DepositAccountsResponse,
 } from "@/components/wallet/deposit-account-utils";
 import { CRYPTO_DEPOSIT_TABS, findCryptoDepositAccount } from "@/components/wallet/crypto-networks";
+import { DEPOSIT_FIAT_CURRENCIES } from "@/lib/wallet-currency-options";
 
 type PaymentOption = "" | "upi" | "bank" | "gateway" | "crypto";
 
@@ -283,7 +284,7 @@ export function DepositDialog({ onSuccess, trigger }: { onSuccess?: () => void; 
                   <Select value={manual.currency} onValueChange={v => setManual({ ...manual, currency: v })}>
                     <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {["INR", "USD", "EUR"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      {DEPOSIT_FIAT_CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

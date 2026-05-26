@@ -126,14 +126,13 @@ Configure webhook URLs in each provider dashboard:
 | PhonePe | `https://yourdomain.com/api/payments/phonepe/callback` |
 | PayU | `https://yourdomain.com/api/payments/payu/callback` |
 
-## 8. Default Admin Credentials
+## 8. Default Staff Credentials
 
 After seeding:
 
 | Role | Email | Password | Login |
 |------|-------|----------|-------|
 | Super Admin | superadmin@kuberquant.com | superadmin123 | `/staff-login` |
-| Admin | admin@kuberquant.com | admin123 | `/staff-login` |
 | Manager | manager@kuberquant.com | manager123 | `/staff-login` |
 | Support | support@kuberquant.com | support123 | `/staff-login` |
 | Investor | user@kuberquant.com | user123 | `/login` |

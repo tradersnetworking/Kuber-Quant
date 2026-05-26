@@ -25,8 +25,17 @@ export function methodLabelForAccount(acc: PaymentAccount): string {
 
 export function walletBalanceForCurrency(
   currency: string,
-  wallet?: { fiatBalance?: number; cryptoBalance?: number },
+  wallet?: {
+    fiatBalance?: number;
+    cryptoBalance?: number;
+    exchangeRates?: { USD_INR?: number; USD_EUR?: number };
+  },
 ): number {
-  if (["BTC", "ETH", "USDT"].includes(currency)) return wallet?.cryptoBalance || 0;
-  return wallet?.fiatBalance || 0;
+  const cur = currency.toUpperCase();
+  if (["BTC", "ETH", "USDT"].includes(cur)) return wallet?.cryptoBalance || 0;
+  const fiatUsd = wallet?.fiatBalance || 0;
+  const rates = wallet?.exchangeRates;
+  if (cur === "INR") return fiatUsd * (rates?.USD_INR ?? 83.5);
+  if (cur === "EUR") return fiatUsd * (rates?.USD_EUR ?? 0.92);
+  return fiatUsd;
 }

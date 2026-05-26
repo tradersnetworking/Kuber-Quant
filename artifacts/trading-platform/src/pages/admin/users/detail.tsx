@@ -27,7 +27,7 @@ export default function AdminUserDetail() {
   });
 
   const { data: allUsers } = ApiHooks.useListAdminUsers();
-  const managers = (allUsers as any[])?.filter(u => u.role === 'manager' || u.role === 'admin') || [];
+  const managers = (allUsers as any[])?.filter(u => u.role === "manager" || u.role === "superadmin") || [];
   
   const updateMutation = ApiHooks.useUpdateAdminUser();
   const useAdminWalletAdjust = (ApiHooks as any).useAdminWalletAdjust;
@@ -116,7 +116,7 @@ export default function AdminUserDetail() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-3xl font-bold tracking-tight">{user.fullName}</h1>
-              <Badge variant={user.role === 'admin' ? 'default' : (user as any).role === 'manager' ? 'secondary' : 'outline'} className="bg-amber-500/10 text-amber-500 border-amber-500/20 capitalize">
+              <Badge variant={user.role === "superadmin" ? "default" : (user as any).role === "manager" ? "secondary" : "outline"} className="bg-amber-500/10 text-amber-500 border-amber-500/20 capitalize">
                 {user.role}
               </Badge>
             </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { staffFetch } from "@/lib/staff-api";
 import { getStoredToken } from "@/lib/token-store";
+import { invalidateFinanceQueries } from "@/lib/invalidate-finance-queries";
 
 interface PlatformTransaction {
   id: number;
@@ -33,6 +35,7 @@ const statusColor: Record<string, string> = {
 
 export function PlatformTransactionsPanel() {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [items, setItems] = useState<PlatformTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<number | null>(null);
@@ -72,11 +75,12 @@ export function PlatformTransactionsPanel() {
   const pendingDeposits = items.filter(t => t.type === "deposit" && t.status === "pending");
   const pendingWithdrawals = items.filter(t => t.type === "withdrawal" && t.status === "pending");
 
-  const approve = async (id: number) => {
+  const approve = async (id: number, userId?: number) => {
     setPending(id);
     try {
       await staffFetch(`/admin/transactions/${id}/approve`, { method: "POST" });
       toast({ title: "Transaction approved", description: "Payment released to user wallet." });
+      invalidateFinanceQueries(qc, userId);
       await load();
     } catch (e: any) {
       toast({ title: "Approve failed", description: e.message, variant: "destructive" });
@@ -85,11 +89,12 @@ export function PlatformTransactionsPanel() {
     }
   };
 
-  const reject = async (id: number) => {
+  const reject = async (id: number, userId?: number) => {
     setPending(id);
     try {
       await staffFetch(`/admin/transactions/${id}/reject`, { method: "POST" });
       toast({ title: "Transaction rejected" });
+      invalidateFinanceQueries(qc, userId);
       await load();
     } catch (e: any) {
       toast({ title: "Reject failed", description: e.message, variant: "destructive" });
@@ -234,10 +239,10 @@ export function PlatformTransactionsPanel() {
                       <TableCell className="text-right">
                         {t.status === "pending" && (
                           <div className="flex justify-end gap-1">
-                            <Button size="sm" variant="outline" className="text-green-400 h-7" disabled={pending === t.id} onClick={() => approve(t.id)}>
+                            <Button size="sm" variant="outline" className="text-green-400 h-7" disabled={pending === t.id} onClick={() => approve(t.id, t.userId)}>
                               <CheckCircle className="h-3 w-3 mr-1" />Approve
                             </Button>
-                            <Button size="sm" variant="outline" className="text-red-400 h-7" disabled={pending === t.id} onClick={() => reject(t.id)}>
+                            <Button size="sm" variant="outline" className="text-red-400 h-7" disabled={pending === t.id} onClick={() => reject(t.id, t.userId)}>
                               <XCircle className="h-3 w-3 mr-1" />Reject
                             </Button>
                           </div>

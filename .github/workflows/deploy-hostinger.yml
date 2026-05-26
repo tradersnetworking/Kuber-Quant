@@ -49,6 +49,12 @@ jobs:
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             SMTP_FROM=${{ secrets.SMTP_FROM }}
+            SUPPORT_IMAP_ENABLED=${{ vars.SUPPORT_IMAP_ENABLED || 'true' }}
+            SUPPORT_IMAP_HOST=${{ secrets.SUPPORT_IMAP_HOST }}
+            SUPPORT_IMAP_PORT=${{ secrets.SUPPORT_IMAP_PORT }}
+            SUPPORT_IMAP_SECURE=${{ secrets.SUPPORT_IMAP_SECURE }}
+            SUPPORT_IMAP_USER=${{ secrets.SUPPORT_IMAP_USER }}
+            SUPPORT_IMAP_PASS=${{ secrets.SUPPORT_IMAP_PASS }}
             RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
             RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
             RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}

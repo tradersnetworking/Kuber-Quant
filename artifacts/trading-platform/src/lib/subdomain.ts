@@ -1,7 +1,7 @@
 /**
  * Detects which staff subdomain the app is running on.
  * Works for:
- *   - admin.kuberquant.com  → "admin"
+ *   - admin.kuberquant.com  → super-admin portal (legacy subdomain)
  *   - manager.kuberquant.com → "manager"
  *   - support.kuberquant.com → "support"
  *   - kuberquant.com / localhost / *.replit.dev → null (main app)

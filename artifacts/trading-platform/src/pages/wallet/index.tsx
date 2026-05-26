@@ -13,6 +13,7 @@ import { DepositDialog } from "@/components/wallet/DepositDialog";
 import { PersonalPaymentAccounts } from "@/components/wallet/PersonalPaymentAccounts";
 import { WithdrawToPersonalAccountForm } from "@/components/wallet/WithdrawToPersonalAccount";
 import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
+import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
 import { WalletHistoryPanel } from "@/components/wallet/WalletHistoryPanel";
 
 const VALID_TABS = new Set(["deposit", "withdraw", "accounts", "transfer", "history"]);
@@ -23,7 +24,7 @@ export default function WalletPage() {
   const tabParam = params.get("tab") || "deposit";
   const defaultTab = VALID_TABS.has(tabParam) ? tabParam : "deposit";
 
-  const { data: wallet, refetch } = useGetWallet();
+  const { data: wallet, refetch } = useGetWallet({ query: financeQueryOptions as any });
   const transferMutation = useWalletTransfer();
   const { toast } = useToast();
 

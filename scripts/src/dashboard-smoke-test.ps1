@@ -3,8 +3,7 @@ $base = "http://localhost:8080/api"
 $roles = @(
   @{ name = "Investor"; email = "user@kuberquant.com"; password = "user123"; endpoints = @("/dashboard/summary", "/wallet", "/payments/deposit-accounts", "/investments", "/plans", "/notifications", "/kyc", "/referral/stats", "/trades", "/support/tickets") },
   @{ name = "Manager"; email = "manager@kuberquant.com"; password = "manager123"; endpoints = @("/manager/stats", "/manager/clients", "/manager/kyc", "/manager/transactions", "/manager/tickets") },
-  @{ name = "Admin"; email = "admin@kuberquant.com"; password = "admin123"; endpoints = @("/admin/stats", "/admin/users", "/admin/kyc", "/admin/transactions", "/admin/plans", "/admin/tickets", "/admin/referral-stats", "/admin/managers") },
-  @{ name = "Super Admin"; email = "superadmin@kuberquant.com"; password = "superadmin123"; endpoints = @("/super-admin/stats", "/super-admin/overview", "/super-admin/users", "/super-admin/mt5-requests", "/super-admin/ea-subscriptions", "/payments/deposit-accounts") },
+  @{ name = "Super Admin"; email = "superadmin@kuberquant.com"; password = "superadmin123"; endpoints = @("/super-admin/stats", "/super-admin/overview", "/super-admin/users", "/super-admin/mt5-requests", "/super-admin/ea-subscriptions", "/admin/stats", "/admin/users", "/payments/deposit-accounts") },
   @{ name = "Support"; email = "support@kuberquant.com"; password = "support123"; endpoints = @("/support-team/stats", "/support-team/tickets") }
 )
 

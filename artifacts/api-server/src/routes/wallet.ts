@@ -2,35 +2,45 @@ import { Router } from "express";
 import { db, usersTable, transactionsTable } from "@workspace/db";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
-import { transferBetweenWallets, WalletError, getLedger, mapLedgerEntry } from "../helpers/walletService";
+import { transferBetweenWallets, WalletError, getLedger, mapLedgerEntry, getWalletFinancialSummary } from "../helpers/walletService";
+import { attachWalletDisplayFields } from "../helpers/currencyDisplay";
 import { mapTxn } from "./transactions";
 
 const router = Router();
 
 router.get("/", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (!user) { res.status(404).json({ error: "User not found" }); return; }
-
-  const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
-  const deposits = txns.filter(t => t.type === "deposit" && t.status === "approved")
-    .reduce((s, t) => s + Number(t.amount), 0);
-  const withdrawals = txns.filter(t => t.type === "withdrawal" && t.status === "approved")
-    .reduce((s, t) => s + Number(t.amount), 0);
-
-  const fiat = Number(user.balanceFiat);
-  const crypto = Number(user.balanceCrypto);
+  const summary = await getWalletFinancialSummary(userId);
+  const display = await attachWalletDisplayFields({
+    fiatBalance: summary.fiatBalance,
+    cryptoBalance: summary.cryptoBalance,
+    totalBalance: summary.totalBalance,
+    totalProfit: summary.totalProfit,
+    totalDeposited: summary.totalDeposited,
+    totalWithdrawn: summary.totalWithdrawn,
+  });
 
   res.json({
-    fiatBalance: fiat,
-    cryptoBalance: crypto,
-    totalDeposited: deposits,
-    totalWithdrawn: withdrawals,
-    totalProfit: Number(user.totalProfit),
-    btcBalance: crypto * 0.4,
-    ethBalance: crypto * 0.3,
-    usdtBalance: crypto * 0.2,
-    inrBalance: fiat * 83.5,
+    fiatBalance: summary.fiatBalance,
+    cryptoBalance: summary.cryptoBalance,
+    totalBalance: summary.totalBalance,
+    totalDeposited: summary.totalDeposited,
+    totalWithdrawn: summary.totalWithdrawn,
+    totalProfit: summary.totalProfit,
+    totalInvested: summary.totalInvested,
+    totalReferral: summary.totalReferral,
+    totalBonus: summary.totalBonus,
+    netLedgerFlow: summary.netLedgerFlow,
+    balanceSource: summary.source,
+    btcBalance: summary.cryptoBalance * 0.4,
+    ethBalance: summary.cryptoBalance * 0.3,
+    usdtBalance: summary.cryptoBalance * 0.2,
+    inrBalance: display.inrBalance,
+    eurBalance: display.eurBalance,
+    fiatBalanceInr: display.fiatBalanceInr,
+    totalBalanceInr: display.totalBalanceInr,
+    totalProfitInr: display.totalProfitInr,
+    exchangeRates: display.exchangeRates,
   });
 });
 
@@ -43,7 +53,7 @@ router.get("/history", requireAuth, async (req, res) => {
   const txnTypes = filter === "all" ? (["deposit", "withdrawal"] as const) : [filter as "deposit" | "withdrawal"];
   const ledgerTypes = filter === "all" ? (["deposit", "withdrawal"] as const) : [filter as "deposit" | "withdrawal"];
 
-  const [txns, ledgerEntries] = await Promise.all([
+  const [txns, ledgerEntries, walletSummary] = await Promise.all([
     db.select().from(transactionsTable)
       .where(and(
         eq(transactionsTable.userId, userId),
@@ -52,6 +62,7 @@ router.get("/history", requireAuth, async (req, res) => {
       .orderBy(desc(transactionsTable.createdAt))
       .limit(limit),
     getLedger(userId, { limit, types: [...ledgerTypes] }),
+    getWalletFinancialSummary(userId),
   ]);
 
   const allTxns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
@@ -60,8 +71,13 @@ router.get("/history", requireAuth, async (req, res) => {
 
   res.json({
     summary: {
-      totalDeposited: deposits.filter(t => t.status === "approved").reduce((s, t) => s + Number(t.amount), 0),
-      totalWithdrawn: withdrawals.filter(t => t.status === "approved").reduce((s, t) => s + Number(t.amount), 0),
+      totalDeposited: walletSummary.totalDeposited,
+      totalWithdrawn: walletSummary.totalWithdrawn,
+      fiatBalance: walletSummary.fiatBalance,
+      cryptoBalance: walletSummary.cryptoBalance,
+      totalBalance: walletSummary.totalBalance,
+      netLedgerFlow: walletSummary.netLedgerFlow,
+      balanceSource: walletSummary.source,
       pendingDeposits: deposits.filter(t => t.status === "pending").length,
       pendingWithdrawals: withdrawals.filter(t => t.status === "pending").length,
       rejectedDeposits: deposits.filter(t => t.status === "rejected").length,

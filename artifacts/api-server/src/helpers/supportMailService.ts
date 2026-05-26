@@ -111,7 +111,7 @@ async function notifySupportAgents(title: string, message: string) {
   if (!desk.notifyAgentsOnInbound) return;
 
   const agents = await db.select({ id: usersTable.id }).from(usersTable)
-    .where(or(eq(usersTable.role, "support"), eq(usersTable.role, "admin")));
+    .where(or(eq(usersTable.role, "support"), eq(usersTable.role, "superadmin")));
   for (const agent of agents) {
     await db.insert(notificationsTable).values({
       userId: agent.id,
@@ -209,7 +209,7 @@ export async function listSupportAgents() {
     email: usersTable.email,
     fullName: usersTable.fullName,
     role: usersTable.role,
-  }).from(usersTable).where(or(eq(usersTable.role, "support"), eq(usersTable.role, "admin")));
+  }).from(usersTable).where(or(eq(usersTable.role, "support"), eq(usersTable.role, "superadmin")));
   return agents;
 }
 

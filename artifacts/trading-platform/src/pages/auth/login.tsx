@@ -102,14 +102,11 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-20" />
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
       <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl" />
-      <div className="relative z-10 max-w-lg">
+        <div className="relative z-10 max-w-lg">
         <div className="mb-8">
-          <BrandLogo className="h-20 w-20 mb-6" />
-          <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-            Kuber <span className="text-amber-500">Quant</span>
-          </h1>
+          <BrandLogo className="h-32 w-auto max-w-[280px] mb-6" />
           <p className="text-xl text-zinc-400 font-light leading-relaxed">
-            Where Wealth Multiplies — Premium hedge-fund management and institutional-grade trading solutions.
+            Precision. Profit. Performance. — Premium hedge-fund management and institutional-grade trading solutions.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-6 mt-12">
@@ -134,7 +131,7 @@ export default function LoginPage() {
           <Card className="w-full max-w-md border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
             <CardHeader className="space-y-1">
               <div className="flex justify-center mb-4 md:hidden">
-                <BrandLogo className="h-14 w-14" />
+                <BrandLogo className="h-16 w-auto max-w-[200px]" />
               </div>
               <CardTitle className="text-3xl font-bold text-center text-white">Sign In</CardTitle>
               <CardDescription className="text-center text-zinc-400">

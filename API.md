@@ -74,5 +74,4 @@ Authentication: `Authorization: Bearer <jwt_token>`
 
 - `user` — Standard investor
 - `manager` — Client management
-- `admin` — Platform administration
-- `superadmin` — Full system control
+- `superadmin` — Full platform control (replaces former admin role)

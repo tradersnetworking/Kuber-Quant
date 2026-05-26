@@ -8,7 +8,7 @@
 
 export interface SuperAdminStats {
   totalUsers: number;
-  admins: number;
+  superAdmins: number;
   managers: number;
   investors: number;
   pendingMt5Requests: number;

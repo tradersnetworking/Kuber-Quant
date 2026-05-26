@@ -6,11 +6,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
 
 type TxRow = Transaction & { userName?: string; userEmail?: string; userId?: number };
 
 export default function ManagerTransactions() {
-  const { data: transactions, isLoading } = useListManagerTransactions();
+  const { data: transactions, isLoading } = useListManagerTransactions({
+    query: financeQueryOptions as any,
+  });
 
   return (
     <div className="space-y-6">

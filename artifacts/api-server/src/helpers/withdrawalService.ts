@@ -2,6 +2,9 @@ import { db, transactionsTable, usersTable, siteSettingsTable } from "@workspace
 import { eq } from "drizzle-orm";
 import { debitWallet, WalletError } from "./walletService";
 import { notifyUser } from "./notificationService";
+import { convertToUsd } from "./exchangeRateService";
+
+const CRYPTO = new Set(["BTC", "ETH", "USDT"]);
 function mapTxn(t: typeof transactionsTable.$inferSelect) {
   return {
     id: t.id,
@@ -39,14 +42,23 @@ export async function createWithdrawalRequest(
 
   await checkKycRequired(userId);
 
-  const minWithdraw = Number(await getSetting("min_withdrawal_fiat", "50"));
-  if (amount < minWithdraw && !["BTC", "ETH", "USDT"].includes(currency)) {
-    throw new WalletError(`Minimum withdrawal is ${minWithdraw}`, "MIN_WITHDRAWAL");
+  const minWithdrawUsd = Number(await getSetting("min_withdrawal_fiat", "50"));
+  const isCrypto = CRYPTO.has(currency.toUpperCase());
+  const walletDebitAmount = isCrypto ? amount : await convertToUsd(amount, currency);
+
+  if (!isCrypto && walletDebitAmount < minWithdrawUsd) {
+    throw new WalletError(`Minimum withdrawal is ${minWithdrawUsd} USD equivalent`, "MIN_WITHDRAWAL");
+  }
+  if (isCrypto && amount < minWithdrawUsd) {
+    throw new WalletError(`Minimum withdrawal is ${minWithdrawUsd}`, "MIN_WITHDRAWAL");
   }
 
   const feePercent = Number(await getSetting("withdrawal_fee_percent", "2"));
-  const fee = amount * (feePercent / 100);
-  const totalDebit = amount + fee;
+  const fee = isCrypto
+    ? amount * (feePercent / 100)
+    : walletDebitAmount * (feePercent / 100);
+  const totalDebit = isCrypto ? amount + fee : walletDebitAmount + fee;
+  const debitCurrency = isCrypto ? currency : "USD";
 
   const [txn] = await db.insert(transactionsTable).values({
     userId,
@@ -54,7 +66,9 @@ export async function createWithdrawalRequest(
     amount: String(amount),
     currency: currency as any,
     paymentMethod,
-    notes,
+    notes: notes
+      ? `${notes}${!isCrypto && currency.toUpperCase() !== "USD" ? ` | Wallet debit ~$${walletDebitAmount.toFixed(2)} USD` : ""}`
+      : (!isCrypto && currency.toUpperCase() !== "USD" ? `Wallet debit ~$${walletDebitAmount.toFixed(2)} USD` : null),
     gatewayProvider: "personal_account",
     status: "pending",
   }).returning();
@@ -62,11 +76,11 @@ export async function createWithdrawalRequest(
   await debitWallet({
     userId,
     amount: totalDebit,
-    currency,
+    currency: debitCurrency,
     type: "withdrawal",
     referenceType: "transaction",
     referenceId: txn.id,
-    description: `Withdrawal #${txn.id} to personal account (fee: ${fee.toFixed(2)})`,
+    description: `Withdrawal #${txn.id} — ${amount} ${currency} (fee: ${fee.toFixed(2)} ${isCrypto ? currency : "USD"})`,
   });
 
   await notifyUser({

@@ -13,11 +13,12 @@ import { Link } from "wouter";
 import { ArrowUpRight, Building2, QrCode, Wallet, Plus, Landmark } from "lucide-react";
 import { PersonalPaymentAccounts, type PaymentAccount } from "./PersonalPaymentAccounts";
 import {
-  currencyForAccount,
   formatPayoutAccount,
   methodLabelForAccount,
   walletBalanceForCurrency,
 } from "./payout-utils";
+import { WITHDRAW_FIAT_CURRENCIES } from "@/lib/wallet-currency-options";
+import { formatCurrencyAmount, formatUsdWithInr } from "@/lib/format-money";
 import {
   CRYPTO_SYMBOLS,
   defaultNetworkForSymbol,
@@ -41,6 +42,7 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
   const [amount, setAmount] = useState("");
   const [paymentAccountId, setPaymentAccountId] = useState("");
   const [payoutMode, setPayoutMode] = useState<"fiat" | "crypto">("fiat");
+  const [fiatCurrency, setFiatCurrency] = useState<string>("INR");
   const [cryptoSymbol, setCryptoSymbol] = useState("USDT");
   const [cryptoChain, setCryptoChain] = useState("TRC20");
 
@@ -61,8 +63,12 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
 
   const selected = filteredAccounts.find(a => String(a.id) === paymentAccountId)
     ?? accounts.find(a => String(a.id) === paymentAccountId);
-  const currency = selected ? currencyForAccount(selected) : payoutMode === "crypto" ? cryptoSymbol as any : "USD";
-  const available = walletBalanceForCurrency(currency, wallet);
+  const currency = payoutMode === "crypto"
+    ? (cryptoSymbol as "BTC" | "ETH" | "USDT")
+    : (fiatCurrency as "INR" | "USD" | "EUR");
+  const available = walletBalanceForCurrency(currency, wallet as any);
+  const fiatUsd = wallet?.fiatBalance || 0;
+  const fiatDual = formatUsdWithInr(fiatUsd, (wallet as any)?.fiatBalanceInr ?? (wallet as any)?.inrBalance);
 
   useEffect(() => {
     if (cryptoAccounts.length > 0 && payoutMode === "fiat" && fiatAccounts.length === 0) {
@@ -112,7 +118,11 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
       return;
     }
     if (numAmount > available) {
-      toast({ title: "Insufficient balance", description: `Available: ${available.toLocaleString()} ${currency}`, variant: "destructive" });
+      toast({
+        title: "Insufficient balance",
+        description: `Available: ${formatCurrencyAmount(available, currency)}`,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -171,12 +181,33 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 rounded-lg border border-white/10 bg-white/[0.02]">
             <p className="text-[10px] uppercase text-muted-foreground mb-1">Fiat Wallet</p>
-            <p className="text-lg font-bold">${(wallet?.fiatBalance || 0).toLocaleString()}</p>
+            <p className="text-lg font-bold">{fiatDual.primary}</p>
+            {fiatDual.secondary && (
+              <p className="text-xs text-muted-foreground mt-0.5">{fiatDual.secondary}</p>
+            )}
           </div>
           <div className="p-3 rounded-lg border border-white/10 bg-white/[0.02]">
             <p className="text-[10px] uppercase text-muted-foreground mb-1">Crypto Wallet</p>
             <p className="text-lg font-bold">{(wallet?.cryptoBalance || 0).toLocaleString()} USDT</p>
           </div>
+        </div>
+      )}
+
+      {payoutMode === "fiat" && (
+        <div className="space-y-2">
+          <Label>Payout currency</Label>
+          <Select value={fiatCurrency} onValueChange={setFiatCurrency}>
+            <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {WITHDRAW_FIAT_CURRENCIES.map(c => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground">
+            Available: {formatCurrencyAmount(available, fiatCurrency)}
+            {fiatCurrency !== "USD" && fiatDual.secondary ? ` (${fiatDual.primary} USD wallet)` : ""}
+          </p>
         </div>
       )}
 

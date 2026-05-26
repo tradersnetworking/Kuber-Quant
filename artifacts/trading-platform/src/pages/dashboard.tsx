@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -18,8 +19,21 @@ import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
 import { SafeBoundary } from "@/components/SafeBoundary";
+import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
+import { format } from "date-fns";
 
 const CRYPTO_COLORS = ["#F59E0B", "#6366f1", "#22c55e", "#f43f5e"];
+
+const STATUS_BADGE: Record<string, string> = {
+  approved: "bg-green-500/20 text-green-400 border-green-500/30",
+  pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  rejected: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+function fmtTxnAmount(amount: number, currency: string) {
+  const prefix = !["BTC", "ETH"].includes(currency) && currency !== "USDT" ? "$" : "";
+  return `${prefix}${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+}
 
 const MONTHLY_DATA = [
   { month: "Jan", return: 4.2, invested: 12000 },
@@ -32,13 +46,18 @@ const MONTHLY_DATA = [
 
 function StatCard({
   title, value, isLoading, prefix = "", suffix = "", icon, trend, trendValue, gradient = false,
+  secondaryValue, secondaryPrefix = "₹",
 }: {
   title: string; value?: number; isLoading: boolean; prefix?: string; suffix?: string;
   icon?: React.ReactNode; trend?: "up" | "down"; trendValue?: string; gradient?: boolean;
+  secondaryValue?: number; secondaryPrefix?: string;
 }) {
   const formatted = value !== undefined
     ? `${prefix}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`
     : "—";
+  const secondary = secondaryValue !== undefined
+    ? `${secondaryPrefix}${secondaryValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : null;
   return (
     <Card className={`${gradient ? "bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border-amber-500/30" : "bg-white/5 border-white/10"} backdrop-blur-sm`}>
       <CardContent className="pt-6">
@@ -51,6 +70,9 @@ function StatCard({
         ) : (
           <div>
             <p className={`text-3xl font-black tracking-tight ${gradient ? "text-amber-400" : "text-white"}`}>{formatted}</p>
+            {secondary && (
+              <p className="text-sm text-muted-foreground mt-1 font-medium">{secondary}</p>
+            )}
             {trend && trendValue && (
               <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend === "up" ? "text-green-400" : "text-red-400"}`}>
                 {trend === "up" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
@@ -82,19 +104,30 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { data: summary, isLoading: isLoadingSummary } = ApiHooks.useGetDashboardSummary();
-  const { data: chartData, isLoading: isLoadingChart } = ApiHooks.useGetPortfolioChart();
-  const { data: activity, isLoading: isLoadingActivity } = ApiHooks.useGetRecentActivity();
+  const { data: summary, isLoading: isLoadingSummary } = ApiHooks.useGetDashboardSummary({
+    query: financeQueryOptions as any,
+  });
+  const { data: chartData, isLoading: isLoadingChart } = ApiHooks.useGetPortfolioChart({
+    query: financeQueryOptions as any,
+  });
+  const { data: activity, isLoading: isLoadingActivity } = ApiHooks.useGetRecentActivity({
+    query: financeQueryOptions as any,
+  });
 
   const useGetWallet = (ApiHooks as any).useGetWallet;
   const useGetReferralStats = (ApiHooks as any).useGetReferralStats;
   const useListNotifications = (ApiHooks as any).useListNotifications;
 
-  const { data: wallet, isLoading: isLoadingWallet } = useGetWallet ? useGetWallet() : { data: null, isLoading: false };
+  const { data: wallet, isLoading: isLoadingWallet } = useGetWallet
+    ? useGetWallet({ query: financeQueryOptions as any })
+    : { data: null, isLoading: false };
   const { data: referralStats } = useGetReferralStats ? useGetReferralStats() : { data: null };
   const { data: notifications } = useListNotifications ? useListNotifications() : { data: null };
 
   const unreadCount = (notifications as any[])?.filter((n: any) => !n.isRead).length || 0;
+
+  const summaryAny = summary as any;
+  const walletAny = wallet as any;
 
   const portfolioPie = [
     { name: "Fiat USD", value: Number(wallet?.fiatBalance || 0) },
@@ -164,16 +197,25 @@ export default function DashboardPage() {
         {/* ── Top Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Total Portfolio" value={summary?.totalBalance} isLoading={isLoadingSummary}
+            title="Total Portfolio"
+            value={summaryAny?.totalPortfolio ?? summary?.totalBalance}
+            secondaryValue={summaryAny?.totalPortfolioInr}
+            isLoading={isLoadingSummary}
             prefix="$" icon={<Wallet className="h-4 w-4 text-amber-400" />}
             trend="up" trendValue="+12.4%" gradient
           />
           <StatCard
-            title="Fiat Balance" value={wallet?.fiatBalance} isLoading={isLoadingWallet}
+            title="Fiat Balance"
+            value={wallet?.fiatBalance}
+            secondaryValue={walletAny?.fiatBalanceInr ?? walletAny?.inrBalance}
+            isLoading={isLoadingWallet}
             prefix="$" icon={<Coins className="h-4 w-4 text-blue-400" />}
           />
           <StatCard
-            title="Total Profit" value={summary?.totalProfit} isLoading={isLoadingSummary}
+            title="Total Profit"
+            value={summary?.totalProfit}
+            secondaryValue={summaryAny?.totalProfitInr}
+            isLoading={isLoadingSummary}
             prefix="$" icon={<TrendingUp className="h-4 w-4 text-green-400" />}
             trend="up" trendValue="+8.2%"
           />
@@ -182,6 +224,15 @@ export default function DashboardPage() {
             prefix="$" icon={<Award className="h-4 w-4 text-purple-400" />}
           />
         </div>
+
+        {(summaryAny?.exchangeRates?.USD_INR || walletAny?.exchangeRates?.USD_INR) && (
+          <p className="text-[11px] text-muted-foreground text-center">
+            INR estimates use live rate 1 USD = ₹{Number(summaryAny?.exchangeRates?.USD_INR ?? walletAny?.exchangeRates?.USD_INR).toFixed(2)}
+            {summaryAny?.exchangeRates?.updatedAt && (
+              <> · updated {new Date(summaryAny.exchangeRates.updatedAt).toLocaleDateString()}</>
+            )}
+          </p>
+        )}
 
         {/* ── Secondary Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -423,50 +474,53 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {isLoadingActivity ? (
-                <div className="space-y-3">
-                  {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="flex items-center gap-3">
-                      <Skeleton className="h-9 w-9 rounded-full" />
-                      <div className="space-y-1.5 flex-1">
-                        <Skeleton className="h-3.5 w-48" />
-                        <Skeleton className="h-3 w-28" />
-                      </div>
-                      <Skeleton className="h-4 w-20" />
-                    </div>
-                  ))}
-                </div>
+                <Skeleton className="h-40 w-full" />
               ) : activity && activity.length > 0 ? (
-                <div className="space-y-1">
-                  {activity.map(item => (
-                    <div key={item.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 group">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-full ${
-                          item.type === "deposit" ? "bg-green-500/10 text-green-400" :
-                          item.type === "withdrawal" ? "bg-red-500/10 text-red-400" :
-                          "bg-amber-500/10 text-amber-400"
-                        }`}>
-                          {item.type === "deposit" ? <ArrowUpRight className="h-3.5 w-3.5" /> :
-                           item.type === "withdrawal" ? <ArrowDownLeft className="h-3.5 w-3.5" /> :
-                           <TrendingUp className="h-3.5 w-3.5" />}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium group-hover:text-amber-400 transition-colors">{item.description}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <div className={`text-sm font-bold ${
-                        item.type === "withdrawal" ? "text-red-400" : item.amount > 0 ? "text-green-400" : "text-zinc-400"
-                      }`}>
-                        {item.type === "withdrawal" ? "-" : item.amount > 0 ? "+" : ""}
-                        {item.amount} {item.currency}
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/10 hover:bg-transparent">
+                        <TableHead className="text-xs">TXN ID</TableHead>
+                        <TableHead className="text-xs">Date</TableHead>
+                        <TableHead className="text-xs">Type</TableHead>
+                        <TableHead className="text-xs">Amount</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(activity as any[]).map(item => (
+                        <TableRow key={item.id} className="border-white/10">
+                          <TableCell className="text-xs font-mono text-muted-foreground">#{item.transactionId ?? item.id}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(item.createdAt), "dd/MM/yyyy HH:mm")}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center gap-1 text-xs capitalize font-medium ${
+                              item.type === "deposit" ? "text-green-400" : "text-red-400"
+                            }`}>
+                              {item.type === "deposit" ? <ArrowDownLeft className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
+                              {item.type}
+                            </span>
+                          </TableCell>
+                          <TableCell className={`text-sm font-semibold ${
+                            item.type === "deposit" ? "text-green-400" : "text-red-400"
+                          }`}>
+                            {fmtTxnAmount(item.amount, item.currency)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`text-[10px] border capitalize ${STATUS_BADGE[item.status] || "bg-white/10 text-zinc-400 border-white/10"}`}>
+                              {item.status || "—"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <div className="py-10 text-center text-muted-foreground">
                   <Activity className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                  <p className="text-sm">No transactions yet</p>
+                  <p className="text-sm">No deposit or withdrawal activity yet</p>
                 </div>
               )}
             </CardContent>

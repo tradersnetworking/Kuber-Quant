@@ -1,23 +1,20 @@
 import { Link } from "wouter";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useSiteBranding } from "@/hooks/use-site-branding";
+import { usePartnersSection } from "@/hooks/use-partners-section";
+import { useCompanyAbout, type AboutCategory } from "@/hooks/use-company-about";
+import { useAuth } from "@/hooks/use-auth";
+import { getPostLoginPath, getRoleAwareHref } from "@/lib/nav-config";
 import {
-  Cpu, Users, ArrowRightLeft, Shield, BarChart3, Globe, ChevronRight, TrendingUp,
-  Award, Zap, Bot, LineChart, Activity, Lock, Target, BarChart2, Layers,
-  Twitter, Send, Youtube, Instagram, TrendingDown, Star, Clock, CheckCircle,
-  DollarSign, Percent, Calendar, ArrowRight
+  Cpu, Users, ArrowRightLeft, Shield, ChevronRight,
+  Award, Zap, Bot, Activity, Target, BarChart2, Layers,
+  Twitter, Send, Youtube, Instagram, Star, ArrowRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useListPlans, type InvestmentPlan } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/use-auth";
-import { getPostLoginPath, getRoleAwareHref } from "@/lib/nav-config";
-import { BrandTitle } from "@/components/brand/BrandTitle";
-import { useSiteBranding } from "@/hooks/use-site-branding";
-import { usePartnersSection } from "@/hooks/use-partners-section";
-import { useCompanyAbout, type AboutCategory } from "@/hooks/use-company-about";
 
 const ALGO_STRATEGIES = [
   {
@@ -133,6 +130,23 @@ const EA_STRATEGIES = [
   },
 ];
 
+const PLAN_CARD_THEMES = [
+  { color: "from-emerald-500 to-teal-400", accent: "text-emerald-400", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  { color: "from-amber-400 to-yellow-500", accent: "text-amber-400", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  { color: "from-blue-500 to-indigo-400", accent: "text-blue-400", badge: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  { color: "from-purple-500 to-pink-400", accent: "text-purple-400", badge: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+  { color: "from-cyan-500 to-sky-400", accent: "text-cyan-400", badge: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" },
+  { color: "from-rose-500 to-orange-400", accent: "text-rose-400", badge: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
+];
+
+const ABOUT_THEMES: Record<AboutCategory, { color: string; accent: string; iconBg: string; icon: typeof Shield }> = {
+  registration: { color: "from-blue-500 to-cyan-400", accent: "text-blue-400", iconBg: "bg-blue-500/10", icon: Shield },
+  affiliation: { color: "from-emerald-500 to-teal-400", accent: "text-emerald-400", iconBg: "bg-emerald-500/10", icon: Users },
+  partner: { color: "from-purple-500 to-pink-400", accent: "text-purple-400", iconBg: "bg-purple-500/10", icon: ArrowRightLeft },
+  recognition: { color: "from-amber-400 to-yellow-500", accent: "text-amber-400", iconBg: "bg-amber-500/10", icon: Award },
+  license: { color: "from-rose-500 to-orange-400", accent: "text-rose-400", iconBg: "bg-rose-500/10", icon: Star },
+};
+
 const FEATURES = [
   { icon: Cpu, title: "Algo Trading", desc: "Access premium, backtested algorithmic strategies executed with millisecond precision.", color: "text-blue-400", bg: "bg-blue-500/10" },
   { icon: Users, title: "Copy Trading", desc: "Automatically mirror the trades of our top-performing fund managers in real-time.", color: "text-emerald-400", bg: "bg-emerald-500/10" },
@@ -168,11 +182,10 @@ export default function LandingPage() {
       {/* Navigation */}
       <header className="border-b border-white/10 py-4 px-6 md:px-12 bg-[#050A14]/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          {/* Logo + site title — one line on all screen sizes */}
-          <div className="flex items-center gap-2 min-w-0">
-            <BrandLogo className="h-10 w-10 shrink-0" logoUrl={logoSrc} alt={branding.siteName} />
-            <BrandTitle size="lg" className="truncate leading-tight" />
-          </div>
+          {/* Logo */}
+          <Link href="/" className="flex items-center min-w-0">
+            <BrandLogo className="h-11 w-auto max-w-[140px]" logoUrl={logoSrc} alt={branding.siteName} />
+          </Link>
 
           {/* Desktop nav links */}
           <div className="hidden md:flex gap-8 items-center">
@@ -439,21 +452,23 @@ export default function LandingPage() {
               <h2 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">Investment Plans</h2>
               <p className="text-white/50 text-lg max-w-2xl mx-auto">Select a strategy that aligns with your financial goals and risk tolerance.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-              {plans ? plans.map((plan: InvestmentPlan) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {plans ? plans.map((plan: InvestmentPlan, planIdx) => {
+                const theme = PLAN_CARD_THEMES[planIdx % PLAN_CARD_THEMES.length];
+                return (
                 <motion.div key={plan.id} whileHover={{ y: -8 }} className="relative group">
-                  <Card className="bg-[#0A0F1A] border-white/10 overflow-hidden h-full flex flex-col group-hover:border-amber-500/50 transition-all duration-300">
-                    <div className="h-1 w-full bg-gradient-to-r from-amber-400 to-yellow-600 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <Card className="bg-[#0A0F1A] border-white/10 overflow-hidden h-full flex flex-col group-hover:border-white/20 transition-all duration-300">
+                    <div className={`h-1 w-full bg-gradient-to-r ${theme.color}`} />
                     <CardContent className="p-6 flex flex-col flex-1">
                       <div className="mb-5">
-                        <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 mb-3 text-xs">{plan.category}</Badge>
+                        <Badge variant="secondary" className={`${theme.badge} mb-3 text-xs border`}>{plan.category}</Badge>
                         <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
                         <p className="text-white/40 text-xs line-clamp-2">{plan.description}</p>
                       </div>
                       <div className="space-y-3 mb-6 flex-1">
                         <div className="flex justify-between items-end">
                           <span className="text-white/40 text-xs">Target ROI</span>
-                          <span className="text-2xl font-bold text-amber-400">{plan.roiPercent}%</span>
+                          <span className={`text-2xl font-bold ${theme.accent}`}>{plan.roiPercent}%</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-white/40 text-xs">Duration</span>
@@ -465,79 +480,20 @@ export default function LandingPage() {
                         </div>
                       </div>
                       <Link href={isLoggedIn ? appHref("/plans") : "/register"}>
-                        <Button className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 hover:from-amber-500 hover:to-yellow-700 text-black font-bold text-sm shadow-lg shadow-amber-500/20 transition-all border-0">
+                        <Button size="sm" className={`w-full bg-gradient-to-r ${theme.color} text-black font-bold text-xs h-9 border-0 hover:opacity-90 transition-opacity`}>
                           {isLoggedIn ? "Invest Now" : "Select Plan"}
                         </Button>
                       </Link>
                     </CardContent>
                   </Card>
                 </motion.div>
-              )) : [1, 2, 3, 4].map(i => (
+              );
+              }) : [1, 2, 3, 4].map(i => (
                 <div key={i} className="h-80 rounded-2xl bg-white/5 animate-pulse border border-white/10" />
               ))}
             </div>
           </div>
         </section>
-
-        {/* About Kuber Quant */}
-        {companyAbout.items.length > 0 && (
-          <section id="about" className="w-full py-24 border-t border-white/10 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
-            <div className="max-w-6xl mx-auto px-6">
-              <div className="text-center max-w-3xl mx-auto mb-14">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
-                  {companyAbout.sectionTitle}
-                </h2>
-                <p className="text-white/50 leading-relaxed">{companyAbout.intro}</p>
-              </div>
-
-              {(Object.keys(companyAbout.categoryLabels) as AboutCategory[]).map(category => {
-                const items = companyAbout.grouped[category] || [];
-                if (!items.length) return null;
-                return (
-                  <div key={category} className="mb-12 last:mb-0">
-                    <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400/80 mb-5">
-                      {companyAbout.categoryLabels[category]}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {items.map(item => (
-                        <Card key={item.id} className="bg-white/5 border-white/10 hover:border-amber-500/30 transition-colors">
-                          <CardContent className="p-5 space-y-2">
-                            <p className="font-semibold text-white">{item.title}</p>
-                            {item.subtitle && <p className="text-sm text-white/50">{item.subtitle}</p>}
-                            {item.description && <p className="text-xs text-white/40 leading-relaxed">{item.description}</p>}
-                            <div className="pt-2 space-y-1 text-xs text-white/35">
-                              {item.referenceNumber && (
-                                <p><span className="text-white/25">Ref:</span> <span className="font-mono text-white/50">{item.referenceNumber}</span></p>
-                              )}
-                              {item.issuedBy && <p><span className="text-white/25">Issued by:</span> {item.issuedBy}</p>}
-                              {(item.issuedDate || item.expiryDate) && (
-                                <p>
-                                  {item.issuedDate && <>Issued {item.issuedDate}</>}
-                                  {item.issuedDate && item.expiryDate && " · "}
-                                  {item.expiryDate && <>Expires {item.expiryDate}</>}
-                                </p>
-                              )}
-                            </div>
-                            {item.documentUrl && (
-                              <a
-                                href={item.documentUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 mt-2"
-                              >
-                                View document <ChevronRight className="h-3 w-3" />
-                              </a>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
         {/* Partners */}
         <section className="w-full py-20 border-t border-white/10 overflow-hidden">
@@ -590,16 +546,82 @@ export default function LandingPage() {
             </Link>
           </div>
         </section>
+
+        {/* About Kuber Quant — horizontal credential strip above footer */}
+        {companyAbout.items.length > 0 && (
+          <section id="about" className="w-full py-20 px-6 border-t border-white/10 bg-gradient-to-b from-transparent via-white/[0.02] to-[#050A14]">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center max-w-3xl mx-auto mb-12">
+                <Badge variant="outline" className="border-amber-500/20 text-amber-400 mb-4 bg-amber-500/5">Trust & Compliance</Badge>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
+                  {companyAbout.sectionTitle}
+                </h2>
+                <p className="text-white/50 leading-relaxed text-sm md:text-base">{companyAbout.intro}</p>
+              </div>
+
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
+              >
+                {companyAbout.items.map(item => {
+                  const theme = ABOUT_THEMES[item.category];
+                  const Icon = theme.icon;
+                  const description =
+                    item.description
+                    || item.subtitle
+                    || item.issuedBy
+                    || companyAbout.categoryLabels[item.category];
+
+                  return (
+                    <motion.div key={item.id} variants={itemVariants} whileHover={{ y: -4 }} className="h-full">
+                      <Card className="bg-[#080f1e] border-white/10 hover:border-white/20 transition-all duration-300 overflow-hidden h-full flex flex-col">
+                        <div className={`h-1 w-full bg-gradient-to-r ${theme.color}`} />
+                        <CardContent className="p-4 flex flex-col flex-1 gap-2">
+                          <div className={`w-9 h-9 ${theme.iconBg} rounded-lg flex items-center justify-center shrink-0`}>
+                            <Icon className={`h-4 w-4 ${theme.accent}`} />
+                          </div>
+                          <Badge variant="outline" className={`w-fit text-[10px] uppercase tracking-wider border-white/10 ${theme.accent} bg-white/5`}>
+                            {companyAbout.categoryLabels[item.category]}
+                          </Badge>
+                          <p className="font-semibold text-white text-sm leading-snug">{item.title}</p>
+                          <p className="text-xs text-white/45 leading-relaxed flex-1 line-clamp-4">{description}</p>
+                          {(item.referenceNumber || item.issuedDate) && (
+                            <div className="pt-2 mt-auto border-t border-white/5 space-y-0.5 text-[10px] text-white/30">
+                              {item.referenceNumber && (
+                                <p className="font-mono truncate" title={item.referenceNumber}>{item.referenceNumber}</p>
+                              )}
+                              {item.issuedDate && <p>Since {item.issuedDate}</p>}
+                            </div>
+                          )}
+                          {item.documentUrl && (
+                            <a
+                              href={item.documentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`inline-flex items-center gap-1 text-[11px] ${theme.accent} hover:opacity-80 mt-1`}
+                            >
+                              View document <ChevronRight className="h-3 w-3" />
+                            </a>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Footer */}
       <footer className="w-full py-14 px-6 md:px-12 border-t border-white/10 bg-[#050A14] relative z-10">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-5">
-              <BrandLogo className="h-8 w-8" logoUrl={branding.logoUrl} alt={branding.siteName} />
-              <div className="text-xl font-bold text-white tracking-tight">Kuber Quant</div>
-            </div>
+            <BrandLogo className="h-14 w-auto max-w-[180px] mb-5" logoUrl={branding.logoUrl} alt={branding.siteName} />
             <p className="text-white/40 max-w-sm mb-6 leading-relaxed text-sm">
               {companyAbout.footerDescription}
             </p>

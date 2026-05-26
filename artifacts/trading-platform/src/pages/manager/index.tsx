@@ -16,6 +16,7 @@ import {
 import { motion } from "framer-motion";
 import { useManagerAnalytics } from "@/lib/staff-api";
 import { formatActivityTime } from "@/lib/format-activity-time";
+import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
 import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
 import { SafeBoundary } from "@/components/SafeBoundary";
 
@@ -83,7 +84,9 @@ function StatCard({ title, value, icon, href, color = "text-white", isLoading, s
 }
 
 export default function ManagerDashboard() {
-  const { data: stats, isLoading } = useGetManagerStats();
+  const { data: stats, isLoading, refetch: refetchStats } = useGetManagerStats({
+    query: financeQueryOptions as any,
+  });
   const { data: analytics, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics } = useManagerAnalytics();
 
   const cashFlow = analytics?.cashFlow?.length ? analytics.cashFlow : FALLBACK_CASH_FLOW;
@@ -125,7 +128,7 @@ export default function ManagerDashboard() {
             <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs px-3 py-1.5">
               <CheckCircle2 className="h-3 w-3 mr-1.5" /> Active
             </Badge>
-            <Button size="sm" variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5" onClick={() => refetchAnalytics()}>
+            <Button size="sm" variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5" onClick={() => { refetchStats(); refetchAnalytics(); }}>
               <RefreshCw className="h-3 w-3" /> Refresh
             </Button>
           </div>

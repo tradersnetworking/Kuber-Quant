@@ -33,7 +33,7 @@ export default function AdminTicketsPage() {
 
     setReplyPending(true);
     try {
-      await replyToTicketAsStaff(selectedTicket.id, replyMessage, "admin");
+      await replyToTicketAsStaff(selectedTicket.id, replyMessage, "superadmin");
       toast({ title: "Reply sent successfully" });
       setReplyMessage("");
       const updated = await refetch();

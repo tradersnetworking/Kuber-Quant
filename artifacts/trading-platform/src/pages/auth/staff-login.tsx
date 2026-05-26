@@ -13,7 +13,7 @@ import * as ApiHooks from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { getPostLoginPath } from "@/lib/nav-config";
 
-const STAFF_ROLES = new Set(["superadmin", "admin", "manager", "support"]);
+const STAFF_ROLES = new Set(["superadmin", "manager", "support"]);
 
 function isStaffRole(role: string): boolean {
   return STAFF_ROLES.has(role);
@@ -92,11 +92,7 @@ export default function StaffLoginPage() {
         <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-amber-600/5 rounded-full blur-3xl" />
 
         <div className="relative z-10 max-w-sm text-center">
-          <BrandLogo className="h-28 w-28 mx-auto mb-6" />
-          <h1 className="text-4xl font-black tracking-tight mb-2">
-            <span className="text-amber-400">KUBER</span>
-            <span className="text-zinc-200"> QUANT</span>
-          </h1>
+          <BrandLogo className="h-36 w-auto max-w-[300px] mx-auto mb-6" />
           <p className="text-zinc-500 text-sm font-mono tracking-widest uppercase mb-10">
             Staff Control Center
           </p>
@@ -104,7 +100,7 @@ export default function StaffLoginPage() {
           <div className="space-y-4">
             {[
               { icon: Shield, label: "Secured Access", desc: "256-bit encrypted portal" },
-              { icon: Lock, label: "Role-Based Control", desc: "Super Admin, Admin & Manager access" },
+              { icon: Lock, label: "Role-Based Control", desc: "Super Admin, Manager & Support access" },
               { icon: ShieldAlert, label: "Audit Logged", desc: "All actions are recorded" },
             ].map(({ icon: Icon, label, desc }) => (
               <div key={label} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/5 text-left">
@@ -136,7 +132,7 @@ export default function StaffLoginPage() {
           <Card className="w-full max-w-md border-amber-500/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/50">
             <CardHeader className="space-y-3 pb-6">
               <div className="flex justify-center mb-2 md:hidden">
-                <BrandLogo className="h-16 w-16" />
+                <BrandLogo className="h-16 w-auto max-w-[200px]" />
               </div>
               <div className="flex items-center justify-center gap-2">
                 <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs font-mono tracking-widest uppercase px-3 py-1">
@@ -145,7 +141,7 @@ export default function StaffLoginPage() {
               </div>
               <CardTitle className="text-2xl font-bold text-center text-white">Staff Sign In</CardTitle>
               <CardDescription className="text-center text-zinc-500">
-                Super Admin, Admin, Manager, and Support access
+                Super Admin, Manager, and Support access
               </CardDescription>
             </CardHeader>
 
@@ -162,7 +158,7 @@ export default function StaffLoginPage() {
                   <Label className="text-zinc-400 text-xs font-mono tracking-widest uppercase">Staff Email</Label>
                   <Input
                     type="email"
-                    placeholder="admin@kuberquant.com"
+                    placeholder="superadmin@kuberquant.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required

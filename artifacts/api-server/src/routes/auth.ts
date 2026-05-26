@@ -15,6 +15,7 @@ import { getSiteSettings } from "../helpers/siteSettings";
 import { getUserProfile, updateUserProfile } from "../helpers/profileService";
 import { resolveLoginEmail } from "../helpers/defaultUsers";
 import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
+import { getWalletFinancialSummary } from "../helpers/walletService";
 
 const router = Router();
 const profileUpload = createUploadMiddleware("profile_images");
@@ -27,12 +28,13 @@ function generateReferralCode(): string {
 export { generateReferralCode };
 
 export function mapUser(user: any) {
+  const role = user.role === "admin" ? "superadmin" : user.role;
   return {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
     phone: user.phone || null,
-    role: user.role,
+    role,
     kycStatus: user.kycStatus,
     balanceFiat: Number(user.balanceFiat),
     balanceCrypto: Number(user.balanceCrypto),
@@ -48,6 +50,16 @@ export function mapUser(user: any) {
     twoFactorEnabled: user.twoFactorEnabled || false,
     createdAt: user.createdAt.toISOString(),
   };
+}
+
+/** Returns user payload with balances derived from the wallet ledger (source of truth). */
+export async function mapUserWithLedger(user: typeof usersTable.$inferSelect) {
+  const summary = await getWalletFinancialSummary(user.id);
+  return mapUser({
+    ...user,
+    balanceFiat: summary.fiatBalance,
+    balanceCrypto: summary.cryptoBalance,
+  });
 }
 
 async function issueTokens(user: { id: number; role: string }) {
@@ -107,7 +119,7 @@ router.post("/login", async (req, res) => {
 
   const tokens = await issueTokens(user);
   await trackLogin(user.id, req, true);
-  res.json({ user: mapUser(user), ...tokens });
+  res.json({ user: await mapUserWithLedger(user), ...tokens });
 });
 
 router.post("/refresh", async (req, res) => {
@@ -134,7 +146,7 @@ router.post("/refresh", async (req, res) => {
   }
   await revokeRefreshToken(refreshToken);
   const tokens = await issueTokens(user);
-  res.json({ user: mapUser(user), ...tokens });
+  res.json({ user: await mapUserWithLedger(user), ...tokens });
 });
 
 router.post("/forgot-password", async (req, res) => {
@@ -287,7 +299,7 @@ router.post("/google", async (req, res) => {
   }
 
   const tokens = await issueTokens(user);
-  res.json({ user: mapUser(user), ...tokens });
+  res.json({ user: await mapUserWithLedger(user), ...tokens });
 });
 
 router.put("/change-password", requireAuth, async (req, res) => {
@@ -325,7 +337,7 @@ router.get("/me", requireAuth, async (req, res) => {
     res.status(401).json({ error: "User not found" });
     return;
   }
-  res.json(mapUser(user));
+  res.json(await mapUserWithLedger(user));
 });
 
 router.get("/profile", requireAuth, async (req, res) => {

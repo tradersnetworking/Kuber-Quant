@@ -25,6 +25,7 @@ import { CopyTradersPanel } from "@/components/super-admin/CopyTradersPanel";
 import { WalletOperationsPanel } from "@/components/super-admin/WalletOperationsPanel";
 import { UsersManagementPanel } from "@/components/super-admin/UsersManagementPanel";
 import { ManagersManagementPanel } from "@/components/super-admin/ManagersManagementPanel";
+import { SupportTeamManagementPanel } from "@/components/super-admin/SupportTeamManagementPanel";
 import { ManagerApplicationsPanel } from "@/components/super-admin/ManagerApplicationsPanel";
 import { KycManagementPanel } from "@/components/super-admin/KycManagementPanel";
 import { PaymentGatewaysPanel } from "@/components/super-admin/PaymentGatewaysPanel";
@@ -283,6 +284,7 @@ export default function SuperAdminDashboard() {
     { label: "Net Funds", value: stats?.netFunds != null ? `$${Number(stats.netFunds).toLocaleString(undefined, { minimumFractionDigits: 0 })}` : undefined, color: "text-green-400" },
     { label: "Total Users", value: stats?.totalUsers, color: "text-blue-400" },
     { label: "Managers", value: stats?.managers, color: "text-cyan-400" },
+    { label: "Support Team", value: stats?.supportAgents, color: "text-rose-400" },
     { label: "Investors", value: stats?.investors, color: "text-purple-400" },
     { label: "Pending Txns", value: stats?.pendingTransactions, color: "text-orange-400" },
     { label: "Pending KYC", value: stats?.pendingKyc, color: "text-teal-400" },
@@ -309,7 +311,7 @@ export default function SuperAdminDashboard() {
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
               Super Admin
             </h1>
-            <p className="text-muted-foreground mt-1">Create plans, collect funds, and manage users & managers across the platform</p>
+            <p className="text-muted-foreground mt-1">Create plans, collect funds, and manage users, managers & support across the platform</p>
           </div>
           <Button variant="outline" size="sm" onClick={loadAll} disabled={loading.all}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading.all ? "animate-spin" : ""}`} />
@@ -345,6 +347,8 @@ export default function SuperAdminDashboard() {
             <TabsTrigger value="wallet">Wallet</TabsTrigger>
             <TabsTrigger value="investments">Investments</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="managers">Managers</TabsTrigger>
+            <TabsTrigger value="support-team">Support Team</TabsTrigger>
             <TabsTrigger value="kyc">KYC</TabsTrigger>
             <TabsTrigger value="investment-plans">Plans</TabsTrigger>
             <TabsTrigger value="ea-strategies">EA</TabsTrigger>
@@ -414,7 +418,7 @@ export default function SuperAdminDashboard() {
                 { tab: "wallet", label: "Wallet & Txns", desc: "Deposits, withdrawals" },
                 { tab: "users", label: "Users", desc: "Edit all accounts" },
                 { tab: "managers", label: "Managers", desc: "Create managers" },
-                { tab: "admins", label: "Admins", desc: "Admin accounts" },
+                { tab: "support-team", label: "Support Team", desc: "Create support agents" },
                 { tab: "kyc", label: "KYC", desc: "Approvals" },
                 { tab: "investment-plans", label: "Investment Plans", desc: "Plan CRUD" },
                 { tab: "copy-trading", label: "Copy Trading", desc: "Master traders" },
@@ -475,8 +479,8 @@ export default function SuperAdminDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="admins" className={TAB_PANEL}>
-            <UsersManagementPanel defaultRoleTab="admin" />
+          <TabsContent value="support-team" className={TAB_PANEL}>
+            <SupportTeamManagementPanel />
           </TabsContent>
 
           <TabsContent value="kyc" className={TAB_PANEL}>
@@ -920,7 +924,7 @@ export default function SuperAdminDashboard() {
               <CardContent className="space-y-2 text-sm">
                 {[
                   { label: "Your Role", value: <Badge className="bg-red-500/20 text-red-400">Super Admin</Badge> },
-                  { label: "Role Hierarchy", value: "superadmin → admin → manager → user" },
+                  { label: "Role Hierarchy", value: "superadmin → support → manager → user" },
                   { label: "KYC Requirement", value: <span className="text-green-400">Exempt</span> },
                   { label: "MT5 Relay Endpoint", value: <span className={mt5Endpoint ? "text-green-400" : "text-orange-400"}>{mt5Endpoint ? "Configured" : "Not configured"}</span> },
                   { label: "Trade Copier API", value: <span className={tcIsConfigured ? "text-green-400" : "text-orange-400"}>{tcIsConfigured ? "Configured" : "Not configured"}</span> },

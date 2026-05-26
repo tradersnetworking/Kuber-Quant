@@ -10,6 +10,9 @@ import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { creditWallet, debitWallet, mapLedgerEntry, WalletError } from "./walletService";
 import { sendTransactionalEmail, buildTransactionEmail } from "./mailer";
 import { notifyUser } from "./notificationService";
+import { convertToUsd } from "./exchangeRateService";
+
+const CRYPTO = new Set(["BTC", "ETH", "USDT"]);
 
 async function getSetting(key: string, fallback: string): Promise<string> {
   const [row] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, key)).limit(1);
@@ -41,24 +44,35 @@ export async function approveTransaction(opts: {
   }
 
   if (existing.type === "deposit") {
+    const isCrypto = CRYPTO.has(existing.currency.toUpperCase());
+    const creditAmount = isCrypto
+      ? Number(existing.amount)
+      : await convertToUsd(Number(existing.amount), existing.currency);
+    const creditCurrency = isCrypto ? existing.currency : "USD";
     await creditWallet({
       userId: existing.userId,
-      amount: Number(existing.amount),
-      currency: existing.currency,
+      amount: creditAmount,
+      currency: creditCurrency,
       type: "deposit",
       referenceType: "transaction",
       referenceId: existing.id,
-      description: `Deposit approved — ${existing.paymentMethod || "manual"}`,
+      description: isCrypto || existing.currency === "USD"
+        ? `Deposit approved — ${existing.paymentMethod || "manual"}`
+        : `Deposit approved — ${existing.amount} ${existing.currency} → $${creditAmount.toFixed(2)} USD`,
     });
   } else if (existing.type === "withdrawal") {
     const held = await hasLedgerHoldForTransaction(existing.id);
     if (!held) {
+      const isCrypto = CRYPTO.has(existing.currency.toUpperCase());
+      const baseAmount = isCrypto
+        ? Number(existing.amount)
+        : await convertToUsd(Number(existing.amount), existing.currency);
       const feePercent = Number(await getSetting("withdrawal_fee_percent", "2"));
-      const fee = Number(existing.amount) * (feePercent / 100);
+      const fee = baseAmount * (feePercent / 100);
       await debitWallet({
         userId: existing.userId,
-        amount: Number(existing.amount) + fee,
-        currency: existing.currency,
+        amount: baseAmount + fee,
+        currency: isCrypto ? existing.currency : "USD",
         type: "withdrawal",
         referenceType: "transaction",
         referenceId: existing.id,
@@ -119,12 +133,14 @@ export async function rejectTransaction(opts: {
   if (existing.type === "withdrawal") {
     const held = await hasLedgerHoldForTransaction(existing.id);
     if (held) {
-      const feePercent = Number(await getSetting("withdrawal_fee_percent", "2"));
-      const fee = Number(existing.amount) * (feePercent / 100);
+      const entries = await getLedgerEntriesForTransaction(existing.id);
+      const holdEntry = entries.find(e => e.type === "withdrawal" && Number(e.amount) < 0);
+      const refundAmount = holdEntry ? Math.abs(Number(holdEntry.amount)) : Number(existing.amount);
+      const refundCurrency = holdEntry?.currency || (CRYPTO.has(existing.currency.toUpperCase()) ? existing.currency : "USD");
       await creditWallet({
         userId: existing.userId,
-        amount: Number(existing.amount) + fee,
-        currency: existing.currency,
+        amount: refundAmount,
+        currency: refundCurrency,
         type: "adjustment",
         referenceType: "transaction",
         referenceId: existing.id,

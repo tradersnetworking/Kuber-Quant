@@ -21,20 +21,22 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Search, RefreshCw, UserPlus, Eye, Edit2, Trash2, Users, Briefcase, Shield, Crown, Headset,
+  Search, RefreshCw, UserPlus, Eye, Edit2, Trash2, Users, Crown, Headset,
+  Users2, ArrowRight,
 } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
 import { format } from "date-fns";
 import { UserFullDetailSheet } from "@/components/super-admin/UserFullDetailSheet";
+import { Link } from "wouter";
 
-type RoleKey = "user" | "manager" | "support" | "admin" | "superadmin";
+type RoleKey = "user" | "manager" | "support" | "superadmin";
 
 interface PlatformUser {
   id: number;
   email: string;
   fullName: string;
   phone: string | null;
-  role: RoleKey;
+  role: RoleKey | "admin";
   kycStatus: string;
   balanceFiat: number;
   balanceCrypto: number;
@@ -52,17 +54,34 @@ interface PlatformUser {
 
 const ROLE_TABS: { key: RoleKey; label: string; icon: typeof Users; description: string }[] = [
   { key: "user", label: "Investors", icon: Users, description: "Users who deposit, invest, and trade on the platform" },
-  { key: "manager", label: "Managers", icon: Briefcase, description: "Relationship managers overseeing client accounts" },
-  { key: "support", label: "Support", icon: Headset, description: "Customer support agents" },
-  { key: "admin", label: "Admins", icon: Shield, description: "Platform administrators with operational access" },
   { key: "superadmin", label: "Super Admins", icon: Crown, description: "Full platform control and configuration" },
 ];
+
+const STAFF_LINKS = [
+  {
+    href: "/super-admin/managers",
+    label: "Managers",
+    desc: "Create and manage relationship managers",
+    icon: Users2,
+    color: "text-cyan-400",
+    bg: "bg-cyan-500/10",
+    countKey: "manager" as RoleKey,
+  },
+  {
+    href: "/super-admin/support-team",
+    label: "Support Team",
+    desc: "Create and manage support agents",
+    icon: Headset,
+    color: "text-rose-400",
+    bg: "bg-rose-500/10",
+    countKey: "support" as RoleKey,
+  },
+] as const;
 
 const ROLE_BADGE: Record<RoleKey, string> = {
   user: "bg-zinc-500/20 text-zinc-300",
   manager: "bg-cyan-500/20 text-cyan-400",
   support: "bg-rose-500/20 text-rose-400",
-  admin: "bg-amber-500/20 text-amber-400",
   superadmin: "bg-red-500/20 text-red-400",
 };
 
@@ -79,11 +98,13 @@ const emptyForm = () => ({
   managerId: "", balanceFiat: "", balanceCrypto: "",
 });
 
-export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleTab?: RoleKey }) {
+export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleTab?: "user" | "superadmin" }) {
   const { toast } = useToast();
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<RoleKey>(defaultRoleTab);
+  const [activeTab, setActiveTab] = useState<"user" | "superadmin">(
+    defaultRoleTab === "superadmin" ? "superadmin" : "user",
+  );
   const [search, setSearch] = useState("");
 
   const [selected, setSelected] = useState<PlatformUser | null>(null);
@@ -112,7 +133,7 @@ export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleT
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    setActiveTab(defaultRoleTab);
+    setActiveTab(defaultRoleTab === "superadmin" ? "superadmin" : "user");
   }, [defaultRoleTab]);
 
   const managers = useMemo(
@@ -121,9 +142,10 @@ export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleT
   );
 
   const byRole = useMemo(() => {
-    const map: Record<RoleKey, PlatformUser[]> = { user: [], manager: [], support: [], admin: [], superadmin: [] };
+    const map: Record<RoleKey, PlatformUser[]> = { user: [], manager: [], support: [], superadmin: [] };
     for (const u of users) {
-      if (map[u.role]) map[u.role].push(u);
+      const bucket = (u.role === "admin" ? "superadmin" : u.role) as RoleKey;
+      if (map[bucket]) map[bucket].push(u);
     }
     return map;
   }, [users]);
@@ -151,12 +173,13 @@ export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleT
   const openEdit = (u: PlatformUser) => {
     setSelected(u);
     setNewPassword("");
+    const normalizedRole = (u.role === "admin" || u.role === "superadmin" ? "superadmin" : "user") as RoleKey;
     setEditForm({
       email: u.email,
       password: "",
       fullName: u.fullName,
       phone: u.phone || "",
-      role: u.role,
+      role: normalizedRole,
       kycStatus: u.kycStatus,
       isActive: u.isActive,
       isPromoter: u.isPromoter ?? false,
@@ -340,9 +363,9 @@ export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleT
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">People Management</h2>
+          <h2 className="text-xl font-semibold">Users & Investors</h2>
           <p className="text-sm text-muted-foreground">
-            Separate views for investors, managers, and admins — click any row for full details.
+            Manage investor accounts — balances, KYC, and assigned managers. Staff roles are managed in their dedicated sections.
           </p>
         </div>
         <div className="flex gap-2">
@@ -359,25 +382,86 @@ export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleT
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" className="bg-amber-500 text-black font-semibold" onClick={openCreate}>
-            <UserPlus className="h-4 w-4 mr-1" /> Create
+            <UserPlus className="h-4 w-4 mr-1" /> Create Investor
           </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={v => setActiveTab(v as RoleKey)}>
-        <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1 p-1">
-          {ROLE_TABS.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <TabsTrigger key={tab.key} value={tab.key} className="gap-1.5">
-                <Icon className="h-3.5 w-3.5" />
-                {tab.label}
-                <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 border-white/20">
-                  {byRole[tab.key].length}
-                </Badge>
-              </TabsTrigger>
-            );
-          })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <button type="button" onClick={() => setActiveTab("user")} className="text-left">
+          <Card className={`bg-white/5 border-white/10 hover:border-white/20 transition-colors cursor-pointer h-full ${activeTab === "user" ? "ring-1 ring-amber-500/40" : ""}`}>
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                  <Users className="h-4 w-4 text-blue-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">Investors</p>
+                  <p className="text-xs text-muted-foreground truncate">Platform users & clients</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs border-white/20 shrink-0">{byRole.user.length}</Badge>
+            </CardContent>
+          </Card>
+        </button>
+        {STAFF_LINKS.map(({ href, label, desc, icon: Icon, color, bg, countKey }) => (
+          <Link key={href} href={href}>
+            <Card className="bg-white/5 border-white/10 hover:border-white/20 transition-colors cursor-pointer h-full">
+              <CardContent className="p-4 flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center shrink-0`}>
+                    <Icon className={`h-4 w-4 ${color}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm">{label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{desc}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant="outline" className="text-xs border-white/20">{byRole[countKey].length}</Badge>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+        <button type="button" onClick={() => setActiveTab("superadmin")} className="text-left">
+          <Card className={`bg-white/5 border-white/10 hover:border-white/20 transition-colors cursor-pointer h-full ${activeTab === "superadmin" ? "ring-1 ring-amber-500/40" : ""}`}>
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+                  <Crown className="h-4 w-4 text-red-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">Super Admins</p>
+                  <p className="text-xs text-muted-foreground truncate">Platform administrators</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="outline" className="text-xs border-white/20">{byRole.superadmin.length}</Badge>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        </button>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={v => setActiveTab(v as "user" | "superadmin")}>
+        <TabsList className="bg-white/5 border border-white/10">
+          <TabsTrigger value="user" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            Investors
+            <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 border-white/20">
+              {byRole.user.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="superadmin" className="gap-1.5">
+            <Crown className="h-3.5 w-3.5" />
+            Super Admins
+            <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 border-white/20">
+              {byRole.superadmin.length}
+            </Badge>
+          </TabsTrigger>
         </TabsList>
 
         {ROLE_TABS.map(tab => (
@@ -419,7 +503,9 @@ export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleT
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2 flex-wrap">
                   Edit {selected.fullName}
-                  <Badge className={ROLE_BADGE[selected.role]}>{selected.role}</Badge>
+                  <Badge className={ROLE_BADGE[selected.role === "admin" || selected.role === "superadmin" ? "superadmin" : "user"]}>
+                    {selected.role === "admin" || selected.role === "superadmin" ? "superadmin" : selected.role}
+                  </Badge>
                 </SheetTitle>
                 <SheetDescription>{selected.email}</SheetDescription>
               </SheetHeader>
@@ -442,7 +528,8 @@ export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleT
                     <Select value={editForm.role} onValueChange={v => setEditForm(f => ({ ...f, role: v as RoleKey }))}>
                       <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {ROLE_TABS.map(t => <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>)}
+                        <SelectItem value="user">Investor</SelectItem>
+                        <SelectItem value="superadmin">Super Admin</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -507,18 +594,20 @@ export function UsersManagementPanel({ defaultRoleTab = "user" }: { defaultRoleT
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="bg-[#050A14] border-white/10 max-w-md">
           <DialogHeader>
-            <DialogTitle>Create {ROLE_TABS.find(t => t.key === createForm.role)?.label} Account</DialogTitle>
+            <DialogTitle>Create {activeTab === "superadmin" ? "Super Admin" : "Investor"} Account</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-3">
-            <div className="space-y-1">
-              <Label>Role</Label>
-              <Select value={createForm.role} onValueChange={v => setCreateForm(f => ({ ...f, role: v as RoleKey }))}>
-                <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ROLE_TABS.map(t => <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {activeTab === "superadmin" && (
+              <div className="space-y-1">
+                <Label>Role</Label>
+                <Select value={createForm.role} onValueChange={v => setCreateForm(f => ({ ...f, role: v as RoleKey }))}>
+                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="superadmin">Super Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Full Name</Label>
               <Input required value={createForm.fullName} onChange={e => setCreateForm(f => ({ ...f, fullName: e.target.value }))} className="bg-white/5 border-white/10" />

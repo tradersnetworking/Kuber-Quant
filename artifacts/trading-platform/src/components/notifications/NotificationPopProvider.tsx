@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { authFetchJson } from "@/lib/token-store";
 import { registerServiceWorker } from "@/lib/push-notifications";
+import { invalidateFinanceQueries, isFinanceNotification } from "@/lib/invalidate-finance-queries";
 
 type Notif = {
   id: number;
@@ -54,7 +55,10 @@ export function NotificationPopProvider({ children }: { children: React.ReactNod
               variant: n.type === "error" ? "destructive" : "default",
             });
           }
-          qc.invalidateQueries({ queryKey: ["getListNotifications"] });
+          if (data.notifications.some(n => isFinanceNotification(n.category, n.title))) {
+            invalidateFinanceQueries(qc);
+          }
+          qc.invalidateQueries({ queryKey: ["/api/notifications"] });
         }
         if (data?.latestId) lastIdRef.current = Math.max(lastIdRef.current, data.latestId);
       } catch { /* ignore poll errors */ }

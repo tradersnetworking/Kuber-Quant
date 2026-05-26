@@ -14,11 +14,8 @@ export function LegalLayout({ title, lastUpdated, children }: LegalLayoutProps) 
       {/* Nav */}
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#050A14]/95 backdrop-blur-md">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <BrandLogo className="h-8 w-8" />
-            <span className="font-bold text-lg bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-              Kuber Quant
-            </span>
+          <Link href="/" className="flex items-center group">
+            <BrandLogo className="h-10 w-auto max-w-[130px]" />
           </Link>
           <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-amber-400 transition-colors">
             <ArrowLeft className="h-4 w-4" />

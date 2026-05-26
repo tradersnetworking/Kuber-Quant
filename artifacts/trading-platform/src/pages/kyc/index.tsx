@@ -13,11 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CardFooter } from "@/components/ui/card";
 import { PhoneCountryCodeSelect } from "@/components/forms/PhoneCountryCodeSelect";
 import { DEFAULT_DIAL_CODE } from "@/lib/country-codes";
+import { KycDocumentsList } from "@/components/kyc/KycDocumentsList";
 
 export default function KycPage() {
   const [submitting, setSubmitting] = useState(false);
   const [idDoc, setIdDoc] = useState<File | null>(null);
   const [addressProof, setAddressProof] = useState<File | null>(null);
+  const [passportPhoto, setPassportPhoto] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
 
   const { data: kyc, isLoading, refetch } = useGetKyc();
@@ -59,6 +61,7 @@ export default function KycPage() {
       if (formData.aadhaarNumber) fd.append("aadhaarNumber", formData.aadhaarNumber);
       if (idDoc) fd.append("idDocument", idDoc);
       if (addressProof) fd.append("addressProof", addressProof);
+      if (passportPhoto) fd.append("passportPhoto", passportPhoto);
       if (selfie) fd.append("selfie", selfie);
 
       const token = getStoredToken();
@@ -126,6 +129,10 @@ export default function KycPage() {
                     <p className="text-[10px] text-muted-foreground uppercase">Submitted On</p>
                     <p className="text-sm">{new Date(kyc.createdAt).toLocaleDateString()}</p>
                  </div>
+              </div>
+              <div className="pt-6 max-w-lg mx-auto text-left">
+                <h3 className="text-sm font-semibold mb-3 text-center">Your Uploaded Documents</h3>
+                <KycDocumentsList kyc={kyc as any} />
               </div>
             </CardContent>
           </Card>
@@ -231,6 +238,12 @@ export default function KycPage() {
                   </div>
                   <div className="space-y-3">
                     <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                      <Label className="text-xs text-muted-foreground">Passport Size Photo</Label>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 mb-2">Recent colour photo, white background, face clearly visible (35×45 mm style)</p>
+                      <Input type="file" accept="image/*" className="mt-1 bg-white/5 border-white/10" required
+                        onChange={e => setPassportPhoto(e.target.files?.[0] || null)} />
+                    </div>
+                    <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
                       <Label className="text-xs text-muted-foreground">ID Document</Label>
                       <Input type="file" accept="image/*,.pdf" className="mt-1 bg-white/5 border-white/10"
                         onChange={e => setIdDoc(e.target.files?.[0] || null)} />
@@ -241,7 +254,7 @@ export default function KycPage() {
                         onChange={e => setAddressProof(e.target.files?.[0] || null)} />
                     </div>
                     <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
-                      <Label className="text-xs text-muted-foreground">Selfie</Label>
+                      <Label className="text-xs text-muted-foreground">Selfie (holding ID beside face)</Label>
                       <Input type="file" accept="image/*" className="mt-1 bg-white/5 border-white/10"
                         onChange={e => setSelfie(e.target.files?.[0] || null)} />
                     </div>

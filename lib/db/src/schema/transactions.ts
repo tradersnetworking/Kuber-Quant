@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const transactionTypeEnum = pgEnum("transaction_type", ["deposit", "withdrawal"]);
-export const transactionCurrencyEnum = pgEnum("transaction_currency", ["USD", "EUR", "BTC", "ETH", "USDT"]);
+export const transactionCurrencyEnum = pgEnum("transaction_currency", ["USD", "EUR", "INR", "BTC", "ETH", "USDT"]);
 export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "approved", "rejected"]);
 
 export const transactionsTable = pgTable("transactions", {

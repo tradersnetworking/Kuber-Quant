@@ -6,6 +6,8 @@ import { processMaturedInvestments } from "./helpers/roiEngine";
 import { syncSupportInboxFromImap } from "./helpers/supportMailService";
 import { getSupportMailDeskConfig } from "./helpers/supportMailDeskSettings";
 import { ensureDefaultUsers } from "./helpers/bootstrapUsers";
+import { ensureDefaultCryptoGateways } from "./helpers/defaultPaymentGateways";
+import { refreshExchangeRates } from "./helpers/exchangeRateService";
 
 assertProductionSecrets();
 warnDevSecrets();
@@ -26,6 +28,18 @@ const server = app.listen(port, () => {
   logger.info({ port, env: process.env.NODE_ENV || "development" }, "Server listening");
 
   void ensureDefaultUsers();
+  void ensureDefaultCryptoGateways();
+  void refreshExchangeRates(true);
+
+  cron.schedule("0 6 * * *", async () => {
+    try {
+      await refreshExchangeRates(true);
+      logger.info("Daily FX rate refresh complete");
+    } catch (err) {
+      logger.error({ err }, "Daily FX rate refresh failed");
+    }
+  });
+  logger.info("Daily FX rate refresh scheduled (06:00 UTC)");
 
   cron.schedule("0 * * * *", async () => {
     logger.info("ROI automation: starting cycle");

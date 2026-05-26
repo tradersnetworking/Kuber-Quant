@@ -273,7 +273,7 @@ export function NotificationManagementPanel() {
                         <SelectItem value="all">All active users</SelectItem>
                         <SelectItem value="user">Investors only</SelectItem>
                         <SelectItem value="manager">Managers</SelectItem>
-                        <SelectItem value="admin">Admins</SelectItem>
+                        <SelectItem value="superadmin">Super Admins</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

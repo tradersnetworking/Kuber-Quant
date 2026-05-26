@@ -82,8 +82,8 @@ export function useManagerClientDetail(clientId: number) {
   });
 }
 
-export async function replyToTicketAsStaff(ticketId: number, message: string, role: "admin" | "manager" | "support") {
-  const path = role === "admin"
+export async function replyToTicketAsStaff(ticketId: number, message: string, role: "superadmin" | "manager" | "support") {
+  const path = role === "superadmin"
     ? `/admin/tickets/${ticketId}/reply`
     : role === "manager"
     ? `/manager/tickets/${ticketId}/reply`

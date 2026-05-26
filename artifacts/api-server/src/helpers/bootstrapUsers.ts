@@ -1,7 +1,7 @@
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { migrateLegacyEmails, upsertDefaultUsers } from "./defaultUsers";
+import { migrateLegacyEmails, migrateAdminRoleToSuperAdmin, upsertDefaultUsers } from "./defaultUsers";
 
 /**
  * Ensures demo/platform accounts exist on startup.
@@ -12,6 +12,7 @@ export async function ensureDefaultUsers(): Promise<void> {
   if (process.env.BOOTSTRAP_USERS === "false") return;
 
   try {
+    await migrateAdminRoleToSuperAdmin();
     await migrateLegacyEmails();
 
     const isProd = process.env.NODE_ENV === "production";

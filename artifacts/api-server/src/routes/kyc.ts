@@ -36,8 +36,15 @@ function mapKyc(k: any, userEmail?: string, userName?: string) {
     bankName: k.bankName || null,
     ifscCode: k.ifscCode || null,
     idDocumentUrl: k.idDocumentUrl || null,
+    panDocumentUrl: k.panDocumentUrl || null,
+    aadhaarFrontUrl: k.aadhaarFrontUrl || null,
+    aadhaarBackUrl: k.aadhaarBackUrl || null,
+    passportDocumentUrl: k.passportDocumentUrl || null,
+    passportPhotoUrl: k.passportPhotoUrl || null,
     addressProofUrl: k.addressProofUrl || null,
     selfieUrl: k.selfieUrl || null,
+    signatureUrl: k.signatureUrl || null,
+    cancelledChequeUrl: k.cancelledChequeUrl || null,
     status: k.status,
     rejectionReason: k.rejectionReason || null,
     createdAt: k.createdAt.toISOString(),
@@ -61,6 +68,7 @@ router.post("/", requireAuth, upload.fields([
   { name: "idDocument", maxCount: 1 },
   { name: "addressProof", maxCount: 1 },
   { name: "selfie", maxCount: 1 },
+  { name: "passportPhoto", maxCount: 1 },
 ]), async (req, res) => {
   const { userId } = (req as any).user;
   const {
@@ -73,6 +81,8 @@ router.post("/", requireAuth, upload.fields([
   const addressProofUrl = files?.addressProof?.[0] ? getUploadUrl("kyc_documents", files.addressProof[0].filename) : undefined;
   const selfieUrl = files?.selfie?.[0] ? getUploadUrl("kyc_documents", files.selfie[0].filename) : undefined;
 
+  const passportPhotoUrl = files?.passportPhoto?.[0] ? getUploadUrl("kyc_documents", files.passportPhoto[0].filename) : undefined;
+
   if (!fullName || !address || !country) {
     res.status(400).json({ error: "fullName, address, country are required" });
     return;
@@ -81,10 +91,17 @@ router.post("/", requireAuth, upload.fields([
   const existing = await db.select().from(kycRecordsTable)
     .where(eq(kycRecordsTable.userId, userId)).limit(1);
 
+  const hasPassportPhoto = !!(passportPhotoUrl || existing[0]?.passportPhotoUrl);
+  if (!hasPassportPhoto) {
+    res.status(400).json({ error: "Passport size photo is required" });
+    return;
+  }
+
   const docFields = {
     idDocumentUrl: idDocumentUrl || existing[0]?.idDocumentUrl || null,
     addressProofUrl: addressProofUrl || existing[0]?.addressProofUrl || null,
     selfieUrl: selfieUrl || existing[0]?.selfieUrl || null,
+    passportPhotoUrl: passportPhotoUrl || existing[0]?.passportPhotoUrl || null,
   };
 
   if (existing.length > 0) {

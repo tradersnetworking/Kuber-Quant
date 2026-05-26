@@ -93,7 +93,8 @@ router.get("/stats", async (_req, res) => {
     db.select().from(algoSubscriptionsTable),
   ]);
 
-  const admins    = users.filter(u => u.role === "admin").length;
+  const superAdmins = users.filter(u => u.role === "superadmin").length;
+  const supportAgents = users.filter(u => u.role === "support").length;
   const managers  = users.filter(u => u.role === "manager").length;
   const investors = users.filter(u => u.role === "user").length;
   const pending   = mt5Requests.filter(r => r.status === "pending").length;
@@ -106,7 +107,7 @@ router.get("/stats", async (_req, res) => {
   const activeInvestments = investments.filter(i => i.status === "active");
 
   res.json({
-    totalUsers: users.length, admins, managers, investors,
+    totalUsers: users.length, superAdmins, supportAgents, managers, investors,
     pendingMt5Requests: pending, forwardedMt5Requests: forwarded, activeEASubscriptions: activeEA,
     totalDeposits: deposits.reduce((s, t) => s + Number(t.amount), 0),
     totalWithdrawals: withdrawals.reduce((s, t) => s + Number(t.amount), 0),
@@ -208,7 +209,7 @@ router.post("/users", async (req, res) => {
     return;
   }
   const userRole = role || "user";
-  if (!["user", "manager", "admin", "superadmin"].includes(userRole)) {
+  if (!["user", "manager", "support", "superadmin"].includes(userRole)) {
     res.status(400).json({ error: "Invalid role" });
     return;
   }
@@ -229,6 +230,100 @@ router.post("/users", async (req, res) => {
     referralCode: generateReferralCode(),
   }).returning();
   res.status(201).json(mapUser(user));
+});
+
+// ── Support team accounts ───────────────────────────────────────────────────
+router.get("/support-team", async (_req, res) => {
+  const agents = await db.select().from(usersTable).where(eq(usersTable.role, "support")).orderBy(desc(usersTable.createdAt));
+  res.json(agents.map(mapUser));
+});
+
+router.get("/support-team/candidates", async (req, res) => {
+  const q = typeof req.query.search === "string" ? req.query.search.trim().toLowerCase() : "";
+  const users = await db.select().from(usersTable).orderBy(desc(usersTable.createdAt));
+  const eligible = users
+    .filter(u =>
+      u.isActive &&
+      (u.role === "user" || u.role === "manager") &&
+      (!q ||
+        u.fullName.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        String(u.id).includes(q))
+    )
+    .slice(0, 50);
+  res.json(eligible.map(mapUser));
+});
+
+router.post("/support-team", async (req, res) => {
+  const { userId, email, password, fullName, phone } = req.body;
+
+  if (userId != null && userId !== "") {
+    const id = parseInt(String(userId));
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid user id" });
+      return;
+    }
+    const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (existing.role === "support") {
+      res.status(409).json({ error: "User is already on the support team" });
+      return;
+    }
+    if (existing.role === "superadmin") {
+      res.status(400).json({ error: "Super admin accounts cannot be added to the support team" });
+      return;
+    }
+    if (!existing.isActive) {
+      res.status(400).json({ error: "Account is inactive — reactivate before adding to support" });
+      return;
+    }
+    const [agent] = await db.update(usersTable).set({
+      role: "support",
+      kycStatus: "verified",
+      managerId: null,
+    }).where(eq(usersTable.id, id)).returning();
+    res.json(mapUser(agent!));
+    return;
+  }
+
+  if (!email || !password || !fullName) {
+    res.status(400).json({ error: "email, password, and fullName are required" });
+    return;
+  }
+  if (password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
+    return;
+  }
+  const existing = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);
+  if (existing.length > 0) {
+    res.status(409).json({ error: "Email already in use" });
+    return;
+  }
+  const passwordHash = await bcrypt.hash(password, 10);
+  const [agent] = await db.insert(usersTable).values({
+    email: email.toLowerCase(),
+    passwordHash,
+    fullName,
+    phone: phone || null,
+    role: "support",
+    kycStatus: "verified",
+    referralCode: generateReferralCode(),
+  }).returning();
+  res.status(201).json(mapUser(agent));
+});
+
+router.delete("/support-team/:id", async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!existing || existing.role !== "support") {
+    res.status(404).json({ error: "Support agent not found" });
+    return;
+  }
+  await db.update(usersTable).set({ role: "user" }).where(eq(usersTable.id, id));
+  res.json({ message: "Support agent demoted to user" });
 });
 
 router.patch("/users/:id", async (req, res) => {
@@ -254,7 +349,7 @@ router.patch("/users/:id", async (req, res) => {
   if (fullName !== undefined) updates.fullName = fullName;
   if (phone !== undefined) updates.phone = phone || null;
   if (role !== undefined) {
-    if (!["user", "manager", "support", "admin", "superadmin"].includes(role)) {
+    if (!["user", "manager", "support", "superadmin"].includes(role)) {
       res.status(400).json({ error: "Invalid role" });
       return;
     }
@@ -302,7 +397,7 @@ router.delete("/users/:id", async (req, res) => {
 router.patch("/users/:id/role", async (req, res) => {
   const id = parseInt(String(req.params.id));
   const { role } = req.body;
-  if (!["user", "manager", "admin", "superadmin"].includes(role)) {
+  if (!["user", "manager", "superadmin"].includes(role)) {
     res.status(400).json({ error: "Invalid role" }); return;
   }
   await db.update(usersTable).set({ role }).where(eq(usersTable.id, id));

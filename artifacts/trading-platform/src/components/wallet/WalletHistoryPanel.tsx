@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { authFetchJson } from "@/lib/token-store";
+import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
 import { ArrowDownLeft, ArrowUpRight, BookOpen, ClipboardList, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
@@ -66,6 +67,7 @@ export function WalletHistoryPanel({ compact }: { compact?: boolean }) {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["/api/wallet/history", filter],
     queryFn: () => authFetchJson<WalletHistory>(`/wallet/history?type=${filter}&limit=100`),
+    ...financeQueryOptions,
   });
 
   const summary = data?.summary;

@@ -22,8 +22,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: "/favicon.svg",
-      badge: "/favicon.svg",
+      icon: "/favicon.png",
+      badge: "/favicon.png",
       tag: payload.tag || "kuber-notification",
       data: { url: payload.url || "/notifications" },
       vibrate: [200, 100, 200],

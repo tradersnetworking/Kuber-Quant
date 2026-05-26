@@ -8,6 +8,7 @@ import {
   DEFAULT_WATCHLIST,
 } from "../helpers/marketData";
 import { fetchPublicMarketTicks } from "../helpers/publicMarketFeed";
+import { getExchangeRates, refreshExchangeRates } from "../helpers/exchangeRateService";
 import { handleGetWatchlist, handleSaveWatchlist } from "../helpers/watchlistHandlers";
 import { clearMarketTickerCache, getMarketTickerCache, setMarketTickerCache } from "../helpers/marketCache";
 
@@ -74,6 +75,39 @@ router.get("/watchlist", requireAuth, handleGetWatchlist);
 
 router.put("/watchlist", requireAuth, (req, res) => handleSaveWatchlist(req, res, clearMarketTickerCache));
 router.post("/watchlist", requireAuth, (req, res) => handleSaveWatchlist(req, res, clearMarketTickerCache));
+
+router.get("/exchange-rates", async (_req, res) => {
+  try {
+    const rates = await getExchangeRates();
+    res.json({
+      base: rates.base,
+      USD_INR: rates.USD_INR,
+      USD_EUR: rates.USD_EUR,
+      USDT_USD: rates.USDT_USD,
+      updatedAt: rates.updatedAt,
+      source: rates.source,
+    });
+  } catch {
+    res.json({
+      base: "USD",
+      USD_INR: 83.5,
+      USD_EUR: 0.92,
+      USDT_USD: 1,
+      updatedAt: null,
+      source: "fallback",
+    });
+  }
+});
+
+router.post("/exchange-rates/refresh", requireAuth, async (req, res) => {
+  const role = (req as any).user?.role;
+  if (!["superadmin", "admin"].includes(role)) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const rates = await refreshExchangeRates(true);
+  res.json(rates);
+});
 
 router.get("/ticker", optionalAuth, async (req, res) => {
   const user = (req as any).user as { userId: number } | undefined;

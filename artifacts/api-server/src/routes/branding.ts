@@ -20,8 +20,8 @@ const DEFAULTS: Record<(typeof BRANDING_KEYS)[number], string> = {
   site_title_gold_color: "#D4AF37",
   site_title_silver_color: "#C0C0C0",
   site_name: "Kuber Quant",
-  site_tagline: "Where Wealth Multiplies",
-  logo_url: "",
+  site_tagline: "Precision. Profit. Performance.",
+  logo_url: "/kuber-quant-logo.png",
 };
 
 router.get("/branding", async (_req, res) => {
@@ -44,7 +44,7 @@ router.get("/branding", async (_req, res) => {
     titleSilverColor: map.site_title_silver_color,
     siteName: map.site_name,
     tagline: map.site_tagline,
-    logoUrl: map.logo_url,
+    logoUrl: map.logo_url.trim() || DEFAULTS.logo_url,
   });
 });
 

@@ -2,7 +2,7 @@ import { useRoute, Link } from "wouter";
 import { format } from "date-fns";
 import {
   ArrowLeft, Wallet, TrendingUp, ArrowDownLeft, ArrowUpRight,
-  ShieldCheck, FileText, ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useManagerClientDetail } from "@/lib/staff-api";
+import { KycDocumentsList } from "@/components/kyc/KycDocumentsList";
 
 const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -191,19 +192,9 @@ export default function ManagerClientDetail() {
                         </div>
                       ) : null)}
                     </div>
-                    <div className="flex gap-3 flex-wrap">
-                      {[
-                        ["ID Document", kyc.idDocumentUrl],
-                        ["Address Proof", kyc.addressProofUrl],
-                        ["Selfie", kyc.selfieUrl],
-                      ].map(([label, url]) => url ? (
-                        <a key={label as string} href={url as string} target="_blank" rel="noopener noreferrer">
-                          <Button variant="outline" size="sm" className="gap-2 border-white/10">
-                            <FileText className="h-4 w-4" /> {label}
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </a>
-                      ) : null)}
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Uploaded Documents</p>
+                      <KycDocumentsList kyc={kyc} />
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Submitted {format(new Date(kyc.createdAt), "MMM d, yyyy 'at' HH:mm")}

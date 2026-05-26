@@ -21,13 +21,157 @@ function walletForCurrency(currency: string): WalletType {
   return isCryptoCurrency(currency) ? "crypto" : "fiat";
 }
 
+export async function getBalancesFromLedger(userId: number): Promise<{
+  fiat: number;
+  crypto: number;
+  hasEntries: boolean;
+}> {
+  const rows = await db.select()
+    .from(walletLedgerTable)
+    .where(eq(walletLedgerTable.userId, userId))
+    .orderBy(desc(walletLedgerTable.createdAt), desc(walletLedgerTable.id));
+
+  if (rows.length === 0) {
+    return { fiat: 0, crypto: 0, hasEntries: false };
+  }
+
+  let fiat: number | null = null;
+  let crypto: number | null = null;
+  for (const row of rows) {
+    if (row.walletType === "fiat" && fiat === null) fiat = Number(row.balanceAfter);
+    if (row.walletType === "crypto" && crypto === null) crypto = Number(row.balanceAfter);
+    if (fiat !== null && crypto !== null) break;
+  }
+
+  return {
+    fiat: fiat ?? 0,
+    crypto: crypto ?? 0,
+    hasEntries: true,
+  };
+}
+
+export type WalletFinancialSummary = {
+  fiatBalance: number;
+  cryptoBalance: number;
+  totalBalance: number;
+  totalDeposited: number;
+  totalWithdrawn: number;
+  totalProfit: number;
+  totalInvested: number;
+  totalReferral: number;
+  totalBonus: number;
+  netLedgerFlow: number;
+  source: "ledger" | "account";
+};
+
+/** Banking-style totals derived from immutable wallet ledger entries. */
+export async function getWalletFinancialSummary(userId: number): Promise<WalletFinancialSummary> {
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) throw new WalletError("User not found", "USER_NOT_FOUND");
+
+  const ledgerRows = await db.select()
+    .from(walletLedgerTable)
+    .where(eq(walletLedgerTable.userId, userId));
+
+  const ledgerBalances = await getBalancesFromLedger(userId);
+
+  if (!ledgerBalances.hasEntries) {
+    const fiat = Number(user.balanceFiat);
+    const crypto = Number(user.balanceCrypto);
+    return {
+      fiatBalance: fiat,
+      cryptoBalance: crypto,
+      totalBalance: fiat + crypto,
+      totalDeposited: 0,
+      totalWithdrawn: 0,
+      totalProfit: Number(user.totalProfit),
+      totalInvested: 0,
+      totalReferral: 0,
+      totalBonus: 0,
+      netLedgerFlow: fiat + crypto,
+      source: "account",
+    };
+  }
+
+  let totalDeposited = 0;
+  let totalWithdrawn = 0;
+  let totalProfit = 0;
+  let totalInvested = 0;
+  let totalReferral = 0;
+  let totalBonus = 0;
+  let totalAdjustments = 0;
+
+  for (const row of ledgerRows) {
+    const amt = Number(row.amount);
+    switch (row.type) {
+      case "deposit":
+        if (amt > 0) totalDeposited += amt;
+        break;
+      case "withdrawal":
+        if (amt < 0) totalWithdrawn += Math.abs(amt);
+        break;
+      case "profit":
+        if (amt > 0) totalProfit += amt;
+        break;
+      case "investment":
+        if (amt < 0) totalInvested += Math.abs(amt);
+        else if (amt > 0) totalDeposited += amt;
+        break;
+      case "referral":
+        if (amt > 0) totalReferral += amt;
+        break;
+      case "bonus":
+        if (amt > 0) totalBonus += amt;
+        break;
+      case "adjustment":
+        totalAdjustments += amt;
+        break;
+      default:
+        break;
+    }
+  }
+
+  const fiatBalance = ledgerBalances.fiat;
+  const cryptoBalance = ledgerBalances.crypto;
+  const totalBalance = fiatBalance + cryptoBalance;
+  const netLedgerFlow =
+    totalDeposited + totalProfit + totalReferral + totalBonus + totalAdjustments - totalWithdrawn - totalInvested;
+
+  // Keep users.account balances aligned with ledger (source of truth)
+  if (
+    Math.abs(fiatBalance - Number(user.balanceFiat)) > 0.000001
+    || Math.abs(cryptoBalance - Number(user.balanceCrypto)) > 0.000001
+  ) {
+    await db.update(usersTable).set({
+      balanceFiat: String(fiatBalance),
+      balanceCrypto: String(cryptoBalance),
+    }).where(eq(usersTable.id, userId));
+  }
+
+  return {
+    fiatBalance,
+    cryptoBalance,
+    totalBalance,
+    totalDeposited,
+    totalWithdrawn,
+    totalProfit,
+    totalInvested,
+    totalReferral,
+    totalBonus,
+    netLedgerFlow,
+    source: "ledger",
+  };
+}
+
 export async function getUserBalances(userId: number) {
+  const summary = await getWalletFinancialSummary(userId);
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) throw new WalletError("User not found", "USER_NOT_FOUND");
   return {
     user,
-    fiat: Number(user.balanceFiat),
-    crypto: Number(user.balanceCrypto),
+    fiat: summary.fiatBalance,
+    crypto: summary.cryptoBalance,
+    summary,
   };
 }
 

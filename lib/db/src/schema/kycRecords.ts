@@ -23,6 +23,7 @@ export const kycRecordsTable = pgTable("kyc_records", {
   aadhaarFrontUrl: text("aadhaar_front_url"),
   aadhaarBackUrl: text("aadhaar_back_url"),
   passportDocumentUrl: text("passport_document_url"),
+  passportPhotoUrl: text("passport_photo_url"),
   addressProofUrl: text("address_proof_url"),
   selfieUrl: text("selfie_url"),
   signatureUrl: text("signature_url"),

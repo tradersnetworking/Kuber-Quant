@@ -1,10 +1,9 @@
-/** Role hierarchy: superadmin > admin > support > manager > user */
+/** Role hierarchy: superadmin > support > manager > user */
 export const ROLE_RANK: Record<string, number> = {
   user: 1,
   manager: 2,
   support: 3,
-  admin: 4,
-  superadmin: 5,
+  superadmin: 4,
 };
 
 export const PERMISSION_KEYS = [
@@ -18,20 +17,18 @@ export type PermissionKey = typeof PERMISSION_KEYS[number];
 /** Default permissions per role (static RBAC map; DB tables for dynamic overrides) */
 export const ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
   superadmin: [...PERMISSION_KEYS],
-  admin: [
-    "manage_users", "approve_withdrawals", "edit_investments", "manage_promoters",
-    "access_reports", "manage_tickets", "view_analytics", "manage_payments",
-  ],
   support: ["manage_tickets", "view_analytics"],
   manager: ["view_analytics", "manage_tickets"],
   user: [],
 };
 
 export function hasPermission(role: string, permission: PermissionKey): boolean {
+  if (role === "admin") return hasPermission("superadmin", permission);
   return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
 }
 
 export function getRoleRank(role: string): number {
+  if (role === "admin") return ROLE_RANK.superadmin;
   return ROLE_RANK[role] ?? 0;
 }
 

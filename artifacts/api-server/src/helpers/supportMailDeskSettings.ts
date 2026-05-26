@@ -13,7 +13,7 @@ export interface SupportMailDeskConfig {
     dispute: number;
     general: number;
   };
-  defaultAssigneeRole: "support" | "admin" | "none";
+  defaultAssigneeRole: "support" | "superadmin" | "none";
 }
 
 const STORAGE_KEY = "support_mail_desk_config";

@@ -23,15 +23,14 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { HeaderTradingNav } from "@/components/layout/HeaderTradingNav";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { UserAccountMenu } from "@/components/layout/UserAccountMenu";
-import { BrandTitle } from "@/components/brand/BrandTitle";
 import { useSiteBranding } from "@/hooks/use-site-branding";
 import { usePlatformStats } from "@/lib/staff-api";
 import { formatFiatBalance, formatPlatformAmount } from "@/lib/format-money";
 import { SafeBoundary } from "@/components/SafeBoundary";
+import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
 
 const ROLE_LABELS: Record<string, string> = {
   superadmin: "Super Admin",
-  admin: "Admin",
   support: "Support",
   manager: "Manager",
   user: "Investor",
@@ -46,17 +45,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const isPromoter = !!(user as any)?.isPromoter;
   const staff = isStaffRole(role);
   const onInvestorView = isInvestorRoute(location);
-  const isSuperAdmin = role === "superadmin";
+  const isSuperAdmin = role === "superadmin" || role === "admin";
 
   const { data: notifications } = useListNotifications({
     query: { enabled: !!user, refetchInterval: 30000 } as any,
   });
 
   const { data: wallet } = useGetWallet({
-    query: { enabled: !!user } as any,
+    query: { enabled: !!user, ...financeQueryOptions } as any,
   });
 
-  const { data: platformStats } = usePlatformStats(isSuperAdmin || role === "admin");
+  const { data: platformStats } = usePlatformStats(isSuperAdmin);
   const branding = useSiteBranding();
 
   const unreadCount = Array.isArray(notifications)
@@ -79,18 +78,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen min-h-0 bg-[#050A14] bg-background overflow-hidden font-sans text-foreground">
       <aside className="hidden md:flex flex-col w-64 min-h-0 shrink-0 border-r border-border bg-card/50 backdrop-blur-xl">
         <div className="p-6 border-b border-border shrink-0">
-          <div className="flex items-center gap-2">
-            <BrandLogo className="h-9 w-9" logoUrl={branding.logoUrl} alt={branding.siteName} />
-            <div>
-              <BrandTitle size="md" />
-              {staff && (
-                <p className="text-[10px] text-amber-500/80 uppercase tracking-wider font-semibold">
-                  {ROLE_LABELS[role] || role}
-                  {onInvestorView && " · Personal Account"}
-                </p>
-              )}
-            </div>
-          </div>
+          <BrandLogo className="h-10 w-auto max-w-[130px]" logoUrl={branding.logoUrl} alt={branding.siteName} />
+          {staff && (
+            <p className="text-[10px] text-amber-500/80 uppercase tracking-wider font-semibold mt-3">
+              {ROLE_LABELS[role] || role}
+              {onInvestorView && " · Personal Account"}
+            </p>
+          )}
         </div>
         <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-4 scrollbar-thin scrollbar-thumb-amber-500/40 scrollbar-track-transparent hover:scrollbar-thumb-amber-500/60">
           <ul className="space-y-1 px-3">
@@ -139,8 +133,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="border-b border-border bg-background/50 backdrop-blur-md sticky top-0 z-30">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="flex items-center gap-2 shrink-0 md:hidden">
-                <BrandLogo className="h-8 w-8" logoUrl={branding.logoUrl} alt={branding.siteName} />
+              <div className="flex items-center shrink-0 md:hidden">
+                <BrandLogo className="h-9 w-auto max-w-[110px]" logoUrl={branding.logoUrl} alt={branding.siteName} />
               </div>
               <h2 className="text-sm sm:text-base font-semibold truncate min-w-0 max-w-[140px] sm:max-w-[200px] lg:max-w-none">
                 {getPageTitle()}
@@ -165,7 +159,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
               <div className="h-8 w-[1px] bg-border mx-1 hidden sm:block" />
               <div className="hidden sm:flex flex-col items-end mr-1">
-                {(isSuperAdmin || role === "admin") && !onInvestorView ? (
+                {isSuperAdmin && !onInvestorView ? (
                   <>
                     <span className="text-xs text-muted-foreground">Platform Funds</span>
                     <span className="text-sm font-bold text-emerald-400">
@@ -201,10 +195,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               className="md:hidden absolute inset-0 z-50 bg-background/98 backdrop-blur-md pt-4 px-4 pb-24 overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-2">
-                  <BrandLogo className="h-10 w-10" logoUrl={branding.logoUrl} alt={branding.siteName} />
-                  <BrandTitle size="md" />
-                </div>
+                <BrandLogo className="h-10 w-auto max-w-[130px]" logoUrl={branding.logoUrl} alt={branding.siteName} />
                 <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
                   <LogOut className="h-6 w-6 rotate-180" />
                 </Button>

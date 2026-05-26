@@ -43,8 +43,8 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const user = (req as any).user as AuthPayload | undefined;
-  if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
-    res.status(403).json({ error: "Forbidden" });
+  if (!user || user.role !== "superadmin") {
+    res.status(403).json({ error: "Forbidden — Super Admin only" });
     return;
   }
   next();
@@ -70,7 +70,7 @@ export function requireManagerOrAdmin(req: Request, res: Response, next: NextFun
 
 export function requireSupport(req: Request, res: Response, next: NextFunction) {
   const user = (req as any).user as AuthPayload | undefined;
-  if (!user || !["support", "admin", "superadmin"].includes(user.role)) {
+  if (!user || !["support", "superadmin"].includes(user.role)) {
     res.status(403).json({ error: "Forbidden — Support access only" });
     return;
   }

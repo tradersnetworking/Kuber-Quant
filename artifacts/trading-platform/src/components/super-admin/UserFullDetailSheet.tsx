@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
 import { format } from "date-fns";
+import { KycDocumentsList } from "@/components/kyc/KycDocumentsList";
 
 export type UserFullDetail = {
   user: {
@@ -213,15 +214,9 @@ export function UserFullDetailSheet({
                       {kyc.rejectionReason && <Row label="Rejection Reason" value={kyc.rejectionReason} />}
                     </Section>
                     <Section title="Documents">
-                      <DocLink label="ID Document" url={kyc.idDocumentUrl} />
-                      <DocLink label="PAN Document" url={kyc.panDocumentUrl} />
-                      <DocLink label="Aadhaar Front" url={kyc.aadhaarFrontUrl} />
-                      <DocLink label="Aadhaar Back" url={kyc.aadhaarBackUrl} />
-                      <DocLink label="Passport" url={kyc.passportDocumentUrl} />
-                      <DocLink label="Address Proof" url={kyc.addressProofUrl} />
-                      <DocLink label="Selfie" url={kyc.selfieUrl} />
-                      <DocLink label="Signature" url={kyc.signatureUrl} />
-                      <DocLink label="Cancelled Cheque" url={kyc.cancelledChequeUrl} />
+                      <div className="p-3">
+                        <KycDocumentsList kyc={kyc} showMissing />
+                      </div>
                     </Section>
                     {detail.kycRecords.length > 1 && (
                       <Section title="KYC History">
@@ -358,22 +353,6 @@ function Row({
       <span className={`font-medium text-right break-all ${capitalize ? "capitalize" : ""} ${mono ? "font-mono text-xs" : ""}`}>
         {display}
       </span>
-    </div>
-  );
-}
-
-function DocLink({ label, url }: { label: string; url?: string | null }) {
-  if (!url) {
-    return <Row label={label} value="Not uploaded" />;
-  }
-  return (
-    <div className="flex justify-between items-center px-3 py-2.5 text-sm gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-        <a href={url} target="_blank" rel="noopener noreferrer">
-          View <ExternalLink className="h-3 w-3 ml-1" />
-        </a>
-      </Button>
     </div>
   );
 }

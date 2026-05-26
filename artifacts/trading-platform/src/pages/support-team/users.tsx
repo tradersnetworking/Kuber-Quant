@@ -9,6 +9,8 @@ import { Search, Users, Ticket } from "lucide-react";
 import { Link } from "wouter";
 import { staffFetch } from "@/lib/staff-api";
 import { format } from "date-fns";
+import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
+import { KycDocumentsList } from "@/components/kyc/KycDocumentsList";
 
 export default function SupportUserLookup() {
   const [q, setQ] = useState("");
@@ -27,6 +29,7 @@ export default function SupportUserLookup() {
     queryKey: ["/api/support-team/users/status", lookupId],
     queryFn: () => staffFetch<any>(`/support-team/users/${lookupId}/status`),
     enabled: !!lookupId,
+    ...financeQueryOptions,
   });
 
   return (
@@ -87,6 +90,12 @@ export default function SupportUserLookup() {
                 <div><p className="text-muted-foreground text-xs">KYC</p><p className="capitalize">{detail.user.kycStatus}</p></div>
                 <div><p className="text-muted-foreground text-xs">Member since</p><p>{format(new Date(detail.user.createdAt), "MMM yyyy")}</p></div>
               </div>
+              {detail.kyc && (
+                <div>
+                  <p className="text-xs uppercase text-muted-foreground mb-2">KYC Documents (read-only)</p>
+                  <KycDocumentsList kyc={detail.kyc} />
+                </div>
+              )}
               {detail.recentTransactions?.length > 0 && (
                 <div>
                   <p className="text-xs uppercase text-muted-foreground mb-2">Recent Transactions (read-only)</p>

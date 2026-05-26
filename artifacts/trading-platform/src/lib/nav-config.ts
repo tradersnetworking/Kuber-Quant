@@ -8,6 +8,7 @@ import {
   Activity,
   History,
   ArrowRightLeft,
+  ArrowLeftRight,
   Users2,
   Headset,
   ShieldCheck,
@@ -17,7 +18,7 @@ import {
   ShieldAlert,
   FileCheck,
   ClipboardList,
-  ArrowLeftRight,
+  Ticket,
   Tag,
   FileSearch,
   Link2,
@@ -27,7 +28,7 @@ import {
   Home,
 } from "lucide-react";
 
-export type AppRole = "user" | "manager" | "support" | "admin" | "superadmin";
+export type AppRole = "user" | "manager" | "support" | "superadmin";
 
 export interface NavItem {
   name: string;
@@ -108,43 +109,34 @@ export const MANAGER_NAV: NavItem[] = [
   { name: "MT4/MT5 Account Handling", href: "/mt5-relay", icon: LineChart, color: "text-violet-400" },
 ];
 
-/** Admin — platform operations (below super admin) */
-export const ADMIN_NAV: NavItem[] = [
-  { name: "Admin Home", href: "/admin", icon: ShieldAlert, color: "text-red-400" },
-  { name: "Users", href: "/admin/users", icon: Users, color: "text-blue-400" },
-  { name: "Managers", href: "/admin/managers", icon: Users2, color: "text-cyan-400" },
-  { name: "KYC Review", href: "/admin/kyc", icon: FileCheck, color: "text-emerald-400" },
-  { name: "Finance Ledger", href: "/admin/transactions", icon: ClipboardList, color: "text-amber-400" },
-  { name: "Investment Plans", href: "/admin/plans", icon: TrendingUp, color: "text-yellow-400" },
-  { name: "Payment Gateways", href: "/admin/payment-gateways", icon: LineChart, color: "text-purple-400" },
-  { name: "Support Tickets", href: "/admin/tickets", icon: Headset, color: "text-rose-400" },
-  { name: "Support Mail Desk", href: "/admin/mail", icon: Mail, color: "text-sky-400" },
-  { name: "Notifications", href: "/admin/notifications", icon: Bell, color: "text-yellow-400" },
-  { name: "User MT Accounts", href: "/admin/mt5-accounts", icon: History, color: "text-sky-400" },
-  { name: "Referrals", href: "/admin/referrals", icon: ArrowLeftRight, color: "text-pink-400" },
-  { name: "Site Settings", href: "/admin/settings", icon: Settings, color: "text-zinc-400" },
-  { name: "Copy Trading", href: "/copy-trading", icon: Users, color: "text-cyan-400", section: "Trading Services" },
-];
+function withSectionLabel(section: string, items: NavItem[]): NavItem[] {
+  return items.map((item, i) => ({ ...item, section: i === 0 ? section : item.section }));
+}
 
 /** Super Admin — platform-only control (no personal investor sidebar) */
 export const SUPER_ADMIN_NAV: NavItem[] = [
   { name: "Dashboard", href: "/super-admin", icon: LayoutDashboard, color: "text-blue-400" },
 
-  { name: "Users & Investors", href: "/super-admin/users", icon: Users, color: "text-blue-400", section: "Operations" },
-  { name: "Managers", href: "/super-admin/managers", icon: Users2, color: "text-cyan-400" },
-  { name: "Admins", href: "/super-admin/admins", icon: ShieldAlert, color: "text-red-400" },
-  { name: "KYC Verification", href: "/super-admin/kyc", icon: ShieldCheck, color: "text-teal-400" },
-  { name: "Support Tickets", href: "/super-admin/support", icon: Headset, color: "text-rose-400" },
-  { name: "Support Mail", href: "/super-admin/support-mail", icon: Mail, color: "text-sky-400" },
-  { name: "Referral Program", href: "/super-admin/referrals", icon: ArrowLeftRight, color: "text-pink-400" },
-  { name: "Legal Agreements", href: "/super-admin/agreements", icon: FileText, color: "text-lime-400" },
+  ...withSectionLabel("Operations", [
+    { name: "Users & Investors", href: "/super-admin/users", icon: Users, color: "text-blue-400" },
+    { name: "Managers", href: "/super-admin/managers", icon: Users2, color: "text-cyan-400" },
+    { name: "Support Team", href: "/super-admin/support-team", icon: Headset, color: "text-rose-400" },
+    { name: "KYC Verification", href: "/super-admin/kyc", icon: ShieldCheck, color: "text-teal-400" },
+    { name: "Support Tickets", href: "/super-admin/support", icon: Ticket, color: "text-orange-400" },
+    { name: "Support Mail", href: "/super-admin/support-mail", icon: Mail, color: "text-sky-400" },
+    { name: "Referral Program", href: "/super-admin/referrals", icon: ArrowLeftRight, color: "text-pink-400" },
+    { name: "Legal Agreements", href: "/super-admin/agreements", icon: FileText, color: "text-lime-400" },
+  ]),
 
-  { name: "Wallet", href: "/super-admin/wallet", icon: Wallet, color: "text-emerald-400", section: "Finance" },
+  ...withSectionLabel("Finance", [
+  { name: "Wallet", href: "/super-admin/wallet", icon: Wallet, color: "text-emerald-400" },
   { name: "Finance Ledger", href: "/super-admin/transactions", icon: ArrowRightLeft, color: "text-orange-400" },
   { name: "Investments", href: "/super-admin/investments", icon: Briefcase, color: "text-amber-400" },
   { name: "Payment Gateways", href: "/super-admin/payment-gateways", icon: CreditCard, color: "text-purple-400" },
+  ]),
 
-  { name: "Investment Plans", href: "/super-admin/investment-plans", icon: TrendingUp, color: "text-yellow-400", section: "Trading Management" },
+  ...withSectionLabel("Trading Management", [
+  { name: "Investment Plans", href: "/super-admin/investment-plans", icon: TrendingUp, color: "text-yellow-400" },
   { name: "Copy Trading", href: "/super-admin/copy-trading", icon: Users, color: "text-cyan-400" },
   { name: "User MT Accounts & Profit Share", href: "/super-admin/mt5-accounts", icon: History, color: "text-sky-400" },
   { name: "Algo Trading", href: "/super-admin/algo-trading", icon: Cpu, color: "text-indigo-400" },
@@ -159,10 +151,11 @@ export const SUPER_ADMIN_NAV: NavItem[] = [
   { name: "Audit Logs", href: "/super-admin/audit-logs", icon: FileSearch, color: "text-orange-400" },
   { name: "Trade Copier API", href: "/super-admin/api", icon: Link2, color: "text-green-400" },
   { name: "System Settings", href: "/super-admin/settings", icon: Settings, color: "text-zinc-400" },
+  ]),
 ];
 
 /** Staff roles that also have personal investor accounts */
-export const STAFF_ROLES = new Set<AppRole>(["superadmin", "admin", "manager", "support"]);
+export const STAFF_ROLES = new Set<AppRole>(["superadmin", "manager", "support"]);
 
 export function isStaffRole(role: string): boolean {
   return STAFF_ROLES.has(role as AppRole);
@@ -182,7 +175,6 @@ export function isInvestorRoute(path: string): boolean {
 function portalSectionLabel(role: string): string {
   switch (role) {
     case "superadmin": return "Platform";
-    case "admin": return "Admin Portal";
     case "manager": return "Manager Portal";
     case "support": return "Support Portal";
     default: return "Portal";
@@ -191,11 +183,9 @@ function portalSectionLabel(role: string): string {
 
 function getStaffPortalNav(role: string, opts?: { isPromoter?: boolean }): NavItem[] {
   switch (role) {
-    case "superadmin": return SUPER_ADMIN_NAV;
+    case "superadmin":
     case "admin":
-      return opts?.isPromoter
-        ? [...ADMIN_NAV, ...PROMOTER_NAV.filter(p => !ADMIN_NAV.some(a => a.href === p.href))]
-        : ADMIN_NAV;
+      return SUPER_ADMIN_NAV;
     case "support": return SUPPORT_NAV;
     case "manager":
       return opts?.isPromoter
@@ -223,7 +213,7 @@ export function getNavForRole(role: string, opts?: { isPromoter?: boolean }): Na
       ...item,
       section: item.section ?? (i === 0 && !portalNav[0]?.section && role !== "superadmin" ? portalSectionLabel(role) : undefined),
     }));
-    if (role === "superadmin") return labeledPortal;
+    if (role === "superadmin" || role === "admin") return labeledPortal;
     const merged = [...labeledPortal, ...getMyAccountNav(opts)];
     const seen = new Set<string>();
     return merged.filter((item) => {
@@ -247,14 +237,6 @@ export function getMobileNavForRole(role: string): NavItem[] {
         { name: "Trading", href: "/super-admin/investment-plans", icon: TrendingUp },
         { name: "Copy", href: "/super-admin/copy-trading", icon: Users },
         { name: "MT4/MT5", href: "/super-admin/mt5-accounts", icon: LineChart },
-      ];
-    case "admin":
-      return [
-        { name: "Admin", href: "/admin", icon: ShieldAlert },
-        { name: "MT Accounts", href: "/admin/mt5-accounts", icon: LineChart },
-        ...trading,
-        { name: "My Wallet", href: "/wallet", icon: Wallet },
-        { name: "Account", href: "/dashboard", icon: LayoutDashboard },
       ];
     case "manager":
       return [
@@ -285,11 +267,14 @@ export function isNavItemActive(location: string, item: NavItem): boolean {
   if (item.href === "/super-admin") {
     return location === "/super-admin" || location === "/super-admin/overview";
   }
+  if (item.href === "/super-admin/support-team") {
+    return location === "/super-admin/support-team" || location.startsWith("/super-admin/support-team/");
+  }
+  if (item.href === "/super-admin/support") {
+    return location === "/super-admin/support" || location.startsWith("/super-admin/support/");
+  }
   if (item.href === "/support-team") {
     return location === "/support-team";
-  }
-  if (item.href === "/admin") {
-    return location === "/admin";
   }
   if (item.href === "/manager") {
     return location === "/manager";
@@ -304,7 +289,7 @@ export function isNavItemActive(location: string, item: NavItem): boolean {
 export function resolveRouteRedirect(role: string, path: string): string | null {
   const clean = path.split("?")[0].split("#")[0];
 
-  if (role === "superadmin") {
+  if (role === "superadmin" || role === "admin") {
     if (clean.startsWith("/support-team") || clean.startsWith("/manager")) {
       if (clean.includes("/mail")) return "/super-admin/support-mail";
       return "/super-admin";
@@ -334,8 +319,7 @@ export function getRoleAwareHref(role: string, href: string): string {
 }
 
 export function getPostLoginPath(role: string): string {
-  if (role === "superadmin") return "/super-admin";
-  if (role === "admin") return "/admin";
+  if (role === "superadmin" || role === "admin") return "/super-admin";
   if (role === "support") return "/support-team";
   if (role === "manager") return "/manager";
   return "/dashboard";
@@ -364,9 +348,8 @@ export const INVESTOR_TO_SUPER_ADMIN: Record<string, string> = {
   "/promoter": "/super-admin/referrals",
 };
 
-/** Map investor routes to admin/manager home when staff access investor URLs */
+/** Map investor routes to manager home when staff access investor URLs */
 export const INVESTOR_TO_STAFF: Record<string, Record<string, string>> = {
-  admin: Object.fromEntries(Object.keys(INVESTOR_TO_SUPER_ADMIN).map(k => [k, "/admin"])),
   manager: Object.fromEntries(Object.keys(INVESTOR_TO_SUPER_ADMIN).map(k => [k, "/manager"])),
 };
 
@@ -374,7 +357,7 @@ export const SUPER_ADMIN_TABS = new Set([
   "overview", "wallet", "investments", "investment-plans", "copy-trading", "algo-trading",
   "ea-strategies", "mt5", "mt5-accounts", "transactions", "notifications", "referrals", "support", "support-mail",
   "kyc", "agreements", "communication", "homepage", "settings",
-  "users", "managers", "admins", "payment-gateways", "site-config", "ea-subs", "api", "promo-codes", "audit-logs",
+  "users", "managers", "support-team", "payment-gateways", "site-config", "ea-subs", "api", "promo-codes", "audit-logs",
 ]);
 
 /** Redirect super admin from /admin/* to equivalent super-admin views */
@@ -382,6 +365,7 @@ export const ADMIN_TO_SUPER_ADMIN: Record<string, string> = {
   "/admin": "/super-admin",
   "/admin/users": "/super-admin/users",
   "/admin/managers": "/super-admin/managers",
+  "/admin/support-team": "/super-admin/support-team",
   "/admin/kyc": "/super-admin/kyc",
   "/admin/transactions": "/super-admin/transactions",
   "/admin/plans": "/super-admin/investment-plans",

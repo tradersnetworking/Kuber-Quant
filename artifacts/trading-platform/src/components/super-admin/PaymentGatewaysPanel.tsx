@@ -15,7 +15,13 @@ import { CreditCard, Plus, Edit2, Trash2, RefreshCw, QrCode, Building2, Wallet, 
 import { staffFetch } from "@/lib/staff-api";
 import { CredentialRow } from "@/components/wallet/CredentialRow";
 import { enrichDepositAccount, ONLINE_GATEWAY_CATALOG, getOnlineGatewayMeta, isOnlineGatewayType, type DepositAccount } from "@/components/wallet/deposit-account-utils";
-import { CRYPTO_SYMBOLS, defaultNetworkForSymbol, networksForSymbol } from "@/components/wallet/crypto-networks";
+import { CRYPTO_SYMBOLS, defaultNetworkForSymbol, networksForSymbol, USDT_CHAINS } from "@/components/wallet/crypto-networks";
+
+const USDT_CRYPTO_PRESETS = [
+  { label: "USDT TRC20", symbol: "USDT", network: "TRC20", name: "USDT (TRC20)" },
+  { label: "USDT ERC20", symbol: "USDT", network: "ERC20", name: "USDT (ERC20)" },
+  { label: "USDT BEP20", symbol: "USDT", network: "BEP20", name: "USDT (BEP20)" },
+] as const;
 
 type GwForm = {
   name: string;
@@ -430,15 +436,55 @@ export function PaymentGatewaysPanel() {
 
             {form.type === "crypto" && (
               <div className="space-y-2 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
-                <Select value={form.symbol} onValueChange={v => setForm(f => ({ ...f, symbol: v, network: defaultNetworkForSymbol(v) }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CRYPTO_SYMBOLS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={form.network} onValueChange={v => setForm(f => ({ ...f, network: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue placeholder="Chain" /></SelectTrigger>
-                  <SelectContent>{networksForSymbol(form.symbol).map(n => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input required placeholder="Wallet address *" value={form.walletAddress} onChange={e => setForm(f => ({ ...f, walletAddress: e.target.value }))} className="bg-white/5 border-white/10 font-mono text-sm" />
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Quick add USDT</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {USDT_CRYPTO_PRESETS.map(p => (
+                      <Button
+                        key={p.network}
+                        type="button"
+                        size="sm"
+                        variant={form.symbol === p.symbol && form.network === p.network ? "default" : "outline"}
+                        className={form.symbol === p.symbol && form.network === p.network ? "bg-amber-500 text-black" : "border-white/10"}
+                        onClick={() => setForm(f => ({
+                          ...f,
+                          name: f.name || p.name,
+                          symbol: p.symbol,
+                          network: p.network,
+                        }))}
+                      >
+                        {p.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label>Coin *</Label>
+                  <Select value={form.symbol} onValueChange={v => setForm(f => ({ ...f, symbol: v, network: defaultNetworkForSymbol(v) }))}>
+                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectContent>{CRYPTO_SYMBOLS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Network / Chain *</Label>
+                  <Select value={form.network} onValueChange={v => setForm(f => ({ ...f, network: v }))}>
+                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue placeholder="Chain" /></SelectTrigger>
+                    <SelectContent>
+                      {(form.symbol.toUpperCase() === "USDT" ? USDT_CHAINS : networksForSymbol(form.symbol)).map(n => (
+                        <SelectItem key={n.value} value={n.value}>
+                          {n.label}{n.hint ? ` — ${n.hint}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.symbol.toUpperCase() === "USDT" && (
+                    <p className="text-[11px] text-muted-foreground">USDT supports TRC20 (Tron), ERC20 (Ethereum), and BEP20 (BNB Chain).</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label>Wallet address *</Label>
+                  <Input required placeholder="Wallet address *" value={form.walletAddress} onChange={e => setForm(f => ({ ...f, walletAddress: e.target.value }))} className="bg-white/5 border-white/10 font-mono text-sm" />
+                </div>
               </div>
             )}
 

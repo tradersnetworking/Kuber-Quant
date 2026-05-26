@@ -9,7 +9,6 @@ Use these on **http://127.0.0.1:3000/login** (investor) or **/staff-login** (sta
 | Role | Email | Password | Login page |
 |------|-------|----------|------------|
 | Super Admin | superadmin@kuberquant.com | superadmin123 | `/staff-login` |
-| Admin | admin@kuberquant.com | admin123 | `/staff-login` |
 | Manager | manager@kuberquant.com | manager123 | `/staff-login` |
 | Support | support@kuberquant.com | support123 | `/staff-login` |
 | Investor | user@kuberquant.com | user123 | `/login` |
@@ -86,7 +85,6 @@ scripts/            Seed + utilities
 | Role | Email | Password | Login |
 |------|-------|----------|-------|
 | Super Admin | superadmin@kuberquant.com | superadmin123 | `/staff-login` |
-| Admin | admin@kuberquant.com | admin123 | `/staff-login` |
 | Manager | manager@kuberquant.com | manager123 | `/staff-login` |
 | Support | support@kuberquant.com | support123 | `/staff-login` |
 | Investor | user@kuberquant.com | user123 | `/login` |

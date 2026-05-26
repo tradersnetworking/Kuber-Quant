@@ -1,7 +1,9 @@
 import { db, usersTable, userProfilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { getWalletFinancialSummary } from "./walletService";
 
-function mapUserBasic(user: typeof usersTable.$inferSelect) {
+async function mapUserBasic(user: typeof usersTable.$inferSelect) {
+  const summary = await getWalletFinancialSummary(user.id);
   return {
     id: user.id,
     email: user.email,
@@ -9,8 +11,8 @@ function mapUserBasic(user: typeof usersTable.$inferSelect) {
     phone: user.phone || null,
     role: user.role,
     kycStatus: user.kycStatus,
-    balanceFiat: Number(user.balanceFiat),
-    balanceCrypto: Number(user.balanceCrypto),
+    balanceFiat: summary.fiatBalance,
+    balanceCrypto: summary.cryptoBalance,
     totalProfit: Number(user.totalProfit),
     referralCode: user.referralCode || null,
     referralCount: user.referralCount || 0,
@@ -31,7 +33,7 @@ export async function getUserProfile(userId: number) {
     .where(eq(userProfilesTable.userId, userId)).limit(1);
 
   return {
-    user: mapUserBasic(user),
+    user: await mapUserBasic(user),
     profile: profile ? {
       username: profile.username || null,
       dateOfBirth: profile.dateOfBirth || null,

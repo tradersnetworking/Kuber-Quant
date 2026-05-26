@@ -18,7 +18,6 @@ import { getPostLoginPath, isStaffRole, getRoleAwareHref } from "@/lib/nav-confi
 
 const PORTAL_META: Record<string, { label: string; icon: typeof ShieldAlert }> = {
   superadmin: { label: "Super Admin Portal", icon: ShieldAlert },
-  admin: { label: "Admin Portal", icon: ShieldAlert },
   manager: { label: "Manager Portal", icon: Users2 },
   support: { label: "Support Portal", icon: Headset },
 };
@@ -31,7 +30,7 @@ export function UserAccountMenu({ compact }: { compact?: boolean }) {
   const staff = isStaffRole(role);
   const portal = PORTAL_META[role];
   const initials = user.fullName?.charAt(0)?.toUpperCase() || "?";
-  const isSuperAdmin = role === "superadmin";
+  const isSuperAdmin = role === "superadmin" || role === "admin";
 
   return (
     <DropdownMenu>

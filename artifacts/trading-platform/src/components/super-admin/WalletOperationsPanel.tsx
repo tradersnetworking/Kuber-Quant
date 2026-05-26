@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +15,11 @@ import { Wallet, ArrowDownLeft, ArrowUpRight, RefreshCw, CheckCircle, XCircle } 
 import { staffFetch } from "@/lib/staff-api";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CryptoBlockchainVerifyPanel, isCryptoTransaction } from "@/components/super-admin/CryptoBlockchainVerifyPanel";
+import { invalidateFinanceQueries } from "@/lib/invalidate-finance-queries";
 
 export function WalletOperationsPanel() {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +54,11 @@ export function WalletOperationsPanel() {
   const deposits = pending.filter(t => t.type === "deposit");
   const withdrawals = pending.filter(t => t.type === "withdrawal");
 
+  const afterFinanceAction = (userId?: number) => {
+    invalidateFinanceQueries(qc, userId);
+    load();
+  };
+
   const approve = async (id: number, tx?: any) => {
     if (tx && isCryptoTransaction(tx)) {
       setReviewTx({ ...tx, action: "approve" });
@@ -60,7 +68,7 @@ export function WalletOperationsPanel() {
     try {
       await staffFetch(`/admin/transactions/${id}/approve`, { method: "POST", body: JSON.stringify({}) });
       toast({ title: "Transaction approved" });
-      load();
+      afterFinanceAction(tx?.userId);
     } catch (e: any) {
       toast({ title: "Approve failed", description: e.message, variant: "destructive" });
     }
@@ -76,19 +84,20 @@ export function WalletOperationsPanel() {
         }),
       });
       toast({ title: "Transaction approved" });
+      const userId = reviewTx.userId;
       setReviewTx(null);
       setChainVerified(false);
-      load();
+      afterFinanceAction(userId);
     } catch (e: any) {
       toast({ title: "Approve failed", description: e.message, variant: "destructive" });
     }
   };
 
-  const reject = async (id: number) => {
+  const reject = async (id: number, userId?: number) => {
     try {
       await staffFetch(`/admin/transactions/${id}/reject`, { method: "POST", body: JSON.stringify({ adminNotes: "Rejected by super admin" }) });
       toast({ title: "Transaction rejected" });
-      load();
+      afterFinanceAction(userId);
     } catch (e: any) {
       toast({ title: "Reject failed", description: e.message, variant: "destructive" });
     }
@@ -96,11 +105,12 @@ export function WalletOperationsPanel() {
 
   const adjustWallet = async (e: React.FormEvent) => {
     e.preventDefault();
+    const userId = Number(adjustForm.userId);
     try {
       await staffFetch("/admin/wallet-adjust", {
         method: "POST",
         body: JSON.stringify({
-          userId: Number(adjustForm.userId),
+          userId,
           amount: Number(adjustForm.amount),
           walletType: adjustForm.walletType,
           reason: adjustForm.reason,
@@ -108,7 +118,7 @@ export function WalletOperationsPanel() {
       });
       toast({ title: "Wallet adjusted" });
       setAdjustForm({ userId: "", amount: "", walletType: "fiat", reason: "" });
-      load();
+      afterFinanceAction(userId);
     } catch (err: any) {
       toast({ title: "Adjustment failed", description: err.message, variant: "destructive" });
     }
@@ -116,11 +126,12 @@ export function WalletOperationsPanel() {
 
   const createManual = async (e: React.FormEvent) => {
     e.preventDefault();
+    const userId = Number(manualForm.userId);
     try {
       await staffFetch("/admin/transactions/manual", {
         method: "POST",
         body: JSON.stringify({
-          userId: Number(manualForm.userId),
+          userId,
           type: manualForm.type,
           amount: Number(manualForm.amount),
           currency: manualForm.currency,
@@ -131,7 +142,7 @@ export function WalletOperationsPanel() {
       });
       toast({ title: manualForm.autoApprove ? "Transaction created & approved" : "Pending transaction created" });
       setManualForm({ userId: "", type: "deposit", amount: "", currency: "USD", notes: "", autoApprove: true });
-      load();
+      afterFinanceAction(userId);
     } catch (err: any) {
       toast({ title: "Failed", description: err.message, variant: "destructive" });
     }
@@ -161,7 +172,7 @@ export function WalletOperationsPanel() {
             <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => approve(tx.id, tx)}>
               <CheckCircle className="h-3 w-3 mr-1" />Approve
             </Button>
-            <Button size="sm" variant="outline" className="text-red-400" onClick={() => reject(tx.id)}>
+            <Button size="sm" variant="outline" className="text-red-400" onClick={() => reject(tx.id, tx.userId)}>
               <XCircle className="h-3 w-3 mr-1" />Reject
             </Button>
           </div>

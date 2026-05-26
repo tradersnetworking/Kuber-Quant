@@ -3,10 +3,11 @@ import {
   mt5AccountsTable, transactionsTable, investmentsTable, mt5RequestsTable,
 } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
-import { mapUser } from "../routes/auth";
+import { mapUserWithLedger } from "../routes/auth";
 import { mapPaymentAccount } from "./paymentAccountSync";
 import { decryptSensitive } from "./encryption";
 import { mapAccount } from "../routes/mt5";
+import { getWalletFinancialSummary } from "./walletService";
 
 function mapProfile(row: typeof userProfilesTable.$inferSelect | undefined) {
   if (!row) return null;
@@ -73,6 +74,7 @@ function mapKycRecord(k: typeof kycRecordsTable.$inferSelect) {
     aadhaarFrontUrl: k.aadhaarFrontUrl || null,
     aadhaarBackUrl: k.aadhaarBackUrl || null,
     passportDocumentUrl: k.passportDocumentUrl || null,
+    passportPhotoUrl: k.passportPhotoUrl || null,
     addressProofUrl: k.addressProofUrl || null,
     selfieUrl: k.selfieUrl || null,
     signatureUrl: k.signatureUrl || null,
@@ -96,6 +98,7 @@ export async function getUserFullDetail(userId: number) {
     mt5Requests,
     recentTxns,
     recentInvestments,
+    investmentProfitRows,
     managerRow,
     referrerRow,
   ] = await Promise.all([
@@ -108,6 +111,7 @@ export async function getUserFullDetail(userId: number) {
     db.select().from(mt5RequestsTable).where(eq(mt5RequestsTable.userId, userId)).orderBy(desc(mt5RequestsTable.createdAt)).limit(5),
     db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId)).orderBy(desc(transactionsTable.createdAt)).limit(8),
     db.select().from(investmentsTable).where(eq(investmentsTable.userId, userId)).orderBy(desc(investmentsTable.createdAt)).limit(8),
+    db.select({ profit: investmentsTable.profit }).from(investmentsTable).where(eq(investmentsTable.userId, userId)),
     user.managerId
       ? db.select({ id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email })
         .from(usersTable).where(eq(usersTable.id, user.managerId)).limit(1).then(r => r[0])
@@ -118,11 +122,11 @@ export async function getUserFullDetail(userId: number) {
       : Promise.resolve(undefined),
   ]);
 
-  const deposits = recentTxns.filter(t => t.type === "deposit" && t.status === "approved");
-  const withdrawals = recentTxns.filter(t => t.type === "withdrawal" && t.status === "approved");
+  const walletSummary = await getWalletFinancialSummary(userId);
+  const investmentProfit = investmentProfitRows.reduce((s, i) => s + Number(i.profit), 0);
 
   return {
-    user: mapUser(user),
+    user: await mapUserWithLedger(user),
     profile: mapProfile(profileRow),
     manager: managerRow ? { id: managerRow.id, fullName: managerRow.fullName, email: managerRow.email } : null,
     referrer: referrerRow ? { id: referrerRow.id, fullName: referrerRow.fullName, referralCode: referrerRow.referralCode } : null,
@@ -139,13 +143,13 @@ export async function getUserFullDetail(userId: number) {
       createdAt: r.createdAt.toISOString(),
     })),
     summary: {
-      balanceFiat: Number(user.balanceFiat),
-      balanceCrypto: Number(user.balanceCrypto),
-      totalProfit: Number(user.totalProfit),
+      balanceFiat: walletSummary.fiatBalance,
+      balanceCrypto: walletSummary.cryptoBalance,
+      totalProfit: walletSummary.totalProfit + investmentProfit,
       referralEarnings: Number(user.referralEarnings || 0),
       referralCount: user.referralCount || 0,
-      totalDeposits: deposits.reduce((s, t) => s + Number(t.amount), 0),
-      totalWithdrawals: withdrawals.reduce((s, t) => s + Number(t.amount), 0),
+      totalDeposits: walletSummary.totalDeposited,
+      totalWithdrawals: walletSummary.totalWithdrawn,
       activeInvestments: recentInvestments.filter(i => i.status === "active").length,
     },
     recentTransactions: recentTxns.map(t => ({

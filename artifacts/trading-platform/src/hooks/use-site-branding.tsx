@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DEFAULT_BRAND_LOGO_URL, resolveBrandLogoUrl } from "@/lib/brand-assets";
 
 export type SiteBranding = {
   titleGold: string;
@@ -33,7 +34,11 @@ async function fetchSiteBranding(): Promise<SiteBranding> {
       return res.json() as Promise<SiteBranding>;
     })
     .then((data) => {
-      cachedBranding = { ...DEFAULT_SITE_BRANDING, ...data };
+      cachedBranding = {
+        ...DEFAULT_SITE_BRANDING,
+        ...data,
+        logoUrl: resolveBrandLogoUrl(data.logoUrl),
+      };
       return cachedBranding;
     })
     .catch(() => DEFAULT_SITE_BRANDING)

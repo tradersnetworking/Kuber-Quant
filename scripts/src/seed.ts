@@ -5,7 +5,7 @@ import {
   userPaymentAccountsTable, userProfilesTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { migrateLegacyEmails, upsertDefaultUsers } from "../../artifacts/api-server/src/helpers/defaultUsers.ts";
+import { migrateLegacyEmails, upsertDefaultUsers } from "../../artifacts/api-server/src/helpers/defaultUsers";
 
 async function seed() {
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED !== "true") {
@@ -333,6 +333,24 @@ async function seed() {
     );
   }
 
+  const cryptoGw = allGw.filter(g => g.type === "crypto");
+  const missingUsdtBep20 = !cryptoGw.some(
+    g => g.symbol?.toUpperCase() === "USDT" && g.network?.toUpperCase() === "BEP20",
+  );
+  if (missingUsdtBep20) {
+    backfill.push({
+      name: "USDT (BEP20)",
+      type: "crypto",
+      symbol: "USDT",
+      network: "BEP20",
+      description: "USDT on BNB Smart Chain (BEP20)",
+      walletAddress: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+      minAmount: "20",
+      isEnabled: true,
+      sortOrder: 14,
+    });
+  }
+
   const onlineCount = allGw.filter(g =>
     ["razorpay", "phonepe", "paytm", "payu", "cashfree", "stripe", "instamojo", "pinelabs", "easebuzz", "paypal"].includes(g.type),
   ).length;
@@ -465,8 +483,8 @@ async function seed() {
 
   console.log("Updating existing users...");
   await db.update(usersTable)
-    .set({ referralCode: "KCADMIN1", phone: "+91-9876543210" })
-    .where(eq(usersTable.email, "admin@kuberquant.com"));
+    .set({ referralCode: "KCSUPER1", phone: "+91-9876543210" })
+    .where(eq(usersTable.email, "superadmin@kuberquant.com"));
   await db.update(usersTable)
     .set({ referralCode: "KCUSER01", phone: "+91-9123456789", balanceFiat: "12450.00", balanceCrypto: "0.45", totalProfit: "2340.00" })
     .where(eq(usersTable.email, "user@kuberquant.com"));

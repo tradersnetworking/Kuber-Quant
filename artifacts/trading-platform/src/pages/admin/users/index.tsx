@@ -44,7 +44,7 @@ export default function AdminUsersPage() {
                       <TableCell className="font-medium">{u.fullName}</TableCell>
                       <TableCell>{u.email}</TableCell>
                       <TableCell>
-                        <Badge variant={u.role === "admin" ? "default" : "secondary"}>
+                        <Badge variant={u.role === "superadmin" ? "default" : "secondary"}>
                           {u.role}
                         </Badge>
                       </TableCell>

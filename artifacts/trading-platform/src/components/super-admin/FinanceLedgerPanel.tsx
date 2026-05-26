@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,13 +13,15 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowRightLeft, RefreshCw, Search, Download, CheckCircle, XCircle, BookOpen, ClipboardList,
+  RefreshCw, Search, Download, CheckCircle, XCircle, BookOpen, ArrowDownLeft, ArrowUpRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CryptoBlockchainVerifyPanel, isCryptoTransaction } from "@/components/super-admin/CryptoBlockchainVerifyPanel";
 import { staffFetch } from "@/lib/staff-api";
 import { getStoredToken } from "@/lib/token-store";
+import { invalidateFinanceQueries } from "@/lib/invalidate-finance-queries";
+import { SecureUploadLink } from "@/components/SecureUploadLink";
 
 interface PlatformTransaction {
   id: number;
@@ -75,6 +78,7 @@ const statusColor: Record<string, string> = {
 
 export function FinanceLedgerPanel() {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [items, setItems] = useState<PlatformTransaction[]>([]);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [summary, setSummary] = useState<LedgerSummary | null>(null);
@@ -82,8 +86,8 @@ export function FinanceLedgerPanel() {
   const [ledgerLoading, setLedgerLoading] = useState(true);
   const [pending, setPending] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [depositStatusFilter, setDepositStatusFilter] = useState("pending");
+  const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState("pending");
   const [reviewDialog, setReviewDialog] = useState<{ id: number; action: "approve" | "reject"; tx?: PlatformTransaction } | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [chainVerified, setChainVerified] = useState(false);
@@ -122,21 +126,26 @@ export function FinanceLedgerPanel() {
 
   useEffect(() => { load(); }, []);
 
-  const filtered = items.filter(t => {
-    if (statusFilter !== "all" && t.status !== statusFilter) return false;
-    if (typeFilter !== "all" && t.type !== typeFilter) return false;
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (t.userName || "").toLowerCase().includes(q) ||
-      (t.userEmail || "").toLowerCase().includes(q) ||
-      t.type.toLowerCase().includes(q) ||
-      (t.paymentMethod || "").toLowerCase().includes(q) ||
-      String(t.id).includes(q)
-    );
-  });
+  const filterByType = (type: "deposit" | "withdrawal", statusFilter: string) =>
+    items.filter(t => {
+      if (t.type !== type) return false;
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (
+        (t.userName || "").toLowerCase().includes(q) ||
+        (t.userEmail || "").toLowerCase().includes(q) ||
+        (t.paymentMethod || "").toLowerCase().includes(q) ||
+        String(t.id).includes(q)
+      );
+    });
 
-  const pendingQueue = items.filter(t => t.status === "pending");
+  const pendingDeposits = items.filter(t => t.status === "pending" && t.type === "deposit");
+  const pendingWithdrawals = items.filter(t => t.status === "pending" && t.type === "withdrawal");
+  const filteredDeposits = filterByType("deposit", depositStatusFilter);
+  const filteredWithdrawals = filterByType("withdrawal", withdrawalStatusFilter);
+
+  const pendingQueue = [...pendingDeposits, ...pendingWithdrawals];
 
   const submitReview = async () => {
     if (!reviewDialog) return;
@@ -161,6 +170,7 @@ export function FinanceLedgerPanel() {
       setReviewDialog(null);
       setAdminNotes("");
       setChainVerified(false);
+      invalidateFinanceQueries(qc, reviewDialog.tx?.userId);
       await load();
     } catch (e: any) {
       toast({ title: "Action failed", description: e.message, variant: "destructive" });
@@ -181,6 +191,88 @@ export function FinanceLedgerPanel() {
     a.download = `transactions-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const renderApprovalTable = (
+    rows: PlatformTransaction[],
+    emptyMessage: string,
+    showActions: boolean,
+  ) => {
+    if (loading) {
+      return <div className="space-y-2">{[1, 2, 3].map(n => <Skeleton key={n} className="h-12 w-full" />)}</div>;
+    }
+    if (rows.length === 0) {
+      return <p className="text-sm text-muted-foreground py-8 text-center">{emptyMessage}</p>;
+    }
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/10">
+              <TableHead>ID</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Method / Proof</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Submitted</TableHead>
+              {showActions && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map(t => (
+              <TableRow key={t.id} className="border-white/5">
+                <TableCell className="text-muted-foreground">#{t.id}</TableCell>
+                <TableCell>
+                  <p className="text-sm font-medium">{t.userName || `User #${t.userId}`}</p>
+                  <p className="text-xs text-muted-foreground">{t.userEmail}</p>
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {t.currency}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground max-w-[200px]">
+                  <p>{t.paymentMethod || t.gatewayProvider || "manual"}</p>
+                  {t.utrReference && <p>UTR: {t.utrReference}</p>}
+                  {t.txHash && <p className="font-mono break-all">TX: {t.txHash}</p>}
+                  {t.proofUrl && (
+                    <SecureUploadLink
+                      url={t.proofUrl}
+                      className="text-amber-400 hover:underline text-left"
+                    >
+                      View proof
+                    </SecureUploadLink>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge className={`text-xs ${statusColor[t.status] || "bg-gray-500/20 text-gray-400"}`}>{t.status}</Badge>
+                  {t.reviewedByEmail && (
+                    <p className="text-[10px] text-muted-foreground mt-1">{t.reviewedByEmail}</p>
+                  )}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</TableCell>
+                {showActions && (
+                  <TableCell className="text-right">
+                    {t.status === "pending" ? (
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="outline" className="text-green-400 h-7" disabled={pending === t.id}
+                          onClick={() => { setReviewDialog({ id: t.id, action: "approve", tx: t }); setAdminNotes(""); setChainVerified(false); }}>
+                          <CheckCircle className="h-3 w-3 mr-1" />Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-red-400 h-7" disabled={pending === t.id}
+                          onClick={() => { setReviewDialog({ id: t.id, action: "reject", tx: t }); setAdminNotes(""); setChainVerified(false); }}>
+                          <XCircle className="h-3 w-3 mr-1" />Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
   };
 
   return (
@@ -239,164 +331,90 @@ export function FinanceLedgerPanel() {
         </Card>
       </div>
 
-      <Tabs defaultValue="queue">
+      <Tabs defaultValue="deposits">
         <TabsList className="bg-white/5 border border-white/10">
-          <TabsTrigger value="queue" className="gap-1.5">
-            <ClipboardList className="h-3.5 w-3.5" /> Approval Queue
-            {pendingQueue.length > 0 && (
-              <Badge className="ml-1 h-5 px-1.5 bg-amber-500 text-black">{pendingQueue.length}</Badge>
+          <TabsTrigger value="deposits" className="gap-1.5">
+            <ArrowDownLeft className="h-3.5 w-3.5" /> Deposit Approval
+            {pendingDeposits.length > 0 && (
+              <Badge className="ml-1 h-5 px-1.5 bg-green-500 text-black">{pendingDeposits.length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="all" className="gap-1.5">
-            <ArrowRightLeft className="h-3.5 w-3.5" /> All Requests
+          <TabsTrigger value="withdrawals" className="gap-1.5">
+            <ArrowUpRight className="h-3.5 w-3.5" /> Withdrawal Approval
+            {pendingWithdrawals.length > 0 && (
+              <Badge className="ml-1 h-5 px-1.5 bg-red-500 text-white">{pendingWithdrawals.length}</Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="ledger" className="gap-1.5">
             <BookOpen className="h-3.5 w-3.5" /> Ledger Book
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="queue" className="mt-4">
-          <Card className="bg-white/5 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-base">Pending Evaluation</CardTitle>
-              <CardDescription>Review proof, UTR, or gateway reference — approve to auto-credit/debit wallet and write ledger entry</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-2">{[1, 2, 3].map(n => <Skeleton key={n} className="h-12 w-full" />)}</div>
-              ) : pendingQueue.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No pending deposits or withdrawals.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/10">
-                        <TableHead>ID</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Method / Proof</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingQueue.map(t => (
-                        <TableRow key={t.id} className="border-white/5">
-                          <TableCell className="text-muted-foreground">#{t.id}</TableCell>
-                          <TableCell>
-                            <p className="text-sm font-medium">{t.userName || `User #${t.userId}`}</p>
-                            <p className="text-xs text-muted-foreground">{t.userEmail}</p>
-                          </TableCell>
-                          <TableCell className="capitalize">{t.type}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {t.currency}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground max-w-[200px]">
-                            <p>{t.paymentMethod || t.gatewayProvider || "manual"}</p>
-                            {t.utrReference && <p>UTR: {t.utrReference}</p>}
-                            {t.txHash && <p className="font-mono break-all">TX: {t.txHash}</p>}
-                            {t.proofUrl && (
-                              <a href={t.proofUrl} target="_blank" rel="noreferrer" className="text-amber-400 hover:underline">View proof</a>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button size="sm" variant="outline" className="text-green-400 h-7" disabled={pending === t.id}
-                                onClick={() => { setReviewDialog({ id: t.id, action: "approve", tx: t }); setAdminNotes(""); setChainVerified(false); }}>
-                                <CheckCircle className="h-3 w-3 mr-1" />Approve
-                              </Button>
-                              <Button size="sm" variant="outline" className="text-red-400 h-7" disabled={pending === t.id}
-                                onClick={() => { setReviewDialog({ id: t.id, action: "reject", tx: t }); setAdminNotes(""); setChainVerified(false); }}>
-                                <XCircle className="h-3 w-3 mr-1" />Reject
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="all" className="mt-4">
+        <TabsContent value="deposits" className="mt-4">
           <Card className="bg-white/5 border-white/10">
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <CardTitle className="text-base">All Transaction Requests</CardTitle>
+                <div>
+                  <CardTitle className="text-base">Deposit Approval</CardTitle>
+                  <CardDescription>Review deposit proofs and UTR references — approve to credit wallet and post ledger entry</CardDescription>
+                </div>
                 <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-                  <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-32 bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                  <Select value={depositStatusFilter} onValueChange={setDepositStatusFilter}>
+                    <SelectTrigger className="w-36 bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All types</SelectItem>
-                      <SelectItem value="deposit">Deposits</SelectItem>
-                      <SelectItem value="withdrawal">Withdrawals</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-32 bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All status</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="approved">Approved</SelectItem>
                       <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="all">All status</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="relative flex-1 sm:w-48">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-white/5 border-white/10" />
+                    <Input placeholder="Search deposits..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-white/5 border-white/10" />
                   </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="space-y-2">{[1, 2, 3].map(n => <Skeleton key={n} className="h-10 w-full" />)}</div>
-              ) : filtered.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No transactions found</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/10">
-                        <TableHead>ID</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Reviewed by</TableHead>
-                        <TableHead>Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.slice(0, 150).map(t => (
-                        <TableRow key={t.id} className="border-white/5">
-                          <TableCell className="text-muted-foreground">#{t.id}</TableCell>
-                          <TableCell>
-                            <p className="text-sm font-medium">{t.userName || `User #${t.userId}`}</p>
-                            <p className="text-xs text-muted-foreground">{t.userEmail}</p>
-                          </TableCell>
-                          <TableCell className="capitalize">{t.type}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {t.currency}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`text-xs ${statusColor[t.status] || "bg-gray-500/20 text-gray-400"}`}>{t.status}</Badge>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {t.reviewedByEmail || "—"}
-                            {t.reviewedAt && <p>{new Date(t.reviewedAt).toLocaleDateString()}</p>}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+              {renderApprovalTable(
+                filteredDeposits.slice(0, 150),
+                depositStatusFilter === "pending" ? "No pending deposits." : "No deposit requests found.",
+                true,
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="withdrawals" className="mt-4">
+          <Card className="bg-white/5 border-white/10">
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base">Withdrawal Approval</CardTitle>
+                  <CardDescription>Review withdrawal requests — approve to release funds or reject to refund held balance</CardDescription>
                 </div>
+                <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+                  <Select value={withdrawalStatusFilter} onValueChange={setWithdrawalStatusFilter}>
+                    <SelectTrigger className="w-36 bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="all">All status</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="relative flex-1 sm:w-48">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search withdrawals..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-white/5 border-white/10" />
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {renderApprovalTable(
+                filteredWithdrawals.slice(0, 150),
+                withdrawalStatusFilter === "pending" ? "No pending withdrawals." : "No withdrawal requests found.",
+                true,
               )}
             </CardContent>
           </Card>
@@ -405,7 +423,7 @@ export function FinanceLedgerPanel() {
         <TabsContent value="ledger" className="mt-4">
           <Card className="bg-white/5 border-white/10">
             <CardHeader>
-              <CardTitle className="text-base">Immutable Ledger Book</CardTitle>
+              <CardTitle className="text-base">Ledger Book</CardTitle>
               <CardDescription>Automatic balance entries created when deposits are approved or withdrawals are held/released</CardDescription>
             </CardHeader>
             <CardContent>
