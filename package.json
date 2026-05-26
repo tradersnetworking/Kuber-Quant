@@ -18,7 +18,8 @@
     "build:web": "pnpm --filter @workspace/trading-platform run build",
     "build:api": "pnpm --filter @workspace/api-server run build",
     "build:prod": "pnpm build:web && pnpm build:api",
-    "start:prod": "node --env-file=.env artifacts/api-server/dist/index.mjs"
+    "start:prod": "node --env-file=.env artifacts/api-server/dist/index.mjs",
+    "deploy:hostinger": "node --env-file=.env scripts/deploy-hostinger.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

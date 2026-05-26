@@ -53,4 +53,9 @@ router.get("/partners", async (_req, res) => {
   res.json(await getActivePartners());
 });
 
+router.get("/about", async (_req, res) => {
+  const { getPublicCompanyAbout } = await import("../helpers/companyAbout");
+  res.json(await getPublicCompanyAbout());
+});
+
 export default router;

@@ -971,4 +971,49 @@ router.delete("/partners/:id", async (req, res) => {
   res.json({ message: "Partner deleted" });
 });
 
+// ── About Kuber Quant (home page) ────────────────────────────────────────────
+router.get("/about", async (_req, res) => {
+  const { getCompanyAboutConfig, ABOUT_CATEGORY_LABELS } = await import("../helpers/companyAbout");
+  res.json({ ...await getCompanyAboutConfig(), categoryLabels: ABOUT_CATEGORY_LABELS });
+});
+
+router.patch("/about/meta", async (req, res) => {
+  const { sectionTitle, intro, footerDescription } = req.body || {};
+  const { updateCompanyAboutMeta } = await import("../helpers/companyAbout");
+  res.json(await updateCompanyAboutMeta({ sectionTitle, intro, footerDescription }));
+});
+
+router.post("/about/items", async (req, res) => {
+  const { title, category } = req.body || {};
+  if (!title || typeof title !== "string") {
+    res.status(400).json({ error: "title is required" });
+    return;
+  }
+  const { createAboutItem } = await import("../helpers/companyAbout");
+  const item = await createAboutItem(req.body);
+  res.status(201).json(item);
+});
+
+router.patch("/about/items/:id", async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const { updateAboutItem } = await import("../helpers/companyAbout");
+  const item = await updateAboutItem(id, req.body || {});
+  if (!item) {
+    res.status(404).json({ error: "Item not found" });
+    return;
+  }
+  res.json(item);
+});
+
+router.delete("/about/items/:id", async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const { deleteAboutItem } = await import("../helpers/companyAbout");
+  const deleted = await deleteAboutItem(id);
+  if (!deleted) {
+    res.status(404).json({ error: "Item not found" });
+    return;
+  }
+  res.json({ message: "Item deleted" });
+});
+
 export default router;

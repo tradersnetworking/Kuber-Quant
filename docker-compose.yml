@@ -1,0 +1,31 @@
+services:
+  kuber-quant:
+    build: .
+    container_name: kuber-quant
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      WEB_DIST: /app/artifacts/trading-platform/dist/public
+      UPLOAD_DIR: /app/uploads
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      APP_URL: ${APP_URL}
+      API_URL: ${API_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      SMTP_HOST: ${SMTP_HOST:-smtp.hostinger.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+    volumes:
+      - kuber_uploads:/app/uploads
+      - kuber_logs:/app/logs
+
+volumes:
+  kuber_uploads:
+  kuber_logs:

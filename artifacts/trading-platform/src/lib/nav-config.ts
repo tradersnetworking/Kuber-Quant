@@ -24,6 +24,7 @@ import {
   CreditCard,
   Mail,
   Bell,
+  Home,
 } from "lucide-react";
 
 export type AppRole = "user" | "manager" | "support" | "admin" | "superadmin";
@@ -151,6 +152,7 @@ export const SUPER_ADMIN_NAV: NavItem[] = [
   { name: "EA Subscriptions", href: "/super-admin/ea-subs", icon: Activity, color: "text-violet-400" },
 
   { name: "Email & Communication", href: "/super-admin/communication", icon: Mail, color: "text-sky-400", section: "Platform Configuration" },
+  { name: "Homepage Content", href: "/super-admin/homepage", icon: Home, color: "text-amber-400" },
   { name: "Notifications", href: "/super-admin/notifications", icon: Bell, color: "text-yellow-400" },
   { name: "Site Settings", href: "/super-admin/site-config", icon: Settings, color: "text-zinc-400" },
   { name: "Promo Codes", href: "/super-admin/promo-codes", icon: Tag, color: "text-amber-400" },
@@ -371,7 +373,7 @@ export const INVESTOR_TO_STAFF: Record<string, Record<string, string>> = {
 export const SUPER_ADMIN_TABS = new Set([
   "overview", "wallet", "investments", "investment-plans", "copy-trading", "algo-trading",
   "ea-strategies", "mt5", "mt5-accounts", "transactions", "notifications", "referrals", "support", "support-mail",
-  "kyc", "agreements", "communication", "settings",
+  "kyc", "agreements", "communication", "homepage", "settings",
   "users", "managers", "admins", "payment-gateways", "site-config", "ea-subs", "api", "promo-codes", "audit-logs",
 ]);
 

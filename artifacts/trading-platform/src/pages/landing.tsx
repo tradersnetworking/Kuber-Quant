@@ -16,6 +16,7 @@ import { getPostLoginPath, getRoleAwareHref } from "@/lib/nav-config";
 import { BrandTitle } from "@/components/brand/BrandTitle";
 import { useSiteBranding } from "@/hooks/use-site-branding";
 import { usePartnersSection } from "@/hooks/use-partners-section";
+import { useCompanyAbout, type AboutCategory } from "@/hooks/use-company-about";
 
 const ALGO_STRATEGIES = [
   {
@@ -154,6 +155,7 @@ export default function LandingPage() {
   const { user } = useAuth();
   const branding = useSiteBranding();
   const partnersSection = usePartnersSection();
+  const companyAbout = useCompanyAbout();
   const isLoggedIn = !!user;
   const role = (user?.role as string) || "user";
   const dashboardHref = isLoggedIn ? getPostLoginPath(role) : "/register";
@@ -177,6 +179,9 @@ export default function LandingPage() {
             <a href="#algo" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">Algo Trading</a>
             <a href="#ea" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">EA Strategies</a>
             <a href="#investments" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">Investments</a>
+            {companyAbout.items.length > 0 && (
+              <a href="#about" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">About</a>
+            )}
           </div>
 
           {/* Auth buttons — full row below logo/title on mobile */}
@@ -473,6 +478,66 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* About Kuber Quant */}
+        {companyAbout.items.length > 0 && (
+          <section id="about" className="w-full py-24 border-t border-white/10 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
+            <div className="max-w-6xl mx-auto px-6">
+              <div className="text-center max-w-3xl mx-auto mb-14">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
+                  {companyAbout.sectionTitle}
+                </h2>
+                <p className="text-white/50 leading-relaxed">{companyAbout.intro}</p>
+              </div>
+
+              {(Object.keys(companyAbout.categoryLabels) as AboutCategory[]).map(category => {
+                const items = companyAbout.grouped[category] || [];
+                if (!items.length) return null;
+                return (
+                  <div key={category} className="mb-12 last:mb-0">
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400/80 mb-5">
+                      {companyAbout.categoryLabels[category]}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {items.map(item => (
+                        <Card key={item.id} className="bg-white/5 border-white/10 hover:border-amber-500/30 transition-colors">
+                          <CardContent className="p-5 space-y-2">
+                            <p className="font-semibold text-white">{item.title}</p>
+                            {item.subtitle && <p className="text-sm text-white/50">{item.subtitle}</p>}
+                            {item.description && <p className="text-xs text-white/40 leading-relaxed">{item.description}</p>}
+                            <div className="pt-2 space-y-1 text-xs text-white/35">
+                              {item.referenceNumber && (
+                                <p><span className="text-white/25">Ref:</span> <span className="font-mono text-white/50">{item.referenceNumber}</span></p>
+                              )}
+                              {item.issuedBy && <p><span className="text-white/25">Issued by:</span> {item.issuedBy}</p>}
+                              {(item.issuedDate || item.expiryDate) && (
+                                <p>
+                                  {item.issuedDate && <>Issued {item.issuedDate}</>}
+                                  {item.issuedDate && item.expiryDate && " · "}
+                                  {item.expiryDate && <>Expires {item.expiryDate}</>}
+                                </p>
+                              )}
+                            </div>
+                            {item.documentUrl && (
+                              <a
+                                href={item.documentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 mt-2"
+                              >
+                                View document <ChevronRight className="h-3 w-3" />
+                              </a>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Partners */}
         <section className="w-full py-20 border-t border-white/10 overflow-hidden">
           <div className="max-w-6xl mx-auto px-6">
@@ -535,7 +600,7 @@ export default function LandingPage() {
               <div className="text-xl font-bold text-white tracking-tight">Kuber Quant</div>
             </div>
             <p className="text-white/40 max-w-sm mb-6 leading-relaxed text-sm">
-              Premium algorithmic trading and wealth management platform. Institutional-grade technology for serious investors worldwide.
+              {companyAbout.footerDescription}
             </p>
             <div className="flex gap-3">
               {[

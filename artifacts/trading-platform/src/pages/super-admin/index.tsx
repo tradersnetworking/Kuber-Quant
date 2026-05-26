@@ -30,7 +30,7 @@ import { KycManagementPanel } from "@/components/super-admin/KycManagementPanel"
 import { PaymentGatewaysPanel } from "@/components/super-admin/PaymentGatewaysPanel";
 import { SupportTicketsPanel } from "@/components/super-admin/SupportTicketsPanel";
 import { SiteSettingsPanel } from "@/components/super-admin/SiteSettingsPanel";
-import { PartnersManagementPanel } from "@/components/super-admin/PartnersManagementPanel";
+import { HomepageContentPanel } from "@/components/super-admin/HomepageContentPanel";
 import { PlatformInvestmentsPanel } from "@/components/super-admin/PlatformInvestmentsPanel";
 import { FinanceLedgerPanel } from "@/components/super-admin/FinanceLedgerPanel";
 import { NotificationManagementPanel } from "@/components/super-admin/NotificationManagementPanel";
@@ -426,6 +426,7 @@ export default function SuperAdminDashboard() {
                 { tab: "support", label: "Support", desc: "Tickets" },
                 { tab: "api", label: "Windows Server API", desc: "VPS bridge & copier" },
                 { tab: "communication", label: "Email & Comms", desc: "SMTP & auto emails" },
+                { tab: "homepage", label: "Homepage Content", desc: "Partners & about section" },
                 { tab: "site-config", label: "Site Config", desc: "Platform settings" },
                 { tab: "promo-codes", label: "Promo Codes", desc: "Discounts" },
                 { tab: "audit-logs", label: "Audit Logs", desc: "Activity trail" },
@@ -520,9 +521,10 @@ export default function SuperAdminDashboard() {
 
           <TabsContent value="site-config" className={TAB_PANEL}>
             <SiteSettingsPanel />
-            <div className="mt-8">
-              <PartnersManagementPanel />
-            </div>
+          </TabsContent>
+
+          <TabsContent value="homepage" className={TAB_PANEL}>
+            <HomepageContentPanel />
           </TabsContent>
 
           {/* ── EA Subscriptions ── */}
@@ -878,10 +880,6 @@ export default function SuperAdminDashboard() {
           {/* ── Settings ── */}
           <TabsContent value="settings" className={TAB_PANEL}>
             <SiteSettingsPanel />
-
-            <div className="mt-8">
-              <PartnersManagementPanel />
-            </div>
 
             <Card className="bg-white/5 border-white/10 mt-8">
               <CardHeader>
