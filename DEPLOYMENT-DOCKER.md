@@ -42,6 +42,13 @@ newgrp docker
 docker compose version
 ```
 
+Or run the helper script after clone:
+
+```bash
+chmod +x scripts/ubuntu-vps-setup.sh
+./scripts/ubuntu-vps-setup.sh
+```
+
 ## 2. Clone and configure
 
 ```bash
