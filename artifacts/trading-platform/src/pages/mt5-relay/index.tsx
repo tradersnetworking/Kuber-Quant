@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,14 +8,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Users, Activity, Clock, CheckCircle, XCircle, Send,
-  TrendingUp, Briefcase, Info, Monitor, ChevronRight, Shield
+  TrendingUp, Briefcase, Info, ChevronRight, Shield
 } from "lucide-react";
+import {
+  DEFAULT_MT5_RELAY_FORM_CONFIG,
+  mergeMt5RelayFormConfig,
+  type Mt5RelayFormConfig,
+} from "@/lib/mt5-relay-form-config";
+import { MtAccountCredentialsForm, EMPTY_MT_ACCOUNT, type MtAccountFormValues } from "@/components/forms/MtAccountCredentialsForm";
 
 const API_BASE = "/api";
 const getToken = () => localStorage.getItem("token");
@@ -84,17 +86,26 @@ export default function Mt5RelayPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [formConfig, setFormConfig] = useState<Mt5RelayFormConfig>(DEFAULT_MT5_RELAY_FORM_CONFIG);
   const [selectedService, setSelectedService] = useState<"copy_trading" | "account_handling">("copy_trading");
   const [form, setForm] = useState({
     type: "copy_trading",
-    platform: "mt5",
-    mt5AccountId: "",
-    profitSharingPercent: 30,
+    profitSharingPercent: DEFAULT_MT5_RELAY_FORM_CONFIG.profitSharing.default,
     details: "",
   });
+  const [mtCreds, setMtCreds] = useState<MtAccountFormValues>(EMPTY_MT_ACCOUNT);
+  const [mtErrors, setMtErrors] = useState<Partial<Record<keyof MtAccountFormValues, string>>>({});
 
   useEffect(() => {
-    apiFetch("/mt5-relay/my").then(setRequests).catch(() => {}).finally(() => setLoading(false));
+    Promise.all([
+      apiFetch("/mt5-relay/my").catch(() => []),
+      apiFetch("/mt5-relay/form-config").catch(() => DEFAULT_MT5_RELAY_FORM_CONFIG),
+    ]).then(([reqs, cfg]) => {
+      setRequests(reqs);
+      const merged = mergeMt5RelayFormConfig(cfg);
+      setFormConfig(merged);
+      setForm(f => ({ ...f, profitSharingPercent: merged.profitSharing.default }));
+    }).finally(() => setLoading(false));
   }, []);
 
   function selectService(service: "copy_trading" | "account_handling") {
@@ -104,17 +115,47 @@ export default function Mt5RelayPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const errs: Partial<Record<keyof MtAccountFormValues, string>> = {};
+    if (formConfig.fields.accountNumber.enabled && formConfig.fields.accountNumber.required && !mtCreds.mtAccountNumber.trim()) {
+      errs.mtAccountNumber = "Account number is required";
+    }
+    if (formConfig.fields.brokerName.enabled && formConfig.fields.brokerName.required && !mtCreds.mtBroker.trim()) {
+      errs.mtBroker = "Broker is required";
+    }
+    if (formConfig.fields.serverName.enabled && formConfig.fields.serverName.required && !mtCreds.mtServer.trim()) {
+      errs.mtServer = "Server is required";
+    }
+    if (formConfig.fields.tradingPassword?.enabled && formConfig.fields.tradingPassword.required) {
+      if (!mtCreds.mtPassword || mtCreds.mtPassword.length < 4) errs.mtPassword = "Trading password is required";
+    }
+    if (Object.keys(errs).length) {
+      setMtErrors(errs);
+      return;
+    }
+    setMtErrors({});
+
     setSubmitting(true);
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         type: form.type,
+        platform: mtCreds.mtPlatform,
         profitSharingPercent: form.profitSharingPercent,
-        details: `Platform: ${form.platform.toUpperCase()}${form.details ? " | " + form.details : ""}`,
+        details: form.details,
+        accountNumber: mtCreds.mtAccountNumber.trim(),
+        brokerName: mtCreds.mtBroker.trim(),
+        serverName: mtCreds.mtServer.trim(),
+        tradingPassword: mtCreds.mtPassword,
       };
-      if (form.mt5AccountId) payload.mt5AccountId = parseInt(form.mt5AccountId);
+
       const result = await apiFetch("/mt5-relay", { method: "POST", body: JSON.stringify(payload) });
       setRequests(r => [{ ...result }, ...r]);
-      setForm(f => ({ ...f, mt5AccountId: "", profitSharingPercent: 30, details: "" }));
+      setForm(f => ({
+        ...f,
+        profitSharingPercent: formConfig.profitSharing.default,
+        details: "",
+      }));
+      setMtCreds(EMPTY_MT_ACCOUNT);
       toast({ title: "Request submitted", description: "Our team will review and contact you within 24 hours." });
     } catch (e: any) {
       toast({ title: "Submission failed", description: e.message, variant: "destructive" });
@@ -125,13 +166,13 @@ export default function Mt5RelayPage() {
   const ServiceIcon = currentService.icon;
 
   return (
-    <AppLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-            MT4 / MT5 Services
+            MT4/MT5 Account Handling
           </h1>
+          <p className="text-muted-foreground mt-1">Request copy trading setup or managed account handling for your MT4/MT5 accounts.</p>
           <p className="text-muted-foreground mt-1">
             Professional account services for MetaTrader 4 and MetaTrader 5. Choose copy trading or full account management with flexible profit sharing.
           </p>
@@ -193,89 +234,83 @@ export default function Mt5RelayPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Platform */}
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Trading Platform</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["mt4", "mt5"].map(p => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, platform: p }))}
-                        className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all ${
-                          form.platform === p
-                            ? "border-amber-500/60 bg-amber-500/10 text-amber-400"
-                            : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20"
-                        }`}
-                      >
-                        <Monitor className="h-4 w-4" />
-                        {p.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* MT5 Account ID */}
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {form.platform.toUpperCase()} Account Number (optional)
-                  </Label>
-                  <Input
-                    placeholder={`Your ${form.platform.toUpperCase()} broker account number`}
-                    value={form.mt5AccountId}
-                    onChange={e => setForm(f => ({ ...f, mt5AccountId: e.target.value }))}
-                    className="bg-white/5 border-white/10"
-                    type="number"
-                  />
-                  <p className="text-xs text-muted-foreground">You can also provide this later when our team contacts you.</p>
-                </div>
-
-                {/* Profit Sharing Slider */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Profit Sharing</Label>
-                    <span className="text-2xl font-bold text-amber-400">{form.profitSharingPercent}%</span>
-                  </div>
-                  <Slider
-                    value={[form.profitSharingPercent]}
-                    onValueChange={([v]) => setForm(f => ({ ...f, profitSharingPercent: v }))}
-                    min={10} max={50} step={5}
-                    className="[&_[role=slider]]:border-amber-500 [&_[role=slider]]:bg-amber-500"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>10% (Min)</span>
-                    <span>50% (Max)</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-center">
-                      <p className="text-[10px] text-muted-foreground uppercase mb-1">You Keep</p>
-                      <p className="text-xl font-bold text-green-400">{100 - form.profitSharingPercent}%</p>
-                    </div>
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center">
-                      <p className="text-[10px] text-muted-foreground uppercase mb-1">Kuber Quant</p>
-                      <p className="text-xl font-bold text-amber-400">{form.profitSharingPercent}%</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                    <span>Performance fee applies to net profits only. No monthly fees. You keep losses — we only earn when you do.</span>
-                  </div>
-                </div>
-
-                {/* Additional Details */}
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Additional Details</Label>
-                  <Textarea
-                    placeholder={
-                      selectedService === "copy_trading"
-                        ? "Preferred trading pairs, risk tolerance, maximum lot size, etc."
-                        : "Current account balance, preferred strategy type, risk appetite, broker name, etc."
+                {(formConfig.fields.platform.enabled ||
+                  formConfig.fields.accountNumber.enabled ||
+                  formConfig.fields.brokerName.enabled ||
+                  formConfig.fields.serverName.enabled ||
+                  formConfig.fields.tradingPassword?.enabled) && (
+                  <MtAccountCredentialsForm
+                    values={mtCreds}
+                    onChange={(k, v) => setMtCreds(prev => ({ ...prev, [k]: v }))}
+                    showDeferOption={false}
+                    required={
+                      formConfig.fields.accountNumber.required ||
+                      formConfig.fields.brokerName.required ||
+                      formConfig.fields.serverName.required ||
+                      !!formConfig.fields.tradingPassword?.required
                     }
-                    value={form.details}
-                    onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
-                    className="bg-white/5 border-white/10 min-h-[90px]"
+                    hideHeader
+                    errors={mtErrors}
                   />
-                </div>
+                )}
+
+                {formConfig.profitSharing.enabled && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        {formConfig.profitSharing.label}
+                        {formConfig.profitSharing.required && <span className="text-red-400 ml-1">*</span>}
+                      </Label>
+                      <span className="text-2xl font-bold text-amber-400">{form.profitSharingPercent}%</span>
+                    </div>
+                    <Slider
+                      value={[form.profitSharingPercent]}
+                      onValueChange={([v]) => setForm(f => ({ ...f, profitSharingPercent: v }))}
+                      min={formConfig.profitSharing.min}
+                      max={formConfig.profitSharing.max}
+                      step={formConfig.profitSharing.step}
+                      className="[&_[role=slider]]:border-amber-500 [&_[role=slider]]:bg-amber-500"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{formConfig.profitSharing.min}% (Min)</span>
+                      <span>{formConfig.profitSharing.max}% (Max)</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase mb-1">You Keep</p>
+                        <p className="text-xl font-bold text-green-400">{100 - form.profitSharingPercent}%</p>
+                      </div>
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase mb-1">Kuber Quant</p>
+                        <p className="text-xl font-bold text-amber-400">{form.profitSharingPercent}%</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                      <span>Performance fee applies to net profits only. No monthly fees. You keep losses — we only earn when you do.</span>
+                    </div>
+                  </div>
+                )}
+
+                {formConfig.fields.details.enabled && (
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {formConfig.fields.details.label}
+                      {formConfig.fields.details.required && <span className="text-red-400 ml-1">*</span>}
+                    </Label>
+                    <Textarea
+                      placeholder={
+                        selectedService === "copy_trading"
+                          ? formConfig.copyTradingDetailsPlaceholder
+                          : formConfig.accountHandlingDetailsPlaceholder
+                      }
+                      value={form.details}
+                      onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
+                      className="bg-white/5 border-white/10 min-h-[90px]"
+                      required={formConfig.fields.details.required}
+                    />
+                  </div>
+                )}
 
                 <Button
                   type="submit"
@@ -373,6 +408,5 @@ export default function Mt5RelayPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
-  );
+);
 }

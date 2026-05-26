@@ -11,6 +11,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Shield, Lock, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import * as ApiHooks from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
+import { getPostLoginPath } from "@/lib/nav-config";
+
+const STAFF_ROLES = new Set(["superadmin", "admin", "manager"]);
+
+function isStaffRole(role: string): boolean {
+  return STAFF_ROLES.has(role);
+}
 
 export default function StaffLoginPage() {
   const [email, setEmail] = useState("");
@@ -38,13 +45,12 @@ export default function StaffLoginPage() {
             setTempToken(data.tempToken);
             return;
           }
-          if (data.user.role !== "admin" && data.user.role !== "manager") {
-            setLoginError("This portal is for admin and manager accounts only. Please use the user login page.");
+          if (!isStaffRole(data.user.role)) {
+            setLoginError("This portal is for staff accounts only. Please use the user login page.");
             return;
           }
           login(data.token, data.user);
-          if (data.user.role === "admin") setLocation("/admin");
-          else setLocation("/manager");
+          setLocation(getPostLoginPath(data.user.role));
         },
         onError: (err: any) => {
           setLoginError(err?.message || "Invalid credentials. Please try again.");
@@ -60,13 +66,12 @@ export default function StaffLoginPage() {
       { data: { tempToken: tempToken!, code: twoFactorCode } },
       {
         onSuccess: (data: any) => {
-          if (data.user.role !== "admin" && data.user.role !== "manager") {
-            setLoginError("This portal is for admin and manager accounts only.");
+          if (!isStaffRole(data.user.role)) {
+            setLoginError("This portal is for staff accounts only.");
             return;
           }
           login(data.token, data.user);
-          if (data.user.role === "admin") setLocation("/admin");
-          else setLocation("/manager");
+          setLocation(getPostLoginPath(data.user.role));
         },
         onError: (err: any) => {
           setLoginError(err?.message || "Invalid authenticator code. Please try again.");
@@ -99,7 +104,7 @@ export default function StaffLoginPage() {
           <div className="space-y-4">
             {[
               { icon: Shield, label: "Secured Access", desc: "256-bit encrypted portal" },
-              { icon: Lock, label: "Role-Based Control", desc: "Admin & Manager privileges" },
+              { icon: Lock, label: "Role-Based Control", desc: "Super Admin, Admin & Manager access" },
               { icon: ShieldAlert, label: "Audit Logged", desc: "All actions are recorded" },
             ].map(({ icon: Icon, label, desc }) => (
               <div key={label} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/5 text-left">
@@ -140,7 +145,7 @@ export default function StaffLoginPage() {
               </div>
               <CardTitle className="text-2xl font-bold text-center text-white">Staff Sign In</CardTitle>
               <CardDescription className="text-center text-zinc-500">
-                Admin and Manager access only
+                Super Admin, Admin and Manager access only
               </CardDescription>
             </CardHeader>
 

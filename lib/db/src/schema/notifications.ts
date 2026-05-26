@@ -4,12 +4,18 @@ import { z } from "zod/v4";
 
 export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning", "error"]);
 
+export const notificationCategoryEnum = pgEnum("notification_category", [
+  "deposit", "withdrawal", "service", "kyc", "investment", "support", "system", "promo", "security",
+]);
+
 export const notificationsTable = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   message: text("message").notNull(),
   type: notificationTypeEnum("type").notNull().default("info"),
+  category: notificationCategoryEnum("category").notNull().default("system"),
+  actionUrl: text("action_url"),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

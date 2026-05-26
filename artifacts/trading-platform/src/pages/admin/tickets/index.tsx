@@ -1,5 +1,5 @@
-import { useListAdminTickets, useReplyTicket } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { useListAdminTickets } from "@workspace/api-client-react";
+import { replyToTicketAsStaff } from "@/lib/staff-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,36 +18,32 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAuth } from "@/hooks/use-auth";
 
 export default function AdminTicketsPage() {
   const { data: tickets, isLoading, refetch } = useListAdminTickets();
-  const replyMutation = useReplyTicket();
   const { toast } = useToast();
-  const { user } = useAuth();
   const [filter, setFilter] = useState("all");
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [replyMessage, setReplyMessage] = useState("");
+  const [replyPending, setReplyPending] = useState(false);
 
-  const handleReply = (e: React.FormEvent) => {
+  const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTicket || !replyMessage) return;
 
-    replyMutation.mutate(
-      { id: selectedTicket.id, data: { message: replyMessage } },
-      {
-        onSuccess: () => {
-          toast({ title: "Reply sent successfully" });
-          setReplyMessage("");
-          refetch();
-          // We don't close the dialog to let them see the updated thread if possible, 
-          // but since the list returns all tickets, we'd need to find the updated one
-          const updated = tickets?.find(t => t.id === selectedTicket.id);
-          if (updated) setSelectedTicket(updated);
-          else setSelectedTicket(null); // Fallback
-        },
-      }
-    );
+    setReplyPending(true);
+    try {
+      await replyToTicketAsStaff(selectedTicket.id, replyMessage, "admin");
+      toast({ title: "Reply sent successfully" });
+      setReplyMessage("");
+      const updated = await refetch();
+      const fresh = updated.data?.find((t: any) => t.id === selectedTicket.id);
+      if (fresh) setSelectedTicket(fresh);
+    } catch (err: any) {
+      toast({ title: "Failed to send reply", description: err.message, variant: "destructive" });
+    } finally {
+      setReplyPending(false);
+    }
   };
 
   const filteredTickets = tickets?.filter((t: any) => {
@@ -60,8 +56,8 @@ export default function AdminTicketsPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <>
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Support Tickets</h1>
           <p className="text-muted-foreground">Manage and resolve user support requests.</p>
@@ -184,14 +180,14 @@ export default function AdminTicketsPage() {
                   <div
                     key={reply.id}
                     className={`p-4 rounded-lg border ${
-                      reply.userId === user?.id
+                      reply.isAdmin
                         ? "bg-amber-500/10 border-amber-500/20 ml-8"
                         : "bg-white/5 border-white/10 mr-8"
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <span className={`font-bold ${reply.userId === user?.id ? "text-amber-400" : "text-white"}`}>
-                        {reply.userId === user?.id ? "Administrator" : "User"}
+                      <span className={`font-bold ${reply.isAdmin ? "text-amber-400" : "text-white"}`}>
+                        {reply.isAdmin ? "Staff" : "User"}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {new Date(reply.createdAt).toLocaleString()}
@@ -218,15 +214,15 @@ export default function AdminTicketsPage() {
                 <Button
                   type="submit"
                   className="bg-amber-500 hover:bg-amber-600 text-black w-full"
-                  disabled={!replyMessage || replyMutation.isPending || selectedTicket?.status === "closed"}
+                  disabled={!replyMessage || replyPending || selectedTicket?.status === "closed"}
                 >
-                  Send Reply
+                  {replyPending ? "Sending..." : "Send Reply"}
                 </Button>
               </DialogFooter>
             </form>
           </div>
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </>
   );
 }

@@ -6,7 +6,7 @@ import { requireAuth, signToken } from "../middlewares/auth";
 import jwt from "jsonwebtoken";
 
 const router = Router();
-const JWT_SECRET = process.env.SESSION_SECRET || "kuberquant-secret-key";
+import { JWT_SECRET } from "../lib/jwtSecret";
 const APP_NAME = "Kuber Quant";
 
 // Base32 encoding/decoding for TOTP secrets

@@ -1,5 +1,4 @@
 import { useGetManagerStats } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -8,37 +7,33 @@ import { Link } from "wouter";
 import {
   Users, ShieldCheck, Ticket, ArrowRightLeft, TrendingUp,
   ArrowUpRight, ArrowDownLeft, Activity, Clock, CheckCircle2,
-  DollarSign, BarChart3, RefreshCw,
+  DollarSign, BarChart3, RefreshCw, AlertCircle,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { motion } from "framer-motion";
+import { useManagerAnalytics } from "@/lib/staff-api";
+import { formatActivityTime } from "@/lib/format-activity-time";
+import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
+import { SafeBoundary } from "@/components/SafeBoundary";
 
-const DEPOSIT_TREND = [
-  { day: "Mon", deposits: 12000, withdrawals: 4000 },
-  { day: "Tue", deposits: 18000, withdrawals: 7000 },
-  { day: "Wed", deposits: 14000, withdrawals: 5000 },
-  { day: "Thu", deposits: 22000, withdrawals: 8000 },
-  { day: "Fri", deposits: 28000, withdrawals: 12000 },
-  { day: "Sat", deposits: 16000, withdrawals: 6000 },
-  { day: "Sun", deposits: 10000, withdrawals: 3000 },
+const FALLBACK_CASH_FLOW = [
+  { day: "Mon", deposits: 0, withdrawals: 0 },
+  { day: "Tue", deposits: 0, withdrawals: 0 },
+  { day: "Wed", deposits: 0, withdrawals: 0 },
+  { day: "Thu", deposits: 0, withdrawals: 0 },
+  { day: "Fri", deposits: 0, withdrawals: 0 },
+  { day: "Sat", deposits: 0, withdrawals: 0 },
+  { day: "Sun", deposits: 0, withdrawals: 0 },
 ];
 
-const INVESTOR_GROWTH = [
-  { week: "Wk1", investors: 24 },
-  { week: "Wk2", investors: 31 },
-  { week: "Wk3", investors: 28 },
-  { week: "Wk4", investors: 38 },
-];
-
-const RECENT_ACTIVITY = [
-  { type: "deposit",    user: "Rahul V.",  amount: "$3,500", time: "5m ago",  status: "pending" },
-  { type: "kyc",       user: "Deepa N.",  amount: null,     time: "12m ago", status: "review" },
-  { type: "withdrawal",user: "Arun T.",   amount: "$8,000", time: "18m ago", status: "pending" },
-  { type: "support",   user: "Meena K.", amount: null,     time: "25m ago", status: "open" },
-  { type: "deposit",   user: "Suresh B.", amount: "$10,000",time: "34m ago", status: "approved" },
+const FALLBACK_INVESTOR_GROWTH = [
+  { week: "Wk1", investors: 0 },
+  { week: "Wk2", investors: 0 },
+  { week: "Wk3", investors: 0 },
+  { week: "Wk4", investors: 0 },
 ];
 
 const TYPE_CONFIG: Record<string, { icon: any; color: string; bg: string; label: string }> = {
@@ -89,6 +84,14 @@ function StatCard({ title, value, icon, href, color = "text-white", isLoading, s
 
 export default function ManagerDashboard() {
   const { data: stats, isLoading } = useGetManagerStats();
+  const { data: analytics, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics } = useManagerAnalytics();
+
+  const cashFlow = analytics?.cashFlow?.length ? analytics.cashFlow : FALLBACK_CASH_FLOW;
+  const investorGrowth = analytics?.investorGrowth?.length ? analytics.investorGrowth : FALLBACK_INVESTOR_GROWTH;
+  const recentActivity = (analytics?.recentActivity || []).map((item: any) => ({
+    ...item,
+    time: formatActivityTime(item.time),
+  }));
 
   const cards = [
     { title: "Assigned Clients", value: stats?.totalClients, icon: <Users className="h-4 w-4 text-blue-400" />, href: "/manager/clients", color: "text-white", sub: "Total investors assigned" },
@@ -102,11 +105,12 @@ export default function ManagerDashboard() {
     { href: "/manager/kyc",         label: "KYC Review",        icon: ShieldCheck,   color: "bg-amber-500/10 text-amber-400  border-amber-500/20" },
     { href: "/manager/transactions",label: "Transactions",      icon: ArrowRightLeft,color: "bg-green-500/10  text-green-400  border-green-500/20" },
     { href: "/manager/tickets",     label: "Support Tickets",   icon: Ticket,        color: "bg-red-500/10    text-red-400    border-red-500/20" },
+    { href: "/copy-trading",        label: "Copy Trading",      icon: Users,         color: "bg-cyan-500/10   text-cyan-400   border-cyan-500/20" },
+    { href: "/mt5-relay",           label: "MT4/MT5 Handling",  icon: BarChart3,     color: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
   ];
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -121,11 +125,23 @@ export default function ManagerDashboard() {
             <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs px-3 py-1.5">
               <CheckCircle2 className="h-3 w-3 mr-1.5" /> Active
             </Badge>
-            <Button size="sm" variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5">
+            <Button size="sm" variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5" onClick={() => refetchAnalytics()}>
               <RefreshCw className="h-3 w-3" /> Refresh
             </Button>
           </div>
         </div>
+
+        {analyticsError && (
+          <Card className="border-red-500/30 bg-red-500/10">
+            <CardContent className="pt-4 flex items-center justify-between gap-4">
+              <p className="text-sm text-red-400 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Analytics failed to load. Stats may be incomplete.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => refetchAnalytics()}>Retry</Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -147,7 +163,7 @@ export default function ManagerDashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={DEPOSIT_TREND} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <BarChart data={cashFlow} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="day" stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
@@ -169,7 +185,7 @@ export default function ManagerDashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={INVESTOR_GROWTH} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <AreaChart data={investorGrowth} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="invGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -201,7 +217,11 @@ export default function ManagerDashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {RECENT_ACTIVITY.map((item, i) => {
+              {analyticsLoading ? (
+                <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
+              ) : recentActivity.length === 0 ? (
+                <p className="text-center text-muted-foreground py-6 text-sm">No recent client activity.</p>
+              ) : recentActivity.map((item: any, i: number) => {
                 const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.deposit;
                 const Icon = cfg.icon;
                 return (
@@ -231,7 +251,10 @@ export default function ManagerDashboard() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-3">
+              <SafeBoundary label="Wallet actions unavailable">
+                <WalletQuickActions />
+              </SafeBoundary>
               {quickLinks.map(({ href, label, icon: Icon, color }) => (
                 <Link key={href} href={href}>
                   <div className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:opacity-80 transition-all ${color} mb-2`}>
@@ -244,6 +267,5 @@ export default function ManagerDashboard() {
           </Card>
         </div>
       </div>
-    </AppLayout>
-  );
+);
 }

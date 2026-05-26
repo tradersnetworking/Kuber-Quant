@@ -1,5 +1,4 @@
 import { useListAdminPlans, useCreateAdminPlan, useUpdateAdminPlan, useDeleteAdminPlan } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,8 +100,8 @@ export default function AdminPlansPage() {
   const f = (key: keyof typeof formData) => (val: any) => setFormData(prev => ({ ...prev, [key]: val }));
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <>
+    <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
@@ -373,6 +372,6 @@ export default function AdminPlansPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </>
   );
 }

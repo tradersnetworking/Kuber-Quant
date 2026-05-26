@@ -1,28 +1,33 @@
 import nodemailer from "nodemailer";
+import { createSmtpTransporter, getSmtpConfig, type SmtpConfig } from "./smtpSettings";
+import {
+  type EmailPurpose,
+  isAutoEmailEnabled,
+  resolveEmailSubject,
+  resolveFromAddress,
+} from "./emailCommunicationSettings";
+
+export type { EmailPurpose } from "./emailCommunicationSettings";
 
 let transporter: nodemailer.Transporter | null = null;
+let transporterKey: string | null = null;
 
-function getTransporter() {
-  if (transporter) return transporter;
+function configKey(cfg: SmtpConfig): string {
+  return [cfg.host, cfg.port, cfg.user, cfg.pass, cfg.secure, cfg.tlsRejectUnauthorized].join("|");
+}
 
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || "587");
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const from = process.env.SMTP_FROM || "Kuber Quant <noreply@kuberquant.com>";
+export function resetMailTransporter() {
+  transporter = null;
+  transporterKey = null;
+}
 
-  if (!host || !user || !pass) {
-    return null;
-  }
+async function getTransporter(): Promise<nodemailer.Transporter | null> {
+  const cfg = await getSmtpConfig();
+  const key = configKey(cfg);
+  if (transporter && transporterKey === key) return transporter;
 
-  transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-    tls: { rejectUnauthorized: false },
-  });
-
+  transporter = createSmtpTransporter(cfg);
+  transporterKey = key;
   return transporter;
 }
 
@@ -31,18 +36,68 @@ export async function sendMail(opts: {
   subject: string;
   html: string;
   text?: string;
+  from?: string;
 }): Promise<boolean> {
-  const t = getTransporter();
+  const cfg = await getSmtpConfig();
+  if (!cfg.enabled) return false;
+  const t = await getTransporter();
   if (!t) {
     return false;
   }
   try {
-    const from = process.env.SMTP_FROM || "Kuber Quant <noreply@kuberquant.com>";
+    const from = opts.from || await resolveFromAddress("generic");
     await t.sendMail({ from, ...opts });
     return true;
-  } catch (err) {
+  } catch {
+    resetMailTransporter();
     return false;
   }
+}
+
+/** Sends email respecting super-admin auto-communication toggles and purpose-based from addresses. */
+export async function sendTransactionalEmail(opts: {
+  to: string;
+  purpose: EmailPurpose;
+  subject: string;
+  html: string;
+  text?: string;
+}): Promise<boolean> {
+  if (!(await isAutoEmailEnabled(opts.purpose))) return false;
+  const from = await resolveFromAddress(opts.purpose);
+  const subject = await resolveEmailSubject(opts.purpose, opts.subject);
+  return sendMail({ ...opts, subject, from });
+}
+
+export function buildKycEmail(opts: { name: string; status: "submitted" | "approved" | "rejected"; reason?: string }): string {
+  const statusText = opts.status === "approved"
+    ? "Your KYC verification has been approved. You now have full access to deposits, withdrawals, and investments."
+    : opts.status === "rejected"
+    ? `Your KYC verification was not approved.${opts.reason ? ` Reason: ${opts.reason}` : ""} Please resubmit corrected documents.`
+    : "We have received your KYC documents and they are under review. We will notify you once verification is complete.";
+  return `
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#050A14;color:#fff;padding:40px">
+  <div style="max-width:480px;margin:0 auto;background:#0a1628;border-radius:12px;padding:32px;border:1px solid rgba(212,175,55,0.2)">
+    <h2 style="color:#D4AF37;margin:0 0 16px">KYC Verification Update</h2>
+    <p>Hi ${opts.name},</p>
+    <p style="line-height:1.6;color:rgba(255,255,255,0.75)">${statusText}</p>
+  </div>
+</body></html>`;
+}
+
+export function buildTransactionEmail(opts: { name: string; type: string; amount: number | string; currency: string; status: string; notes?: string }): string {
+  return `
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#050A14;color:#fff;padding:40px">
+  <div style="max-width:480px;margin:0 auto;background:#0a1628;border-radius:12px;padding:32px;border:1px solid rgba(212,175,55,0.2)">
+    <h2 style="color:#D4AF37;margin:0 0 16px">Transaction Update</h2>
+    <p>Hi ${opts.name},</p>
+    <p style="line-height:1.6;color:rgba(255,255,255,0.75)">
+      Your <strong>${opts.type}</strong> of <strong>${opts.amount} ${opts.currency}</strong> is now <strong>${opts.status}</strong>.
+    </p>
+    ${opts.notes ? `<p style="color:rgba(255,255,255,0.5);font-size:13px">${opts.notes}</p>` : ""}
+  </div>
+</body></html>`;
 }
 
 export function buildPasswordResetEmail(opts: { name: string; resetUrl: string }): string {

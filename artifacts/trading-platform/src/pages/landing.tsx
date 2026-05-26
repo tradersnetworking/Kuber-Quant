@@ -12,6 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { getPostLoginPath, getRoleAwareHref } from "@/lib/nav-config";
+import { BrandTitle } from "@/components/brand/BrandTitle";
+import { useSiteBranding } from "@/hooks/use-site-branding";
+import { usePartnersSection } from "@/hooks/use-partners-section";
 
 const ALGO_STRATEGIES = [
   {
@@ -148,43 +152,59 @@ const itemVariants = {
 export default function LandingPage() {
   const { data: plans } = useListPlans();
   const { user } = useAuth();
+  const branding = useSiteBranding();
+  const partnersSection = usePartnersSection();
   const isLoggedIn = !!user;
+  const role = (user?.role as string) || "user";
+  const dashboardHref = isLoggedIn ? getPostLoginPath(role) : "/register";
+  const appHref = (path: string) => (isLoggedIn ? getRoleAwareHref(role, path) : "/register");
+  const logoSrc = branding.logoUrl || logo;
 
   return (
     <div className="min-h-screen bg-[#050A14] text-white flex flex-col font-sans selection:bg-amber-500/30">
       {/* Navigation */}
-      <header className="border-b border-white/10 py-4 px-6 md:px-12 flex justify-between items-center bg-[#050A14]/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="Kuber Quant" className="h-10 w-10 object-contain" />
-          <div className="hidden md:block text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent tracking-tight">
-            Kuber Quant
+      <header className="border-b border-white/10 py-4 px-6 md:px-12 bg-[#050A14]/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          {/* Logo + site title — one line on all screen sizes */}
+          <div className="flex items-center gap-2 min-w-0">
+            <img src={logoSrc} alt={branding.siteName} className="h-10 w-10 object-contain shrink-0" />
+            <BrandTitle size="lg" className="truncate leading-tight" />
           </div>
-        </div>
-        <div className="hidden md:flex gap-8 items-center">
-          <a href="#features" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">Features</a>
-          <a href="#algo" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">Algo Trading</a>
-          <a href="#ea" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">EA Strategies</a>
-          <a href="#investments" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">Investments</a>
-        </div>
-        <div className="flex gap-3 items-center">
-          {isLoggedIn ? (
-            <Link href="/dashboard">
-              <Button className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold hover:opacity-90 transition-opacity shadow-lg shadow-amber-500/20 border-0">
-                My Dashboard
-              </Button>
-            </Link>
-          ) : (
-            <>
-              <Link href="/login">
-                <Button variant="ghost" className="text-white/70 hover:text-amber-400 hover:bg-white/5">Log In</Button>
-              </Link>
-              <Link href="/register">
-                <Button className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold hover:opacity-90 transition-opacity shadow-lg shadow-amber-500/20 border-0">
-                  Get Started
+
+          {/* Desktop nav links */}
+          <div className="hidden md:flex gap-8 items-center">
+            <a href="#features" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">Features</a>
+            <a href="#algo" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">Algo Trading</a>
+            <a href="#ea" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">EA Strategies</a>
+            <a href="#investments" className="text-sm font-medium text-white/70 hover:text-amber-400 transition-colors">Investments</a>
+          </div>
+
+          {/* Auth buttons — full row below logo/title on mobile */}
+          <div className="flex gap-3 items-center w-full md:w-auto">
+            {isLoggedIn ? (
+              <Link href={dashboardHref} className="w-full md:w-auto">
+                <Button className="w-full md:w-auto bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold hover:opacity-90 transition-opacity shadow-lg shadow-amber-500/20 border-0">
+                  My Dashboard
                 </Button>
               </Link>
-            </>
-          )}
+            ) : (
+              <>
+                <Link href="/login" className="flex-1 md:flex-none">
+                  <Button
+                    variant="outline"
+                    className="w-full md:w-auto border-amber-500/70 bg-amber-500/10 text-amber-400 hover:bg-amber-500/25 hover:text-amber-300 hover:border-amber-400 font-bold shadow-sm shadow-amber-500/10"
+                  >
+                    Log In
+                  </Button>
+                </Link>
+                <Link href="/register" className="flex-1 md:flex-none">
+                  <Button className="w-full md:w-auto bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold hover:opacity-90 transition-opacity shadow-lg shadow-amber-500/20 border-0">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -212,7 +232,7 @@ export default function LandingPage() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
               className="flex flex-col sm:flex-row gap-4 w-full justify-center items-center">
               {isLoggedIn ? (
-                <Link href="/dashboard">
+                <Link href={dashboardHref}>
                   <Button size="lg" className="h-14 px-10 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold text-lg rounded-full hover:scale-105 transition-all shadow-xl shadow-amber-500/25 border-0">
                     Go to Dashboard <ChevronRight className="ml-2 h-5 w-5" />
                   </Button>
@@ -336,7 +356,7 @@ export default function LandingPage() {
               ))}
             </motion.div>
             <div className="text-center mt-10">
-              <Link href={isLoggedIn ? "/algo-trading" : "/register"}>
+              <Link href={isLoggedIn ? appHref("/algo-trading") : "/register"}>
                 <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
                   {isLoggedIn ? "Explore All Strategies" : "Get Started"} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -385,7 +405,7 @@ export default function LandingPage() {
                           <span className="text-sm font-bold text-white">{ea.price}</span>
                         </div>
                       </div>
-                      <Link href={isLoggedIn ? "/ea-strategies" : "/register"}>
+                      <Link href={isLoggedIn ? appHref("/ea-strategies") : "/register"}>
                         <Button size="sm" className={`w-full mt-4 bg-gradient-to-r ${ea.color} text-black font-bold text-xs h-8 border-0`}>
                           {isLoggedIn ? "Subscribe" : "Get Access"}
                         </Button>
@@ -396,7 +416,7 @@ export default function LandingPage() {
               ))}
             </motion.div>
             <div className="text-center mt-10">
-              <Link href={isLoggedIn ? "/ea-strategies" : "/register"}>
+              <Link href={isLoggedIn ? appHref("/ea-strategies") : "/register"}>
                 <Button variant="outline" className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
                   {isLoggedIn ? "Browse All EAs" : "Get Full Access"} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -438,7 +458,7 @@ export default function LandingPage() {
                           <span className="text-white font-medium text-sm">${plan.minAmount}</span>
                         </div>
                       </div>
-                      <Link href={isLoggedIn ? "/plans" : "/register"}>
+                      <Link href={isLoggedIn ? appHref("/plans") : "/register"}>
                         <Button className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 hover:from-amber-500 hover:to-yellow-700 text-black font-bold text-sm shadow-lg shadow-amber-500/20 transition-all border-0">
                           {isLoggedIn ? "Invest Now" : "Select Plan"}
                         </Button>
@@ -456,10 +476,32 @@ export default function LandingPage() {
         {/* Partners */}
         <section className="w-full py-20 border-t border-white/10 overflow-hidden">
           <div className="max-w-6xl mx-auto px-6">
-            <p className="text-center text-white/30 text-xs font-semibold uppercase tracking-[0.3em] mb-10">Institutional Partners & Brokers</p>
+            <p className="text-center text-white/30 text-xs font-semibold uppercase tracking-[0.3em] mb-10">{partnersSection.title}</p>
             <div className="flex flex-wrap justify-center items-center gap-10 md:gap-20 opacity-30 grayscale hover:grayscale-0 transition-all duration-700">
-              {["BINANCE", "COINBASE", "METATRADER", "KRAKEN", "REVOLUT"].map(p => (
-                <div key={p} className="text-xl font-black italic tracking-tighter">{p}</div>
+              {partnersSection.partners.map((partner) => (
+                partner.websiteUrl ? (
+                  <a
+                    key={partner.id}
+                    href={partner.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xl font-black italic tracking-tighter hover:text-amber-400 transition-colors"
+                  >
+                    {partner.logoUrl ? (
+                      <img src={partner.logoUrl} alt={partner.name} className="h-8 object-contain" />
+                    ) : (
+                      partner.name
+                    )}
+                  </a>
+                ) : (
+                  <div key={partner.id} className="text-xl font-black italic tracking-tighter">
+                    {partner.logoUrl ? (
+                      <img src={partner.logoUrl} alt={partner.name} className="h-8 object-contain" />
+                    ) : (
+                      partner.name
+                    )}
+                  </div>
+                )
               ))}
             </div>
           </div>
@@ -475,7 +517,7 @@ export default function LandingPage() {
             <p className="text-xl text-white/50 mb-10 max-w-2xl mx-auto">
               Join 10,000+ investors who trust Kuber Quant for their wealth management needs.
             </p>
-            <Link href={isLoggedIn ? "/dashboard" : "/register"}>
+            <Link href={isLoggedIn ? dashboardHref : "/register"}>
               <Button size="lg" className="h-16 px-12 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold text-xl rounded-full hover:scale-105 transition-all shadow-2xl shadow-amber-500/30 border-0">
                 {isLoggedIn ? "Go to Dashboard" : "Create Your Account Now"}
               </Button>
@@ -517,13 +559,13 @@ export default function LandingPage() {
           <div>
             <h4 className="text-white font-bold mb-5 text-sm uppercase tracking-wider">Platform</h4>
             <ul className="space-y-3 text-white/40 text-sm">
-              {isLoggedIn && <li><Link href="/dashboard" className="hover:text-amber-400 transition-colors">Dashboard</Link></li>}
-              <li><Link href={isLoggedIn ? "/plans" : "/register"} className="hover:text-amber-400 transition-colors">Investments</Link></li>
-              <li><Link href={isLoggedIn ? "/algo-trading" : "/register"} className="hover:text-amber-400 transition-colors">Algo Trading</Link></li>
-              <li><Link href={isLoggedIn ? "/copy-trading" : "/register"} className="hover:text-amber-400 transition-colors">Copy Trading</Link></li>
-              <li><Link href={isLoggedIn ? "/ea-strategies" : "/register"} className="hover:text-amber-400 transition-colors">EA Strategies</Link></li>
-              <li><Link href={isLoggedIn ? "/mt5-accounts" : "/register"} className="hover:text-amber-400 transition-colors">Account Handling Services</Link></li>
-              <li><Link href={isLoggedIn ? "/wallet" : "/register"} className="hover:text-amber-400 transition-colors">Wallet & Payments</Link></li>
+              {isLoggedIn && <li><Link href={dashboardHref} className="hover:text-amber-400 transition-colors">Dashboard</Link></li>}
+              <li><Link href={isLoggedIn ? appHref("/plans") : "/register"} className="hover:text-amber-400 transition-colors">Investments</Link></li>
+              <li><Link href={isLoggedIn ? appHref("/algo-trading") : "/register"} className="hover:text-amber-400 transition-colors">Algo Trading</Link></li>
+              <li><Link href={isLoggedIn ? appHref("/copy-trading") : "/register"} className="hover:text-amber-400 transition-colors">Copy Trading</Link></li>
+              <li><Link href={isLoggedIn ? appHref("/ea-strategies") : "/register"} className="hover:text-amber-400 transition-colors">EA Strategies</Link></li>
+              <li><Link href={isLoggedIn ? appHref("/mt5-accounts") : "/register"} className="hover:text-amber-400 transition-colors">Account Handling Services</Link></li>
+              <li><Link href={isLoggedIn ? appHref("/wallet") : "/register"} className="hover:text-amber-400 transition-colors">Wallet & Payments</Link></li>
             </ul>
           </div>
 
@@ -534,7 +576,7 @@ export default function LandingPage() {
               <li><a href="/terms-of-service" className="hover:text-amber-400 transition-colors">Terms of Service</a></li>
               <li><a href="/risk-disclosure" className="hover:text-amber-400 transition-colors">Risk Disclosure</a></li>
               <li><a href="/cookie-policy" className="hover:text-amber-400 transition-colors">Cookie Policy</a></li>
-              <li><Link href={isLoggedIn ? "/agreements" : "/register"} className="hover:text-amber-400 transition-colors">Legal Agreements</Link></li>
+              <li><Link href={isLoggedIn ? appHref("/agreements") : "/register"} className="hover:text-amber-400 transition-colors">Legal Agreements</Link></li>
             </ul>
           </div>
         </div>

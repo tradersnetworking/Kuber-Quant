@@ -3,6 +3,8 @@ import { db, eaStrategiesTable, eaSubscriptionsTable, usersTable } from "@worksp
 import { eq, or, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { randomBytes } from "crypto";
+import { linkMtTradingAccount, validateMtTradingCredentials } from "../helpers/mtAccountLink";
+import { generateAgreement } from "../helpers/agreementEngine";
 
 const router = Router();
 
@@ -50,7 +52,8 @@ export const EA_CATALOG = [
 ];
 
 router.get("/catalog", requireAuth, async (_req, res) => {
-  res.json(EA_CATALOG);
+  const { getEaCatalog } = await import("../helpers/eaCatalog");
+  res.json(await getEaCatalog());
 });
 
 router.get("/", requireAuth, async (req, res) => {
@@ -111,20 +114,75 @@ router.get("/subscriptions/my", requireAuth, async (req, res) => {
 router.post("/catalog/:catalogId/subscribe", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
   const catalogId = parseInt(String(req.params.catalogId));
-  const { mtAccountNumber, mtPlatform, plan } = req.body;
+  const {
+    mtAccountNumber,
+    accountNumber,
+    brokerName,
+    serverName,
+    tradingPassword,
+    mtPlatform,
+    platform,
+    plan,
+    profitSharingPercent,
+    amount,
+    currency,
+  } = req.body;
 
-  if (!mtAccountNumber || !plan) {
-    res.status(400).json({ error: "mtAccountNumber and plan are required" }); return;
+  const acctNum = String(accountNumber || mtAccountNumber || "").trim();
+  const profitShareMode = profitSharingPercent != null;
+
+  if (profitShareMode) {
+    const mtCreds = {
+      accountNumber: acctNum,
+      broker: String(brokerName || "").trim(),
+      serverName: String(serverName || "").trim(),
+      platform: (platform || mtPlatform) === "mt4" ? "mt4" : "mt5",
+      tradingPassword: String(tradingPassword || ""),
+    };
+    const mtErr = validateMtTradingCredentials(mtCreds);
+    if (mtErr) { res.status(400).json({ error: mtErr }); return; }
+    const pct = Number(profitSharingPercent);
+    if (!Number.isFinite(pct) || pct < 10 || pct > 40) {
+      res.status(400).json({ error: "Profit sharing must be between 10% and 40%" }); return;
+    }
+    if (!amount || Number(amount) <= 0) {
+      res.status(400).json({ error: "Investment amount is required" }); return;
+    }
+    try {
+      await linkMtTradingAccount(userId, mtCreds);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || "Failed to link MT account" });
+      return;
+    }
+  } else {
+    if (!acctNum || !plan) {
+      res.status(400).json({ error: "mtAccountNumber and plan are required" }); return;
+    }
+    if (brokerName && serverName && tradingPassword) {
+      try {
+        await linkMtTradingAccount(userId, {
+          accountNumber: acctNum,
+          broker: String(brokerName).trim(),
+          serverName: String(serverName).trim(),
+          platform: (platform || mtPlatform) === "mt4" ? "mt4" : "mt5",
+          tradingPassword: String(tradingPassword),
+        });
+      } catch (err: any) {
+        res.status(400).json({ error: err.message || "Failed to link MT account" });
+        return;
+      }
+    }
   }
 
-  const strategy = EA_CATALOG.find(s => s.id === catalogId);
+  const { findCatalogStrategy } = await import("../helpers/eaCatalog");
+  const strategy = await findCatalogStrategy(catalogId);
   if (!strategy) { res.status(404).json({ error: "Strategy not found in catalog" }); return; }
 
   const existing = await db.select().from(eaSubscriptionsTable)
     .where(and(
       eq(eaSubscriptionsTable.userId, userId),
       eq(eaSubscriptionsTable.strategyId, catalogId),
-      eq(eaSubscriptionsTable.mtAccountNumber, mtAccountNumber),
+      eq(eaSubscriptionsTable.mtAccountNumber, acctNum),
     )).limit(1);
 
   if (existing.length > 0 && existing[0].status === "active" && new Date() < existing[0].expiresAt) {
@@ -132,26 +190,49 @@ router.post("/catalog/:catalogId/subscribe", requireAuth, async (req, res) => {
   }
 
   const planDays: Record<string, number> = { monthly: 30, quarterly: 90, biannual: 180, annual: 365 };
-  const days = planDays[plan] || 30;
+  const selectedPlan = profitShareMode ? "annual" : plan;
+  const days = planDays[String(selectedPlan)] || 30;
   const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   const licenseKey = `KQ-${randomBytes(4).toString("hex").toUpperCase()}-${randomBytes(4).toString("hex").toUpperCase()}-${randomBytes(2).toString("hex").toUpperCase()}`;
 
   const [sub] = await db.insert(eaSubscriptionsTable).values({
     userId,
     strategyId: catalogId,
-    mtAccountNumber,
-    mtPlatform: mtPlatform || "mt5",
-    plan: plan as any,
+    mtAccountNumber: acctNum,
+    mtPlatform: (platform || mtPlatform || "mt5") as string,
+    plan: selectedPlan as any,
+    profitSharingPercent: profitShareMode ? Math.round(Number(profitSharingPercent)) : null,
+    amount: profitShareMode ? String(amount) : null,
+    currency: currency || "USD",
     licenseKey,
     expiresAt,
     status: "active",
-  }).returning();
+  } as any).returning();
+
+  if (profitShareMode) {
+    generateAgreement({
+      userId,
+      type: "algo_trading",
+      triggerEvent: "ea_strategy_subscribed",
+      triggerEntityId: sub.id,
+      ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket?.remoteAddress || undefined,
+      userAgent: req.headers["user-agent"] || "",
+      extraData: {
+        EA_NAME: String(strategy.name),
+        MT_ACCOUNT: acctNum,
+        MT_PLATFORM: String(platform || mtPlatform || "mt5").toUpperCase(),
+        PROFIT_SHARE: String(profitSharingPercent),
+      },
+    }).catch(() => {});
+  }
 
   res.status(201).json({
     ...sub,
     expiresAt: sub.expiresAt.toISOString(),
     createdAt: sub.createdAt.toISOString(),
     strategyName: strategy.name,
+    profitSharingPercent: (sub as any).profitSharingPercent,
+    amount: (sub as any).amount ? Number((sub as any).amount) : null,
   });
 });
 
@@ -167,7 +248,8 @@ router.get("/subscriptions/:id/download", requireAuth, async (req, res) => {
   }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  const strategy = EA_CATALOG.find(s => s.id === sub.strategyId) || { name: "Kuber Quant EA", pairs: "All", timeframe: "H1", platform: "mt5" };
+  const { findCatalogStrategy } = await import("../helpers/eaCatalog");
+  const strategy = await findCatalogStrategy(sub.strategyId) || { name: "Kuber Quant EA", pairs: "All", timeframe: "H1", platform: "mt5" };
 
   const mq5Content = `//+------------------------------------------------------------------+
 //| ${(strategy as any).name}

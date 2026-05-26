@@ -1,0 +1,40 @@
+{
+  "name": "Kuber Quant",
+  "short_name": "KuberQuant",
+  "description": "Precision. Profit. Performance. — Investment & trading platform with instant alerts",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#050A14",
+  "theme_color": "#D4AF37",
+  "orientation": "portrait-primary",
+  "categories": ["finance", "business"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Wallet",
+      "url": "/wallet",
+      "description": "Deposits & withdrawals"
+    },
+    {
+      "name": "Notifications",
+      "url": "/notifications",
+      "description": "View alerts"
+    }
+  ]
+}

@@ -1,5 +1,4 @@
 import { useListAdminUsers } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,8 +10,7 @@ export default function AdminUsersPage() {
   const { data: users, isLoading } = useListAdminUsers();
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
           <p className="text-muted-foreground">View and manage all registered users.</p>
@@ -73,6 +71,5 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
-  );
+);
 }

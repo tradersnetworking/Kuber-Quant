@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,40 +14,64 @@ import {
   Code2, Database, AlertCircle, ChevronDown, ChevronUp,
   Tag, FileText, Plus, Trash2, ToggleLeft, ToggleRight, Search
 } from "lucide-react";
-import { Redirect } from "wouter";
+import { useLocation } from "wouter";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InvestmentPlansPanel } from "@/components/super-admin/InvestmentPlansPanel";
+import { EAStrategiesPanel } from "@/components/super-admin/EAStrategiesPanel";
+import { CopyTradersPanel } from "@/components/super-admin/CopyTradersPanel";
+import { WalletOperationsPanel } from "@/components/super-admin/WalletOperationsPanel";
+import { UsersManagementPanel } from "@/components/super-admin/UsersManagementPanel";
+import { ManagersManagementPanel } from "@/components/super-admin/ManagersManagementPanel";
+import { ManagerApplicationsPanel } from "@/components/super-admin/ManagerApplicationsPanel";
+import { KycManagementPanel } from "@/components/super-admin/KycManagementPanel";
+import { PaymentGatewaysPanel } from "@/components/super-admin/PaymentGatewaysPanel";
+import { SupportTicketsPanel } from "@/components/super-admin/SupportTicketsPanel";
+import { SiteSettingsPanel } from "@/components/super-admin/SiteSettingsPanel";
+import { PartnersManagementPanel } from "@/components/super-admin/PartnersManagementPanel";
+import { PlatformInvestmentsPanel } from "@/components/super-admin/PlatformInvestmentsPanel";
+import { FinanceLedgerPanel } from "@/components/super-admin/FinanceLedgerPanel";
+import { NotificationManagementPanel } from "@/components/super-admin/NotificationManagementPanel";
+import { PlatformAlgoTradingPanel } from "@/components/super-admin/PlatformAlgoTradingPanel";
+import { PlatformReferralsPanel } from "@/components/super-admin/PlatformReferralsPanel";
+import { MtLinkedAccountsWorkspacePanel } from "@/components/super-admin/MtLinkedAccountsWorkspacePanel";
+import { VpsBridgeSettingsPanel } from "@/components/super-admin/VpsBridgeSettingsPanel";
+import { MarketDataSettingsPanel } from "@/components/super-admin/MarketDataSettingsPanel";
+import { CommunicationSettingsPanel } from "@/components/super-admin/CommunicationSettingsPanel";
+import { LegalAgreementsPanel } from "@/components/super-admin/LegalAgreementsPanel";
+import { WindowsServerServicesPanel } from "@/components/super-admin/WindowsServerServicesPanel";
+import { SupportMailInboxPanel } from "@/components/support/SupportMailInboxPanel";
+import { SuperAdminOverviewSamples, type OverviewData } from "@/components/super-admin/SuperAdminOverviewSamples";
+import { SUPER_ADMIN_TABS } from "@/lib/nav-config";
+import { authFetchJson, getStoredToken } from "@/lib/token-store";
 
-const API_BASE = "/api";
-const getToken = () => localStorage.getItem("token");
+const TAB_PANEL = "mt-4 space-y-6 outline-none data-[state=active]:block data-[state=inactive]:hidden";
 
-async function apiFetch(path: string, opts: RequestInit = {}) {
-  const r = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}`, ...(opts.headers || {}) },
-  });
-  if (!r.ok) throw new Error((await r.json()).error || "Request failed");
-  return r.json();
+async function apiFetch<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
+  return authFetchJson<T>(path, opts);
 }
 
 export default function SuperAdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [location, setLocation] = useLocation();
+  const routeTab = useMemo(() => {
+    if (location === "/super-admin" || location === "/super-admin/") return "overview";
+    const match = location.match(/^\/super-admin\/([^/?#]+)/);
+    return match?.[1] || "overview";
+  }, [location]);
+  const activeTab = SUPER_ADMIN_TABS.has(routeTab) ? routeTab : "overview";
+
+  useEffect(() => {
+    if (location.startsWith("/super-admin") && routeTab !== activeTab) {
+      setLocation(activeTab === "overview" ? "/super-admin" : `/super-admin/${activeTab}`);
+    }
+  }, [location, routeTab, activeTab, setLocation]);
 
   function handleTabChange(tab: string) {
-    setActiveTab(tab);
-    if (tab === "promo-codes" && !promoLoaded) {
-      apiFetch("/promo-codes").then(d => { setPromoCodes(d); setPromoLoaded(true); }).catch(() => setPromoLoaded(true));
-    }
-    if (tab === "audit-logs" && !auditLoaded) {
-      apiFetch("/audit-logs?limit=100").then(d => { setAuditLogs(d); setAuditLoaded(true); }).catch(() => setAuditLoaded(true));
-    }
-    if (tab === "agreements" && !agrLoaded) {
-      apiFetch("/agreements/admin/all?limit=100").then(d => { setAgreements(d); setAgrLoaded(true); }).catch(() => setAgrLoaded(true));
-    }
+    setLocation(tab === "overview" ? "/super-admin" : `/super-admin/${tab}`);
   }
 
   // ── Global state ──────────────────────────────────────────────────────────
@@ -58,8 +81,10 @@ export default function SuperAdminDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [mt5Requests, setMt5Requests] = useState<any[]>([]);
   const [eaSubs, setEaSubs] = useState<any[]>([]);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // ── Promo Codes state ─────────────────────────────────────────────────────
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
@@ -95,27 +120,42 @@ export default function SuperAdminDashboard() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [tcSlaves, setTcSlaves] = useState<any[]>([]);
   const [showSlaves, setShowSlaves] = useState(false);
+  const [vpsConfigured, setVpsConfigured] = useState(false);
 
-  if (!user || (user.role as string) !== "superadmin") {
-    return <Redirect to="/dashboard" />;
-  }
+  const isSuperAdmin = user && (user.role as string) === "superadmin";
+
+  useEffect(() => {
+    if (activeTab === "promo-codes" && !promoLoaded) {
+      apiFetch("/promo-codes").then(d => { setPromoCodes(d); setPromoLoaded(true); }).catch(() => setPromoLoaded(true));
+    }
+    if (activeTab === "audit-logs" && !auditLoaded) {
+      apiFetch("/audit-logs?limit=100").then(d => { setAuditLogs(d); setAuditLoaded(true); }).catch(() => setAuditLoaded(true));
+    }
+    if (activeTab === "agreements" && !agrLoaded) {
+      apiFetch("/agreements/admin/all?limit=100").then(d => { setAgreements(d); setAgrLoaded(true); }).catch(() => setAgrLoaded(true));
+    }
+  }, [activeTab, promoLoaded, auditLoaded, agrLoaded]);
 
   // ── Load all data ─────────────────────────────────────────────────────────
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     setLoading(l => ({ ...l, all: true }));
+    setLoadError(null);
     try {
-      const [s, u, m, e, ep, tc] = await Promise.all([
+      const [s, u, m, e, ep, tc, ov, vps] = await Promise.all([
         apiFetch("/super-admin/stats"),
         apiFetch("/super-admin/users"),
         apiFetch("/super-admin/mt5-requests"),
         apiFetch("/super-admin/ea-subscriptions"),
         apiFetch("/super-admin/settings/mt5-endpoint"),
         apiFetch("/super-admin/settings/trade-copier"),
+        apiFetch("/super-admin/overview"),
+        apiFetch("/super-admin/settings/vps-bridge").catch(() => ({ host: "" })),
       ]);
       setStats(s);
       setUsers(u);
       setMt5Requests(m);
       setEaSubs(e);
+      setOverview(ov);
       setMt5Endpoint(ep.endpoint || "");
       setTcConfig({
         baseUrl: tc.baseUrl || "",
@@ -126,15 +166,19 @@ export default function SuperAdminDashboard() {
         masterAccountId: tc.masterAccountId || "",
       });
       setTcConfigLoaded(true);
+      setVpsConfigured(Boolean(vps?.host?.trim()));
       setLoaded(true);
     } catch (e: any) {
+      setLoadError(e.message || "Failed to load super admin data");
       toast({ title: "Load failed", description: e.message, variant: "destructive" });
     } finally {
       setLoading(l => ({ ...l, all: false }));
     }
-  }
+  }, [toast]);
 
-  if (!loaded && !loading.all) loadAll();
+  useEffect(() => {
+    if (isSuperAdmin) loadAll();
+  }, [isSuperAdmin, loadAll]);
 
   // ── MT5 relay endpoint ────────────────────────────────────────────────────
   async function saveEndpoint() {
@@ -234,12 +278,18 @@ export default function SuperAdminDashboard() {
   }
 
   const statCards = [
+    { label: "Platform Deposits", value: stats?.totalDeposits != null ? `$${Number(stats.totalDeposits).toLocaleString(undefined, { minimumFractionDigits: 0 })}` : undefined, color: "text-emerald-400" },
+    { label: "Total Invested", value: stats?.totalInvestments != null ? `$${Number(stats.totalInvestments).toLocaleString(undefined, { minimumFractionDigits: 0 })}` : undefined, color: "text-amber-400" },
+    { label: "Net Funds", value: stats?.netFunds != null ? `$${Number(stats.netFunds).toLocaleString(undefined, { minimumFractionDigits: 0 })}` : undefined, color: "text-green-400" },
     { label: "Total Users", value: stats?.totalUsers, color: "text-blue-400" },
-    { label: "Admins", value: stats?.admins, color: "text-amber-400" },
-    { label: "Managers", value: stats?.managers, color: "text-green-400" },
+    { label: "Managers", value: stats?.managers, color: "text-cyan-400" },
     { label: "Investors", value: stats?.investors, color: "text-purple-400" },
-    { label: "Pending MT5", value: stats?.pendingMt5Requests, color: "text-orange-400" },
-    { label: "Active EA Subs", value: stats?.activeEASubscriptions, color: "text-yellow-400" },
+    { label: "Pending Txns", value: stats?.pendingTransactions, color: "text-orange-400" },
+    { label: "Pending KYC", value: stats?.pendingKyc, color: "text-teal-400" },
+    { label: "Open Tickets", value: stats?.openTickets, color: "text-rose-400" },
+    { label: "Active Investments", value: stats?.activeInvestmentCount, color: "text-yellow-400" },
+    { label: "Active EA Subs", value: stats?.activeEASubscriptions, color: "text-indigo-400" },
+    { label: "Active Algo Subs", value: stats?.activeAlgoSubscriptions, color: "text-violet-400" },
   ];
 
   const statusColor: Record<string, string> = {
@@ -253,14 +303,13 @@ export default function SuperAdminDashboard() {
   const tcIsConfigured = tcConfig.baseUrl.length > 0;
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
               Super Admin
             </h1>
-            <p className="text-muted-foreground mt-1">Platform command center — unrestricted access</p>
+            <p className="text-muted-foreground mt-1">Create plans, collect funds, and manage users & managers across the platform</p>
           </div>
           <Button variant="outline" size="sm" onClick={loadAll} disabled={loading.all}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading.all ? "animate-spin" : ""}`} />
@@ -268,34 +317,52 @@ export default function SuperAdminDashboard() {
           </Button>
         </div>
 
+        {loadError && (
+          <Card className="border-red-500/30 bg-red-500/10">
+            <CardContent className="pt-4 flex items-center justify-between gap-4">
+              <p className="text-sm text-red-400 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                {loadError.includes("token") || loadError.includes("Unauthorized")
+                  ? "Your session has expired. Please sign in again."
+                  : loadError}
+              </p>
+              <div className="flex gap-2">
+                {loadError.includes("token") || loadError.includes("Unauthorized") ? (
+                  <Button size="sm" variant="outline" onClick={() => { localStorage.clear(); window.location.href = "/login?session=expired"; }}>
+                    Sign In
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={loadAll}>Retry</Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1">
+          <TabsList className="md:hidden bg-white/5 border border-white/10 flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="mt5">MT5 Relay</TabsTrigger>
+            <TabsTrigger value="wallet">Wallet</TabsTrigger>
+            <TabsTrigger value="investments">Investments</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="ea-subs">EA Subscriptions</TabsTrigger>
-            <TabsTrigger value="api" className="flex items-center gap-1.5">
-              <Link2 className="h-3.5 w-3.5" />
-              API
-              {tcIsConfigured
-                ? <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-                : <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />}
-            </TabsTrigger>
-            <TabsTrigger value="promo-codes" className="flex items-center gap-1.5">
-              <Tag className="h-3.5 w-3.5" />Promo Codes
-            </TabsTrigger>
-            <TabsTrigger value="audit-logs" className="flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5" />Audit Logs
-            </TabsTrigger>
-            <TabsTrigger value="agreements" className="flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5" />Agreements
-            </TabsTrigger>
+            <TabsTrigger value="kyc">KYC</TabsTrigger>
+            <TabsTrigger value="investment-plans">Plans</TabsTrigger>
+            <TabsTrigger value="ea-strategies">EA</TabsTrigger>
+            <TabsTrigger value="copy-trading">Copy</TabsTrigger>
+            <TabsTrigger value="algo-trading">Algo</TabsTrigger>
+            <TabsTrigger value="transactions">Txns</TabsTrigger>
+            <TabsTrigger value="referrals">Referrals</TabsTrigger>
+            <TabsTrigger value="support">Support</TabsTrigger>
+            <TabsTrigger value="support-mail">Mail</TabsTrigger>
+            <TabsTrigger value="api">Server API</TabsTrigger>
+            <TabsTrigger value="notifications">Alerts</TabsTrigger>
+            <TabsTrigger value="communication">Email</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           {/* ── Overview ── */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <TabsContent value="overview" className={TAB_PANEL}>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
               {statCards.map((s) => (
                 <Card key={s.label} className="bg-white/5 border-white/10">
                   <CardContent className="p-4">
@@ -308,21 +375,11 @@ export default function SuperAdminDashboard() {
               ))}
             </div>
 
-            <Card className="bg-white/5 border-white/10">
-              <CardHeader><CardTitle className="text-base">Recent MT5 Relay Requests</CardTitle></CardHeader>
-              <CardContent>
-                {mt5Requests.slice(0, 5).map(r => (
-                  <div key={r.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                    <div>
-                      <span className="text-sm font-medium">#{r.id} — {r.type === "copy_trading" ? "Copy Trading" : "Account Handling"}</span>
-                      <span className="text-xs text-muted-foreground ml-2">User #{r.userId} | {r.profitSharingPercent}% profit share</span>
-                    </div>
-                    <Badge className={`text-xs ${statusColor[r.status] || "bg-gray-500/20 text-gray-400"}`}>{r.status}</Badge>
-                  </div>
-                ))}
-                {mt5Requests.length === 0 && <p className="text-sm text-muted-foreground">No requests yet</p>}
-              </CardContent>
-            </Card>
+            <SuperAdminOverviewSamples
+              data={overview}
+              loading={loading.all}
+              onNavigate={handleTabChange}
+            />
 
             {/* Trade Copier status card */}
             <Card className={`border ${tcIsConfigured ? "bg-green-500/5 border-green-500/20" : "bg-orange-500/5 border-orange-500/20"}`}>
@@ -340,125 +397,136 @@ export default function SuperAdminDashboard() {
                       : "Configure your Trade Copier API credentials in the API tab to enable automated copy trading."}
                   </p>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setActiveTab("api")}>
+                <Button size="sm" variant="outline" onClick={() => handleTabChange("api")}>
                   {tcIsConfigured ? "Manage" : "Set up"}
                 </Button>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* ── MT5 Relay ── */}
-          <TabsContent value="mt5" className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Globe className="h-5 w-5 text-amber-400" />
-              <h2 className="text-lg font-semibold">MT5 Relay Requests</h2>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Copy-trading and account-handling requests submitted by users. For copy trading requests, clicking Forward will automatically register the slave account on your Trade Copier API.
-            </p>
+            <WindowsServerServicesPanel
+              vpsConfigured={vpsConfigured}
+              tradeCopierConfigured={tcIsConfigured}
+              onNavigate={handleTabChange}
+            />
 
-            {tcIsConfigured && (
-              <div className="flex items-center gap-2 text-xs text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
-                <Wifi className="h-3.5 w-3.5 shrink-0" />
-                Trade Copier API connected — forwarding copy trading requests will automatically register slave accounts.
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {loading.all ? (
-                Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
-              ) : mt5Requests.length === 0 ? (
-                <Card className="bg-white/5 border-white/10 p-8 text-center">
-                  <p className="text-muted-foreground">No MT5 relay requests yet</p>
-                </Card>
-              ) : mt5Requests.map(r => (
-                <Card key={r.id} className="bg-white/5 border-white/10">
-                  <CardContent className="p-4">
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Badge className={`text-xs ${r.type === "copy_trading" ? "bg-blue-500/20 text-blue-400" : "bg-purple-500/20 text-purple-400"}`}>
-                            {r.type === "copy_trading" ? "Copy Trading" : "Account Handling"}
-                          </Badge>
-                          <Badge className={`text-xs ${statusColor[r.status] || "bg-gray-500/20 text-gray-400"}`}>{r.status}</Badge>
-                          <span className="text-xs text-muted-foreground">Request #{r.id}</span>
-                        </div>
-                        <p className="text-sm">User #{r.userId} · <span className="text-amber-400 font-medium">{r.profitSharingPercent}% profit sharing</span></p>
-                        {r.mt5AccountId && <p className="text-xs text-muted-foreground">Account: {r.mt5AccountId}</p>}
-                        {r.details && <p className="text-xs text-muted-foreground mt-1">{r.details}</p>}
-                        <p className="text-xs text-muted-foreground mt-1">{new Date(r.createdAt).toLocaleString()}</p>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {r.status === "pending" && (
-                          <Button size="sm" onClick={() => forwardRequest(r.id)} disabled={loading[`fwd_${r.id}`]}
-                            className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black">
-                            <Send className="h-3 w-3 mr-1" />
-                            {loading[`fwd_${r.id}`] ? "Forwarding..." : "Forward"}
-                          </Button>
-                        )}
-                        {["forwarded", "pending"].includes(r.status) && (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => updateRequestStatus(r.id, "accepted")}>
-                              <CheckCircle className="h-3 w-3 mr-1 text-green-400" />Accept
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => updateRequestStatus(r.id, "rejected")}>
-                              <XCircle className="h-3 w-3 mr-1 text-red-400" />Reject
-                            </Button>
-                          </>
-                        )}
-                        {r.status === "accepted" && (
-                          <Button size="sm" variant="outline" onClick={() => updateRequestStatus(r.id, "completed")}>
-                            <CheckCircle className="h-3 w-3 mr-1 text-amber-400" />Complete
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {[
+                { tab: "wallet", label: "Wallet & Txns", desc: "Deposits, withdrawals" },
+                { tab: "users", label: "Users", desc: "Edit all accounts" },
+                { tab: "managers", label: "Managers", desc: "Create managers" },
+                { tab: "admins", label: "Admins", desc: "Admin accounts" },
+                { tab: "kyc", label: "KYC", desc: "Approvals" },
+                { tab: "investment-plans", label: "Investment Plans", desc: "Plan CRUD" },
+                { tab: "copy-trading", label: "Copy Trading", desc: "Master traders" },
+                { tab: "mt5-accounts", label: "MT Accounts & Profit Share", desc: "User credentials & requests" },
+                { tab: "algo-trading", label: "Algo Trading", desc: "Strategies & subs" },
+                { tab: "ea-strategies", label: "EA Strategies", desc: "Catalog CRUD" },
+                { tab: "ea-subs", label: "EA Subscriptions", desc: "User EA subs" },
+                { tab: "payment-gateways", label: "Payments", desc: "Gateway config" },
+                { tab: "support", label: "Support", desc: "Tickets" },
+                { tab: "api", label: "Windows Server API", desc: "VPS bridge & copier" },
+                { tab: "communication", label: "Email & Comms", desc: "SMTP & auto emails" },
+                { tab: "site-config", label: "Site Config", desc: "Platform settings" },
+                { tab: "promo-codes", label: "Promo Codes", desc: "Discounts" },
+                { tab: "audit-logs", label: "Audit Logs", desc: "Activity trail" },
+              ].map(item => (
+                <Button key={item.tab} variant="outline" className="h-auto py-4 flex flex-col items-start border-white/10 bg-white/5 hover:bg-white/10"
+                  onClick={() => handleTabChange(item.tab)}>
+                  <span className="font-semibold text-sm">{item.label}</span>
+                  <span className="text-xs text-muted-foreground font-normal">{item.desc}</span>
+                </Button>
               ))}
             </div>
           </TabsContent>
 
-          {/* ── Users ── */}
-          <TabsContent value="users" className="space-y-4">
-            <h2 className="text-lg font-semibold">User Management</h2>
-            <div className="space-y-2">
-              {loading.all ? (
-                Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
-              ) : users.map(u => (
-                <Card key={u.id} className="bg-white/5 border-white/10">
-                  <CardContent className="p-3 flex flex-col md:flex-row md:items-center gap-3">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{u.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={`text-xs ${
-                        u.role === "superadmin" ? "bg-red-500/20 text-red-400" :
-                        u.role === "admin" ? "bg-amber-500/20 text-amber-400" :
-                        u.role === "manager" ? "bg-blue-500/20 text-blue-400" :
-                        "bg-white/10 text-muted-foreground"
-                      }`}>{u.role}</Badge>
-                      <Select value={u.role} onValueChange={(role) => updateUserRole(u.id, role)}>
-                        <SelectTrigger className="h-8 w-36 text-xs bg-white/5 border-white/10">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="superadmin">Super Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+          <TabsContent value="wallet" className={TAB_PANEL}>
+            <WalletOperationsPanel />
+          </TabsContent>
+
+          <TabsContent value="investments" className={TAB_PANEL}>
+            <PlatformInvestmentsPanel />
+          </TabsContent>
+
+          <TabsContent value="transactions" className={TAB_PANEL}>
+            <FinanceLedgerPanel />
+          </TabsContent>
+
+          <TabsContent value="notifications" className={TAB_PANEL}>
+            <NotificationManagementPanel />
+          </TabsContent>
+
+          <TabsContent value="algo-trading" className={TAB_PANEL}>
+            <PlatformAlgoTradingPanel />
+          </TabsContent>
+
+          <TabsContent value="referrals" className={TAB_PANEL}>
+            <PlatformReferralsPanel />
+          </TabsContent>
+
+          <TabsContent value="users" className={TAB_PANEL}>
+            <UsersManagementPanel defaultRoleTab="user" />
+          </TabsContent>
+
+          <TabsContent value="managers" className={TAB_PANEL}>
+            <ManagerApplicationsPanel />
+            <div className="mt-8">
+              <ManagersManagementPanel />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="admins" className={TAB_PANEL}>
+            <UsersManagementPanel defaultRoleTab="admin" />
+          </TabsContent>
+
+          <TabsContent value="kyc" className={TAB_PANEL}>
+            <KycManagementPanel />
+          </TabsContent>
+
+          <TabsContent value="investment-plans" className={TAB_PANEL}>
+            <InvestmentPlansPanel />
+          </TabsContent>
+
+          <TabsContent value="ea-strategies" className={TAB_PANEL}>
+            <EAStrategiesPanel />
+          </TabsContent>
+
+          <TabsContent value="copy-trading" className={TAB_PANEL}>
+            <CopyTradersPanel />
+          </TabsContent>
+
+          <TabsContent value="mt5-accounts" className={TAB_PANEL}>
+            <MtLinkedAccountsWorkspacePanel apiBase="/super-admin" showFormConfig />
+          </TabsContent>
+
+          <TabsContent value="mt5" className={TAB_PANEL}>
+            <MtLinkedAccountsWorkspacePanel apiBase="/super-admin" showFormConfig defaultTab="requests" />
+          </TabsContent>
+
+          <TabsContent value="payment-gateways" className={TAB_PANEL}>
+            <PaymentGatewaysPanel />
+          </TabsContent>
+
+          <TabsContent value="support" className={TAB_PANEL}>
+            <SupportTicketsPanel />
+          </TabsContent>
+
+          <TabsContent value="support-mail" className={TAB_PANEL}>
+            <SupportMailInboxPanel
+              title="Support Mail"
+              description="Manage client queries, complaints, disputes, and other emails sent to support@kuberquant.com."
+              apiBase="/admin/mail"
+            />
+          </TabsContent>
+
+          <TabsContent value="site-config" className={TAB_PANEL}>
+            <SiteSettingsPanel />
+            <div className="mt-8">
+              <PartnersManagementPanel />
             </div>
           </TabsContent>
 
           {/* ── EA Subscriptions ── */}
-          <TabsContent value="ea-subs" className="space-y-4">
+          <TabsContent value="ea-subs" className={TAB_PANEL}>
             <h2 className="text-lg font-semibold">EA Subscriptions</h2>
             <div className="space-y-2">
               {loading.all ? (
@@ -477,7 +545,7 @@ export default function SuperAdminDashboard() {
                         License: <code className="text-amber-400">{s.licenseKey}</code> · Downloads: {s.downloadCount}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge className={`text-xs ${
                         s.status === "active" ? "bg-green-500/20 text-green-400" :
                         s.status === "expired" ? "bg-red-500/20 text-red-400" :
@@ -486,6 +554,22 @@ export default function SuperAdminDashboard() {
                       <span className="text-xs text-muted-foreground">
                         Expires {new Date(s.expiresAt).toLocaleDateString()}
                       </span>
+                      {s.status === "active" && (
+                        <Button size="sm" variant="outline" className="text-xs h-7"
+                          onClick={async () => {
+                            await apiFetch(`/super-admin/ea-subscriptions/${s.id}`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) });
+                            setEaSubs(prev => prev.map(x => x.id === s.id ? { ...x, status: "cancelled" } : x));
+                            toast({ title: "Subscription cancelled" });
+                          }}>Cancel</Button>
+                      )}
+                      {s.status !== "active" && (
+                        <Button size="sm" variant="outline" className="text-xs h-7"
+                          onClick={async () => {
+                            await apiFetch(`/super-admin/ea-subscriptions/${s.id}`, { method: "PATCH", body: JSON.stringify({ status: "active" }) });
+                            setEaSubs(prev => prev.map(x => x.id === s.id ? { ...x, status: "active" } : x));
+                            toast({ title: "Subscription reactivated" });
+                          }}>Activate</Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -494,7 +578,7 @@ export default function SuperAdminDashboard() {
           </TabsContent>
 
           {/* ── API Integrations ── */}
-          <TabsContent value="api" className="space-y-6">
+          <TabsContent value="api" className={TAB_PANEL}>
             <div>
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Link2 className="h-5 w-5 text-amber-400" />
@@ -708,6 +792,16 @@ export default function SuperAdminDashboard() {
               </CardContent>
             </Card>
 
+            <WindowsServerServicesPanel
+              vpsConfigured={vpsConfigured}
+              tradeCopierConfigured={tcIsConfigured}
+              onNavigate={handleTabChange}
+            />
+
+            <VpsBridgeSettingsPanel />
+
+            <MarketDataSettingsPanel />
+
             {/* How the integration works */}
             <Card className="bg-white/5 border-white/10">
               <CardHeader>
@@ -777,9 +871,19 @@ export default function SuperAdminDashboard() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="communication" className={TAB_PANEL}>
+            <CommunicationSettingsPanel />
+          </TabsContent>
+
           {/* ── Settings ── */}
-          <TabsContent value="settings" className="space-y-6">
-            <Card className="bg-white/5 border-white/10">
+          <TabsContent value="settings" className={TAB_PANEL}>
+            <SiteSettingsPanel />
+
+            <div className="mt-8">
+              <PartnersManagementPanel />
+            </div>
+
+            <Card className="bg-white/5 border-white/10 mt-8">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Globe className="h-5 w-5 text-amber-400" />
@@ -833,7 +937,7 @@ export default function SuperAdminDashboard() {
           </TabsContent>
 
           {/* ── Promo Codes ── */}
-          <TabsContent value="promo-codes" className="space-y-4">
+          <TabsContent value="promo-codes" className={TAB_PANEL}>
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Promo Codes</h3>
@@ -852,7 +956,15 @@ export default function SuperAdminDashboard() {
                     e.preventDefault();
                     setPromoLoading(true);
                     try {
-                      await apiFetch("/promo-codes", { method: "POST", body: JSON.stringify({ ...promoForm, discountValue: Number(promoForm.discountValue), minAmount: promoForm.minAmount ? Number(promoForm.minAmount) : undefined, maxUses: promoForm.maxUses ? Number(promoForm.maxUses) : undefined, expiresAt: promoForm.expiresAt || undefined }) });
+                      await apiFetch("/promo-codes", { method: "POST", body: JSON.stringify({
+                        code: promoForm.code,
+                        type: promoForm.type,
+                        value: Number(promoForm.discountValue),
+                        appliesTo: promoForm.appliesTo,
+                        minAmount: promoForm.minAmount ? Number(promoForm.minAmount) : undefined,
+                        maxUses: promoForm.maxUses ? Number(promoForm.maxUses) : undefined,
+                        expiresAt: promoForm.expiresAt || undefined,
+                      }) });
                       const d = await apiFetch("/promo-codes"); setPromoCodes(d); setPromoLoaded(true);
                       setPromoForm({ code: "", type: "percentage", discountValue: "", appliesTo: "deposit", minAmount: "", maxUses: "", expiresAt: "" });
                       setShowPromoCreate(false);
@@ -930,7 +1042,7 @@ export default function SuperAdminDashboard() {
                           <div>
                             <p className="font-mono font-bold text-amber-400">{p.code}</p>
                             <p className="text-xs text-muted-foreground capitalize">
-                              {p.type === "percentage" ? `${p.discountValue}% off` : `$${p.discountValue} off`} · {p.appliesTo?.replace("_", " ")}
+                              {p.type === "percentage" ? `${p.value}% off` : `$${p.value} off`} · {p.appliesTo?.replace("_", " ")}
                               {p.maxUses ? ` · ${p.usedCount}/${p.maxUses} used` : ""}
                               {p.expiresAt ? ` · Expires ${new Date(p.expiresAt).toLocaleDateString()}` : ""}
                             </p>
@@ -941,7 +1053,7 @@ export default function SuperAdminDashboard() {
                             {p.isActive ? "Active" : "Disabled"}
                           </Badge>
                           <Button size="sm" variant="ghost" onClick={async () => {
-                            await apiFetch(`/promo-codes/${p.id}`, { method: "PATCH", body: JSON.stringify({ isActive: !p.isActive }) });
+                            await apiFetch(`/promo-codes/${p.id}/toggle`, { method: "PATCH" });
                             setPromoCodes(ps => ps.map(x => x.id === p.id ? { ...x, isActive: !x.isActive } : x));
                           }} className="h-7 w-7 p-0 text-muted-foreground hover:text-white">
                             {p.isActive ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
@@ -964,7 +1076,7 @@ export default function SuperAdminDashboard() {
           </TabsContent>
 
           {/* ── Audit Logs ── */}
-          <TabsContent value="audit-logs" className="space-y-4">
+          <TabsContent value="audit-logs" className={TAB_PANEL}>
             <div>
               <h3 className="text-lg font-semibold">Audit Logs</h3>
               <p className="text-sm text-muted-foreground">Immutable record of all administrative and user actions.</p>
@@ -1028,153 +1140,40 @@ export default function SuperAdminDashboard() {
             )}
           </TabsContent>
           {/* ── Agreements ── */}
-          <TabsContent value="agreements" className="space-y-4">
-            <Card className="bg-white/5 border-white/10">
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-amber-400" />Platform Legal Agreements
-                    </CardTitle>
-                    <CardDescription>Generate and manage legal agreements for users</CardDescription>
-                  </div>
-                  <Button size="sm" variant="outline" className="border-white/10 shrink-0"
-                    onClick={() => apiFetch("/agreements/admin/all?limit=100").then(d => { setAgreements(d); setAgrLoaded(true); })}>
-                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />Refresh
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Generate for user */}
-                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Generate Agreement for User</p>
-                  <div className="flex gap-2 flex-wrap">
-                    <Input
-                      placeholder="User ID (e.g. 3)"
-                      value={agrGenForm.userId}
-                      onChange={e => setAgrGenForm(f => ({ ...f, userId: e.target.value }))}
-                      className="bg-white/5 border-white/10 h-8 text-sm w-32"
-                    />
-                    <Select value={agrGenForm.type} onValueChange={v => setAgrGenForm(f => ({ ...f, type: v }))}>
-                      <SelectTrigger className="bg-white/5 border-white/10 h-8 text-sm w-52">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[
-                          ["investment", "Investment Agreement"],
-                          ["profit_sharing", "Profit Sharing"],
-                          ["ea_subscription", "EA Subscription"],
-                          ["copy_trading", "Copy Trading"],
-                          ["account_handling", "Account Handling"],
-                          ["risk_disclosure", "Risk Disclosure"],
-                          ["aml_kyc", "AML/KYC Declaration"],
-                          ["privacy_policy", "Privacy Policy"],
-                          ["terms_conditions", "Terms & Conditions"],
-                          ["withdrawal_policy", "Withdrawal Policy"],
-                        ].map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Button size="sm" disabled={agrGenerating || !agrGenForm.userId}
-                      onClick={async () => {
-                        setAgrGenerating(true);
-                        try {
-                          const r = await apiFetch("/agreements/admin/generate", {
-                            method: "POST",
-                            body: JSON.stringify({ userId: agrGenForm.userId, type: agrGenForm.type }),
-                          });
-                          toast({ title: "Agreement generated", description: `Ref: ${r.agreementUid}` });
-                          apiFetch("/agreements/admin/all?limit=100").then(d => setAgreements(d));
-                        } catch (e: any) {
-                          toast({ title: "Failed", description: e.message, variant: "destructive" });
-                        } finally { setAgrGenerating(false); }
-                      }}
-                      className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold h-8">
-                      <Plus className="h-3.5 w-3.5 mr-1" />{agrGenerating ? "Generating..." : "Generate"}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by ref, user, type..."
-                    value={agrFilter}
-                    onChange={e => setAgrFilter(e.target.value)}
-                    className="bg-white/5 border-white/10 h-8 pl-9 text-sm"
-                  />
-                </div>
-
-                {/* Table */}
-                {!agrLoaded ? (
-                  <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
-                ) : (
-                  <div className="space-y-2">
-                    {agreements
-                      .filter(a => {
-                        if (!agrFilter) return true;
-                        const q = agrFilter.toLowerCase();
-                        return a.agreementUid?.toLowerCase().includes(q)
-                          || a.userName?.toLowerCase().includes(q)
-                          || a.userEmail?.toLowerCase().includes(q)
-                          || a.type?.toLowerCase().includes(q);
-                      })
-                      .map(agr => (
-                        <div key={agr.id} className="bg-white/3 border border-white/8 rounded-lg p-3 flex items-center justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono text-xs text-amber-400">{agr.agreementUid}</span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                agr.status === "signed" ? "bg-green-500/20 text-green-400" :
-                                agr.status === "revoked" ? "bg-red-500/20 text-red-400" :
-                                "bg-amber-500/20 text-amber-400"
-                              }`}>{agr.status}</span>
-                              <span className="text-xs text-muted-foreground">{agr.type?.replace(/_/g, " ")}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {agr.userName || "—"} · {agr.userEmail || "—"} · UID {agr.userId}
-                            </p>
-                            <p className="text-xs text-white/30">{agr.agreementDate}</p>
-                          </div>
-                          <div className="flex gap-1.5 shrink-0">
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-amber-400"
-                              onClick={async () => {
-                                const r = await fetch(`/api/agreements/admin/${agr.id}/download`, {
-                                  headers: { Authorization: `Bearer ${getToken()}` },
-                                });
-                                if (!r.ok) { toast({ title: "Download failed", variant: "destructive" }); return; }
-                                const blob = await r.blob();
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url; a.download = `${agr.agreementUid}.pdf`; a.click();
-                                URL.revokeObjectURL(url);
-                              }}>
-                              <FileText className="h-3.5 w-3.5" />
-                            </Button>
-                            {agr.status !== "revoked" && (
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400"
-                                onClick={async () => {
-                                  if (!confirm("Revoke this agreement?")) return;
-                                  await apiFetch(`/agreements/admin/${agr.id}/revoke`, { method: "PATCH" });
-                                  setAgreements(prev => prev.map(a => a.id === agr.id ? { ...a, status: "revoked" } : a));
-                                  toast({ title: "Agreement revoked" });
-                                }}>
-                                <XCircle className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    {agreements.length === 0 && (
-                      <div className="text-center py-10 text-muted-foreground text-sm">No agreements found</div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          <TabsContent value="agreements" className={TAB_PANEL}>
+            <LegalAgreementsPanel
+              agreements={agreements}
+              agrFilter={agrFilter}
+              setAgrFilter={setAgrFilter}
+              agrGenerating={agrGenerating}
+              agrGenForm={agrGenForm}
+              setAgrGenForm={setAgrGenForm}
+              onGenerate={async () => {
+                setAgrGenerating(true);
+                try {
+                  const r = await apiFetch("/agreements/admin/generate", {
+                    method: "POST",
+                    body: JSON.stringify({ userId: agrGenForm.userId, type: agrGenForm.type }),
+                  });
+                  toast({ title: "Agreement generated", description: `Ref: ${r.agreementUid}` });
+                  const d = await apiFetch("/agreements/admin/all?limit=100");
+                  setAgreements(d);
+                } catch (e: any) {
+                  toast({ title: "Failed", description: e.message, variant: "destructive" });
+                } finally {
+                  setAgrGenerating(false);
+                }
+              }}
+              onRefreshAgreements={() => apiFetch("/agreements/admin/all?limit=100").then(d => { setAgreements(d); setAgrLoaded(true); })}
+              onRevoke={async (id) => {
+                if (!confirm("Revoke this agreement?")) return;
+                await apiFetch(`/agreements/admin/${id}/revoke`, { method: "PATCH" });
+                setAgreements(prev => prev.map(a => a.id === id ? { ...a, status: "revoked" } : a));
+                toast({ title: "Agreement revoked" });
+              }}
+            />
           </TabsContent>
         </Tabs>
       </div>
-    </AppLayout>
   );
 }

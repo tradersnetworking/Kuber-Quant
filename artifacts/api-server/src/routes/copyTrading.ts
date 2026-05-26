@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { db, copyTradersTable, copyFollowsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
+import { generateAgreement } from "../helpers/agreementEngine";
+import { linkMtTradingAccount, validateMtTradingCredentials } from "../helpers/mtAccountLink";
 
 const router = Router();
 
@@ -46,32 +48,100 @@ router.get("/:id", requireAuth, async (req, res) => {
 router.post("/:id/follow", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
   const traderId = parseInt(String(req.params.id));
-  const { amount, currency, mt5Login, platform, profitSharingPercent } = req.body;
+  const {
+    amount, currency, mt5Login, platform, profitSharingPercent,
+    accountNumber, brokerName, serverName, tradingPassword,
+  } = req.body;
+
+  const mtCreds = {
+    accountNumber: String(accountNumber || mt5Login || "").trim(),
+    broker: String(brokerName || "").trim(),
+    serverName: String(serverName || "").trim(),
+    platform: platform === "mt4" ? "mt4" : "mt5",
+    tradingPassword: String(tradingPassword || ""),
+  };
+  const mtErr = validateMtTradingCredentials(mtCreds);
+  if (mtErr) { res.status(400).json({ error: mtErr }); return; }
+
   const [trader] = await db.select().from(copyTradersTable).where(eq(copyTradersTable.id, traderId)).limit(1);
   if (!trader) { res.status(404).json({ error: "Trader not found" }); return; }
 
-  await db.insert(copyFollowsTable).values({
-    userId, traderId,
-    amount: String(amount || 100),
-    currency: currency || "USD",
-    profitSharingPercent: profitSharingPercent || 20,
-  });
-  await db.update(copyTradersTable)
-    .set({ followers: trader.followers + 1 })
-    .where(eq(copyTradersTable.id, traderId));
+  try {
+    await linkMtTradingAccount(userId, mtCreds);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Failed to link MT account" });
+    return;
+  }
 
-  // ── Optionally register slave on Trade Copier API ─────────────────────────
-  if (mt5Login) {
-    try {
-      const { registerSlave } = await import("../helpers/tradeCopier");
-      await registerSlave({
-        slaveLogin: String(mt5Login),
-        slaveName: `User #${userId}`,
+  const [existingFollow] = await db.select().from(copyFollowsTable)
+    .where(and(eq(copyFollowsTable.userId, userId), eq(copyFollowsTable.traderId, traderId)))
+    .orderBy(desc(copyFollowsTable.id))
+    .limit(1);
+
+  let follow = existingFollow;
+  const wasActive = existingFollow?.active === true;
+
+  if (existingFollow) {
+    const [updated] = await db.update(copyFollowsTable)
+      .set({
+        active: true,
+        amount: String(amount || 100),
+        currency: currency || "USD",
         profitSharingPercent: profitSharingPercent || 20,
-        platform: platform || "mt5",
-        details: `Following trader: ${trader.name}`,
-      });
-    } catch { /* Trade Copier API unavailable — follow still recorded locally */ }
+      })
+      .where(eq(copyFollowsTable.id, existingFollow.id))
+      .returning();
+    follow = updated;
+  } else {
+    await db.insert(copyFollowsTable).values({
+      userId, traderId,
+      amount: String(amount || 100),
+      currency: currency || "USD",
+      profitSharingPercent: profitSharingPercent || 20,
+    });
+    const [inserted] = await db.select().from(copyFollowsTable)
+      .where(and(eq(copyFollowsTable.userId, userId), eq(copyFollowsTable.traderId, traderId)))
+      .orderBy(desc(copyFollowsTable.id))
+      .limit(1);
+    follow = inserted;
+    await db.update(copyTradersTable)
+      .set({ followers: trader.followers + 1 })
+      .where(eq(copyTradersTable.id, traderId));
+  }
+
+  if (!wasActive && existingFollow) {
+    await db.update(copyTradersTable)
+      .set({ followers: trader.followers + 1 })
+      .where(eq(copyTradersTable.id, traderId));
+  }
+
+  try {
+    const { registerSlave } = await import("../helpers/tradeCopier");
+    await registerSlave({
+      slaveLogin: mtCreds.accountNumber,
+      slaveName: `User #${userId}`,
+      profitSharingPercent: profitSharingPercent || 20,
+      platform: mtCreds.platform || "mt5",
+      details: `Following trader: ${trader.name}`,
+    });
+  } catch (err) {
+    console.warn("Trade Copier API unavailable:", (err as Error).message);
+  }
+
+  if (follow) {
+    generateAgreement({
+      userId,
+      type: "copy_trading",
+      triggerEvent: "copy_trader_followed",
+      triggerEntityId: follow.id,
+      ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket?.remoteAddress || undefined,
+      userAgent: req.headers["user-agent"] || "",
+      extraData: {
+        TRADER_NAME: trader.name,
+        MT_ACCOUNT: mtCreds.accountNumber,
+        MT_PLATFORM: String(mtCreds.platform).toUpperCase(),
+      },
+    }).catch((err) => console.error("Agreement generation failed:", err));
   }
 
   res.json({ message: "Now following trader" });
@@ -80,14 +150,19 @@ router.post("/:id/follow", requireAuth, async (req, res) => {
 router.post("/:id/unfollow", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
   const traderId = parseInt(String(req.params.id));
+  const [existing] = await db.select().from(copyFollowsTable)
+    .where(and(eq(copyFollowsTable.userId, userId), eq(copyFollowsTable.traderId, traderId), eq(copyFollowsTable.active, true)))
+    .limit(1);
   await db.update(copyFollowsTable)
     .set({ active: false })
     .where(and(eq(copyFollowsTable.userId, userId), eq(copyFollowsTable.traderId, traderId)));
-  const [trader] = await db.select().from(copyTradersTable).where(eq(copyTradersTable.id, traderId)).limit(1);
-  if (trader && trader.followers > 0) {
-    await db.update(copyTradersTable)
-      .set({ followers: trader.followers - 1 })
-      .where(eq(copyTradersTable.id, traderId));
+  if (existing) {
+    const [trader] = await db.select().from(copyTradersTable).where(eq(copyTradersTable.id, traderId)).limit(1);
+    if (trader && trader.followers > 0) {
+      await db.update(copyTradersTable)
+        .set({ followers: trader.followers - 1 })
+        .where(eq(copyTradersTable.id, traderId));
+    }
   }
   res.json({ message: "Unfollowed trader" });
 });

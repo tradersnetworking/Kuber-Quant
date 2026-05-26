@@ -1,6 +1,5 @@
 import { useState } from "react";
-import * as ApiHooks from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { useListTickets, useCreateTicket, useGetTicket, useReplyTicket } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function SupportPage() {
-  const useListTickets = (ApiHooks as any).useListTickets;
-  const useCreateTicket = (ApiHooks as any).useCreateTicket;
-
-  const { data: tickets, isLoading, refetch } = useListTickets ? useListTickets() : { data: [], isLoading: true, refetch: () => {} };
-  const createMutation = useCreateTicket ? useCreateTicket() : { mutate: () => {}, isPending: false };
+  const { data: tickets, isLoading, refetch } = useListTickets();
+  const createMutation = useCreateTicket();
   const { toast } = useToast();
 
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
@@ -49,8 +45,7 @@ export default function SupportPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">Support Center</h1>
@@ -80,7 +75,9 @@ export default function SupportPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="General">General</SelectItem>
+                        <SelectItem value="General">General Query</SelectItem>
+                        <SelectItem value="Query">Query</SelectItem>
+                        <SelectItem value="Complaint">Complaint</SelectItem>
                         <SelectItem value="Account">Account</SelectItem>
                         <SelectItem value="Payment">Payment</SelectItem>
                         <SelectItem value="Trading">Trading</SelectItem>
@@ -178,16 +175,13 @@ export default function SupportPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
-  );
+);
 }
 
 function TicketDetailView({ ticketId }: { ticketId: string }) {
-  const useGetTicket = (ApiHooks as any).useGetTicket;
-  const useReplyTicket = (ApiHooks as any).useReplyTicket;
-
-  const { data: ticket, isLoading, refetch } = useGetTicket ? useGetTicket(ticketId) : { data: null, isLoading: true, refetch: () => {} };
-  const replyMutation = useReplyTicket ? useReplyTicket(ticketId) : { mutate: () => {}, isPending: false };
+  const id = Number(ticketId);
+  const { data: ticket, isLoading, refetch } = useGetTicket(id, { query: { enabled: id > 0 } as any });
+  const replyMutation = useReplyTicket();
   const [replyMessage, setReplyMessage] = useState("");
   const { toast } = useToast();
 
@@ -196,6 +190,7 @@ function TicketDetailView({ ticketId }: { ticketId: string }) {
     if (!replyMessage.trim()) return;
 
     replyMutation.mutate({
+      id,
       data: { message: replyMessage }
     }, {
       onSuccess: () => {

@@ -1,5 +1,4 @@
 import { useGetAdminReferralStats } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,8 +8,7 @@ export default function AdminReferralsPage() {
   const { data: stats, isLoading } = useGetAdminReferralStats();
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Referral Program</h1>
           <p className="text-muted-foreground">Monitor platform growth and top performing referrers.</p>
@@ -80,8 +78,7 @@ export default function AdminReferralsPage() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
-  );
+);
 }
 
 function StatCard({ title, value, isLoading, prefix = "", icon }: any) {

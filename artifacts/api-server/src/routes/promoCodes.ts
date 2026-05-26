@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, promoCodesTable, promoUsagesTable, usersTable } from "@workspace/db";
 import { eq, and, lte, gt } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { requireAuth, requireAdmin, requirePermission } from "../middlewares/auth";
 import { logAudit } from "../helpers/audit";
 
 const router = Router();
@@ -13,7 +13,7 @@ router.get("/", requireAuth, requireAdmin, async (_req, res) => {
 });
 
 // Admin: create promo code
-router.post("/", requireAuth, requireAdmin, async (req, res) => {
+router.post("/", requireAuth, requirePermission("manage_payments"), async (req, res) => {
   const { userId, role } = (req as any).user;
   const { code, description, type, value, appliesTo, maxUses, minAmount, expiresAt } = req.body;
   if (!code || !value) { res.status(400).json({ error: "code and value are required" }); return; }

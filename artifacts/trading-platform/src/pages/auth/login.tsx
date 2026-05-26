@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogin, useGoogleAuth } from "@workspace/api-client-react";
 import logo from "@/assets/logo.png";
@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Smartphone, ShieldCheck } from "lucide-react";
 import { GoogleLogin } from "@react-oauth/google";
+import { getPostLoginPath } from "@/lib/nav-config";
+import { useGoogleAuthConfig } from "@/hooks/use-google-auth-config";
 import * as ApiHooks from "@workspace/api-client-react";
 
 export default function LoginPage() {
@@ -20,9 +22,21 @@ export default function LoginPage() {
   const [loginError, setLoginError] = useState<string | null>(null);
 
   const { login } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const loginMutation = useLogin();
   const googleAuthMutation = useGoogleAuth();
+  const { data: googleConfig } = useGoogleAuthConfig();
+  const sessionExpired = typeof window !== "undefined" && window.location.search.includes("session=expired");
+
+  const showGoogleLogin = Boolean(
+    googleConfig?.googleOAuthEnabled && googleConfig?.googleClientId
+  );
+
+  useEffect(() => {
+    if (sessionExpired) {
+      setLoginError("Your session expired. Please sign in again.");
+    }
+  }, [sessionExpired]);
 
   const useVerifyTwoFactor = (ApiHooks as any).useTwoFactorVerifyLogin;
   const verifyMutation = useVerifyTwoFactor ? useVerifyTwoFactor() : { mutate: () => {}, isPending: false };
@@ -37,8 +51,8 @@ export default function LoginPage() {
           if (data.requiresTwoFactor) {
             setTempToken(data.tempToken);
           } else {
-            login(data.token, data.user);
-            setLocation("/dashboard");
+            login(data.token, data.user, data.refreshToken);
+            setLocation(getPostLoginPath(data.user.role));
           }
         },
         onError: (err: any) => {
@@ -55,8 +69,8 @@ export default function LoginPage() {
       { data: { tempToken: tempToken!, code: twoFactorCode } },
       {
         onSuccess: (data: any) => {
-          login(data.token, data.user);
-          setLocation("/dashboard");
+          login(data.token, data.user, data.refreshToken);
+          setLocation(getPostLoginPath(data.user.role));
         },
         onError: (err: any) => {
           setLoginError(err?.message || "Invalid authenticator code. Please try again.");
@@ -73,8 +87,8 @@ export default function LoginPage() {
       { data: { idToken } },
       {
         onSuccess: (data: any) => {
-          login(data.token, data.user);
-          setLocation("/dashboard");
+          login(data.token, data.user, data.refreshToken);
+          setLocation(getPostLoginPath(data.user.role));
         },
         onError: (err: any) => {
           setLoginError(err?.message || "Google sign-in failed. Please try again.");
@@ -135,29 +149,33 @@ export default function LoginPage() {
               )}
 
               {/* Google Sign-In */}
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-full flex justify-center [&>div]:w-full [&_iframe]:w-full">
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => setLoginError("Google sign-in was cancelled or failed.")}
-                    theme="filled_black"
-                    size="large"
-                    text="continue_with"
-                    shape="rectangular"
-                    width="100%"
-                  />
-                </div>
-              </div>
+              {showGoogleLogin && (
+                <>
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-full flex justify-center [&>div]:w-full [&_iframe]:w-full">
+                      <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => setLoginError("Google sign-in was cancelled or failed.")}
+                        theme="filled_black"
+                        size="large"
+                        text="continue_with"
+                        shape="rectangular"
+                        width="100%"
+                      />
+                    </div>
+                  </div>
 
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-white/10" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-[#0d1825] px-3 text-zinc-500 uppercase tracking-wider">or sign in with email</span>
-                </div>
-              </div>
+                  {/* Divider */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-white/10" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-[#0d1825] px-3 text-zinc-500 uppercase tracking-wider">or sign in with email</span>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">

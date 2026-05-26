@@ -1,5 +1,4 @@
 import * as ApiHooks from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -13,10 +12,12 @@ import {
   ArrowUpRight, ArrowDownLeft, Users, Bell, Wallet,
   TrendingUp, ShieldAlert, Plus, ArrowRightLeft,
   Activity, Target, BarChart3, PieChart as PieIcon,
-  Coins, Award,
+  Coins, Award, LineChart,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
+import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
+import { SafeBoundary } from "@/components/SafeBoundary";
 
 const CRYPTO_COLORS = ["#F59E0B", "#6366f1", "#22c55e", "#f43f5e"];
 
@@ -105,8 +106,7 @@ export default function DashboardPage() {
   const hasPortfolioData = portfolioPie.length > 0;
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* ── Header ── */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -118,16 +118,9 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href="/wallet">
-              <Button className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-9">
-                <Plus className="mr-2 h-4 w-4" /> Deposit
-              </Button>
-            </Link>
-            <Link href="/wallet">
-              <Button variant="outline" className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10 h-9">
-                <ArrowDownLeft className="mr-2 h-4 w-4" /> Withdraw
-              </Button>
-            </Link>
+            <SafeBoundary label="Wallet actions unavailable">
+              <WalletQuickActions layout="row" />
+            </SafeBoundary>
             <Link href="/referral">
               <Button variant="ghost" className="text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 h-9">
                 <Users className="mr-2 h-4 w-4" /> Refer
@@ -147,7 +140,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── KYC Banner ── */}
-        {user?.kycStatus !== "verified" && user?.role === "user" && (
+        {user?.kycStatus !== "verified" && (
           <Card className="border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-yellow-600/5">
             <CardContent className="py-4">
               <div className="flex items-center justify-between flex-wrap gap-3">
@@ -199,7 +192,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground">Active Investments</p>
                   <Target className="h-4 w-4 text-amber-400" />
                 </div>
-                <p className="text-4xl font-black text-white">{isLoadingSummary ? <Skeleton className="h-10 w-16" /> : (summary?.activeInvestments || 0)}</p>
+                <div className="text-4xl font-black text-white">{isLoadingSummary ? <Skeleton className="h-10 w-16" /> : (summary?.activeInvestments || 0)}</div>
                 <div className="text-xs text-muted-foreground">Total invested: <span className="text-amber-400 font-semibold">${Number(summary?.totalInvested || 0).toLocaleString()}</span></div>
               </CardContent>
             </Card>
@@ -211,9 +204,9 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground">Crypto (USD)</p>
                   <ArrowRightLeft className="h-4 w-4 text-purple-400" />
                 </div>
-                <p className="text-4xl font-black text-white">
+                <div className="text-4xl font-black text-white">
                   {isLoadingWallet ? <Skeleton className="h-10 w-16" /> : `$${Number(wallet?.cryptoBalance || 0).toLocaleString()}`}
-                </p>
+                </div>
                 <div className="flex gap-2 text-xs text-muted-foreground">
                   <span>BTC: <span className="text-orange-400">{wallet?.btcBalance?.toFixed(4) || "0"}</span></span>
                   <span>ETH: <span className="text-blue-400">{wallet?.ethBalance?.toFixed(4) || "0"}</span></span>
@@ -485,21 +478,24 @@ export default function DashboardPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold">Quick Actions</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2">
-                {[
-                  { href: "/wallet", icon: Plus, label: "Deposit", cls: "bg-amber-500 hover:bg-amber-600 text-black" },
-                  { href: "/wallet", icon: ArrowDownLeft, label: "Withdraw", cls: "bg-white/10 hover:bg-white/15 text-white" },
-                  { href: "/plans", icon: TrendingUp, label: "Invest", cls: "bg-white/10 hover:bg-white/15 text-white" },
-                  { href: "/referral", icon: Users, label: "Refer", cls: "bg-white/10 hover:bg-white/15 text-white" },
-                  { href: "/support", icon: Activity, label: "Support", cls: "bg-white/10 hover:bg-white/15 text-white" },
-                  { href: "/mt5-accounts", icon: BarChart3, label: "MT5", cls: "bg-white/10 hover:bg-white/15 text-white" },
-                ].map(({ href, icon: Icon, label, cls }) => (
-                  <Link key={label} href={href}>
-                    <Button className={`w-full h-10 text-xs font-semibold ${cls}`}>
-                      <Icon className="h-3.5 w-3.5 mr-1.5" />{label}
-                    </Button>
-                  </Link>
-                ))}
+              <CardContent className="space-y-3">
+                <SafeBoundary label="Wallet actions unavailable">
+                  <WalletQuickActions />
+                </SafeBoundary>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {[
+                    { href: "/copy-trading", icon: Users, label: "Copy Trading", cls: "bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300" },
+                    { href: "/mt5-relay", icon: LineChart, label: "MT4/MT5", cls: "bg-violet-500/15 hover:bg-violet-500/25 text-violet-300" },
+                    { href: "/plans", icon: TrendingUp, label: "Invest", cls: "bg-white/10 hover:bg-white/15 text-white" },
+                    { href: "/support", icon: Activity, label: "Support", cls: "bg-white/10 hover:bg-white/15 text-white" },
+                  ].map(({ href, icon: Icon, label, cls }) => (
+                    <Link key={label} href={href}>
+                      <Button className={`w-full h-10 text-xs font-semibold ${cls}`}>
+                        <Icon className="h-3.5 w-3.5 mr-1.5" />{label}
+                      </Button>
+                    </Link>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
@@ -529,6 +525,5 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
-  );
+);
 }

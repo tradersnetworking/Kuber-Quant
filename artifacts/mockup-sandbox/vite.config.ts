@@ -44,7 +44,7 @@ export default defineConfig({
           ),
         ]
       : []),
-  ],
+  ] as import("vite").PluginOption[],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),

@@ -1993,11 +1993,22 @@ components:
 
     StrategySubscription:
       type: object
-      required: [amount]
+      required: [amount, accountNumber, brokerName, serverName, tradingPassword]
       properties:
         amount:
           type: number
         currency:
+          type: string
+        accountNumber:
+          type: string
+        brokerName:
+          type: string
+        serverName:
+          type: string
+        platform:
+          type: string
+          enum: [mt4, mt5]
+        tradingPassword:
           type: string
 
     CopyTrader:
@@ -2035,11 +2046,24 @@ components:
 
     CopyTradeInput:
       type: object
-      required: [amount, currency]
+      required: [amount, currency, accountNumber, brokerName, serverName, tradingPassword]
       properties:
         amount:
           type: number
         currency:
+          type: string
+        profitSharingPercent:
+          type: number
+        accountNumber:
+          type: string
+        brokerName:
+          type: string
+        serverName:
+          type: string
+        platform:
+          type: string
+          enum: [mt4, mt5]
+        tradingPassword:
           type: string
 
     EAStrategy:
@@ -2120,13 +2144,31 @@ components:
 
     EASubscribeInput:
       type: object
-      required: [mtAccountNumber, plan]
       properties:
         mtAccountNumber:
+          type: string
+        accountNumber:
+          type: string
+        brokerName:
+          type: string
+        serverName:
+          type: string
+        tradingPassword:
           type: string
         mtPlatform:
           type: string
           enum: [mt4, mt5]
+        platform:
+          type: string
+          enum: [mt4, mt5]
+        profitSharingPercent:
+          type: number
+          minimum: 10
+          maximum: 40
+        amount:
+          type: number
+        currency:
+          type: string
         plan:
           type: string
           enum: [monthly, quarterly, biannual, annual]
@@ -2447,6 +2489,10 @@ components:
           type: string
         investorPassword:
           type: string
+          description: MT4/MT5 trading password (deprecated alias — use tradingPassword)
+        tradingPassword:
+          type: string
+          description: MT4/MT5 trading password
 
     Ticket:
       type: object

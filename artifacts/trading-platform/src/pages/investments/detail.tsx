@@ -1,6 +1,5 @@
 import { useRoute } from "wouter";
 import { useGetInvestment, useWithdrawInvestment } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,26 +34,21 @@ export default function InvestmentDetail() {
 
   if (isLoading) {
     return (
-      <AppLayout>
-        <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 max-w-4xl mx-auto">
           <Skeleton className="h-12 w-1/3" />
           <Skeleton className="h-64 w-full" />
         </div>
-      </AppLayout>
-    );
+);
   }
 
   if (!investment) {
     return (
-      <AppLayout>
-        <div className="text-center py-12">Investment not found</div>
-      </AppLayout>
-    );
+      <div className="text-center py-12">Investment not found</div>
+);
   }
 
   return (
-    <AppLayout>
-      <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -121,6 +115,5 @@ export default function InvestmentDetail() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
-  );
+);
 }

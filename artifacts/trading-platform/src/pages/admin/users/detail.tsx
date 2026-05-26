@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import * as ApiHooks from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import {
   History,
   UserPlus
 } from "lucide-react";
+import { UserPayoutAccountsCard } from "@/components/account/UserPayoutAccountsCard";
 
 export default function AdminUserDetail() {
   const [, params] = useRoute("/admin/users/:id");
@@ -94,29 +94,24 @@ export default function AdminUserDetail() {
 
   if (isLoading) {
     return (
-      <AppLayout>
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
           <Skeleton className="h-12 w-1/3" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Skeleton className="h-[400px] w-full" />
             <Skeleton className="h-[400px] w-full" />
           </div>
         </div>
-      </AppLayout>
-    );
+);
   }
 
   if (!user) {
     return (
-      <AppLayout>
-        <div className="text-center py-12">User not found</div>
-      </AppLayout>
-    );
+      <div className="text-center py-12">User not found</div>
+);
   }
 
   return (
-    <AppLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-end">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -212,6 +207,8 @@ export default function AdminUserDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            <UserPayoutAccountsCard userId={id} />
           </div>
 
           <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
@@ -288,7 +285,6 @@ export default function AdminUserDetail() {
           </Card>
         </div>
       </div>
-    </AppLayout>
-  );
+);
 }
 

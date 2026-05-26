@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useListCopyTraders, useFollowCopyTrader, useUnfollowCopyTrader } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { TrendingUp, Users, Zap, Info } from "lucide-react";
+import { MtAccountCredentialsForm, EMPTY_MT_ACCOUNT, type MtAccountFormValues } from "@/components/forms/MtAccountCredentialsForm";
 
 export default function CopyTradingPage() {
   const { data: traders, isLoading, refetch } = useListCopyTraders();
@@ -22,20 +22,50 @@ export default function CopyTradingPage() {
   const [selectedTrader, setSelectedTrader] = useState<number | null>(null);
   const [amount, setAmount] = useState("");
   const [profitShare, setProfitShare] = useState(20);
+  const [mtCreds, setMtCreds] = useState<MtAccountFormValues>(EMPTY_MT_ACCOUNT);
+  const [mtErrors, setMtErrors] = useState<Partial<Record<keyof MtAccountFormValues, string>>>({});
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const resetFollowForm = () => {
+    setAmount("");
+    setProfitShare(20);
+    setMtCreds(EMPTY_MT_ACCOUNT);
+    setMtErrors({});
+  };
+
+  const validateMtCreds = (): boolean => {
+    const errs: Partial<Record<keyof MtAccountFormValues, string>> = {};
+    if (!mtCreds.mtAccountNumber.trim()) errs.mtAccountNumber = "Account number is required";
+    if (!mtCreds.mtBroker.trim()) errs.mtBroker = "Broker is required";
+    if (!mtCreds.mtServer.trim()) errs.mtServer = "Server is required";
+    if (!mtCreds.mtPassword || mtCreds.mtPassword.length < 4) errs.mtPassword = "Trading password is required";
+    setMtErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleFollow = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTrader) return;
+    if (!selectedTrader || !validateMtCreds()) return;
     
     followMutation.mutate(
-      { id: selectedTrader, data: { amount: Number(amount), currency: "USD" } },
+      {
+        id: selectedTrader,
+        data: {
+          amount: Number(amount),
+          currency: "USD",
+          profitSharingPercent: profitShare,
+          accountNumber: mtCreds.mtAccountNumber.trim(),
+          brokerName: mtCreds.mtBroker.trim(),
+          serverName: mtCreds.mtServer.trim(),
+          platform: mtCreds.mtPlatform,
+          tradingPassword: mtCreds.mtPassword,
+        },
+      },
       {
         onSuccess: () => {
           toast({ title: "Following successful", description: "You are now copying this trader's strategies." });
           setIsDialogOpen(false);
-          setAmount("");
-          setProfitShare(20);
+          resetFollowForm();
           refetch();
         },
         onError: () => {
@@ -58,8 +88,7 @@ export default function CopyTradingPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
             Copy Trading
@@ -150,11 +179,20 @@ export default function CopyTradingPage() {
                       <DialogTrigger asChild>
                         <Button className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-semibold hover:opacity-90">Copy Trades</Button>
                       </DialogTrigger>
-                      <DialogContent className="bg-[#050A14] border-white/10 text-white max-w-md">
+                      <DialogContent className="bg-[#050A14] border-white/10 text-white max-w-md max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle className="text-amber-500 text-xl font-bold">Copy {trader.name}</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleFollow} className="space-y-5 pt-2">
+                          <MtAccountCredentialsForm
+                            values={mtCreds}
+                            onChange={(k, v) => setMtCreds(prev => ({ ...prev, [k]: v }))}
+                            showDeferOption={false}
+                            required
+                            hideHeader
+                            errors={mtErrors}
+                          />
+
                           <div className="space-y-2">
                             <Label className="text-muted-foreground uppercase text-xs tracking-wider">Investment Amount (USD)</Label>
                             <Input 
@@ -218,6 +256,5 @@ export default function CopyTradingPage() {
           <div className="text-center py-12 text-muted-foreground">No traders available. Check back soon.</div>
         )}
       </div>
-    </AppLayout>
-  );
+);
 }

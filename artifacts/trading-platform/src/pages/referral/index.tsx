@@ -1,6 +1,5 @@
 import * as ApiHooks from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,8 +34,7 @@ export default function ReferralPage() {
   ];
 
   return (
-    <AppLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">Referral Program</h1>
           <p className="text-muted-foreground">Invite your friends and earn premium commissions on their trades.</p>
@@ -158,6 +156,5 @@ export default function ReferralPage() {
           </Card>
         </div>
       </div>
-    </AppLayout>
-  );
+);
 }

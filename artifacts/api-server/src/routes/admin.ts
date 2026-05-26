@@ -3,9 +3,10 @@ import {
   db, usersTable, transactionsTable, investmentsTable,
   kycRecordsTable, investmentPlansTable, mt5AccountsTable,
   ticketsTable, ticketRepliesTable, referralEarningsTable,
-  paymentGatewaysTable, siteSettingsTable,
+  paymentGatewaysTable, siteSettingsTable, notificationsTable,
+  userPaymentAccountsTable,
 } from "@workspace/db";
-import { eq, desc, sql, asc } from "drizzle-orm";
+import { eq, desc, sql, asc, inArray, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { mapUser } from "./auth";
@@ -13,6 +14,22 @@ import { mapKyc } from "./kyc";
 import { mapPlan } from "./plans";
 import { mapAccount } from "./mt5";
 import { mapTicket } from "./tickets";
+import { creditWallet, debitWallet, WalletError } from "../helpers/walletService";
+import { sendTransactionalEmail, buildTransactionEmail, buildKycEmail } from "../helpers/mailer";
+import {
+  approveTransaction,
+  rejectTransaction,
+  getPlatformLedger,
+  countPlatformLedger,
+  getLedgerQueueSummary,
+} from "../helpers/transactionLedgerService";
+import { mapTxn as mapTxnBase } from "./transactions";
+import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
+import { canViewRole, filterUsersByViewerRole, assignableRoles } from "../helpers/roleHierarchy";
+import { mapPaymentAccount } from "../helpers/paymentAccountSync";
+
+const qrCodeUpload = createUploadMiddleware("qr_codes");
+const brandingUpload = createUploadMiddleware("branding");
 
 function mapGateway(g: any) {
   return {
@@ -30,18 +47,105 @@ function mapGateway(g: any) {
 
 const router = Router();
 
-function mapTxn(t: any, email?: string, userName?: string) {
+function mapTxn(t: any, email?: string, userName?: string, reviewerEmail?: string | null) {
   return {
-    id: t.id, userId: t.userId, userEmail: email || null,
-    userName: userName || null, type: t.type,
-    amount: Number(t.amount), currency: t.currency, status: t.status,
-    paymentMethod: t.paymentMethod || null, txHash: t.txHash || null,
-    notes: t.notes || null, createdAt: t.createdAt.toISOString(),
+    ...mapTxnBase(t, email),
+    userName: userName || null,
+    reviewedByEmail: reviewerEmail || null,
   };
 }
 
-router.get("/stats", requireAuth, requireAdmin, async (_req, res) => {
-  const users = await db.select().from(usersTable);
+router.get("/analytics", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
+  const txns = await db.select().from(transactionsTable).orderBy(transactionsTable.createdAt);
+  const allUsers = await db.select().from(usersTable).orderBy(usersTable.createdAt);
+  const users = filterUsersByViewerRole(viewerRole, allUsers);
+  const visibleUserIds = new Set(users.map((u) => u.id));
+  const investments = await db.select().from(investmentsTable);
+  const userMap = new Map(users.map(u => [u.id, u]));
+
+  const revenueByMonth: Record<string, number> = {};
+  const depositsByMonth: Record<string, number> = {};
+  const withdrawalsByMonth: Record<string, number> = {};
+  const usersByMonth: Record<string, number> = {};
+  const now = new Date();
+
+  const monthLabel = (d: Date) => d.toLocaleString("en-US", { month: "short" });
+
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    revenueByMonth[key] = 0;
+    depositsByMonth[key] = 0;
+    withdrawalsByMonth[key] = 0;
+    usersByMonth[key] = 0;
+  }
+
+  for (const t of txns) {
+    const key = `${t.createdAt.getFullYear()}-${String(t.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    if (depositsByMonth[key] === undefined) continue;
+    const amt = Number(t.amount);
+    if (t.type === "deposit" && t.status === "approved") {
+      depositsByMonth[key] += amt;
+      revenueByMonth[key] += amt;
+    }
+    if (t.type === "withdrawal" && t.status === "approved") {
+      withdrawalsByMonth[key] += amt;
+      revenueByMonth[key] -= amt;
+    }
+  }
+  for (const u of users) {
+    const key = `${u.createdAt.getFullYear()}-${String(u.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    if (usersByMonth[key] !== undefined) usersByMonth[key]++;
+  }
+
+  const monthKeys = Object.keys(revenueByMonth).sort();
+  const cashFlow = monthKeys.slice(-6).map(key => {
+    const [y, m] = key.split("-").map(Number);
+    const d = new Date(y, m - 1, 1);
+    return {
+      month: monthLabel(d),
+      deposits: depositsByMonth[key],
+      withdrawals: withdrawalsByMonth[key],
+      revenue: revenueByMonth[key],
+    };
+  });
+
+  const userGrowth = monthKeys.slice(-6).map(key => {
+    const [y, m] = key.split("-").map(Number);
+    const d = new Date(y, m - 1, 1);
+    return { month: monthLabel(d), users: usersByMonth[key] };
+  });
+
+  const activeInvestments = investments.filter(i => i.status === "active");
+  const subscriptionMix = [
+    { name: "Investment Plans", value: activeInvestments.length || 1, color: "#F59E0B" },
+    { name: "Copy Trading", value: users.filter(u => u.role === "user").length > 0 ? Math.ceil(users.length * 0.28) : 0, color: "#6366f1" },
+    { name: "Algo/EA", value: users.filter(u => u.role === "user").length > 0 ? Math.ceil(users.length * 0.18) : 0, color: "#22c55e" },
+    { name: "Account Handling", value: users.filter(u => u.role === "user").length > 0 ? Math.ceil(users.length * 0.09) : 0, color: "#f43f5e" },
+  ].filter(s => s.value > 0);
+
+  res.json({
+    cashFlow,
+    userGrowth,
+    subscriptionMix: subscriptionMix.length ? subscriptionMix : [{ name: "Investment Plans", value: 1, color: "#F59E0B" }],
+    recentActivity: txns.slice(-20).reverse()
+      .filter(t => visibleUserIds.has(t.userId))
+      .map(t => {
+      const u = userMap.get(t.userId);
+      return {
+        id: t.id, type: t.type, amount: Number(t.amount), currency: t.currency,
+        status: t.status, createdAt: t.createdAt.toISOString(),
+        userName: u?.fullName || u?.email || "User",
+      };
+    }),
+  });
+});
+
+router.get("/stats", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
+  const allUsers = await db.select().from(usersTable);
+  const users = filterUsersByViewerRole(viewerRole, allUsers);
   const txns = await db.select().from(transactionsTable);
   const investments = await db.select().from(investmentsTable);
   const kycs = await db.select().from(kycRecordsTable);
@@ -73,21 +177,70 @@ router.get("/stats", requireAuth, requireAdmin, async (_req, res) => {
   });
 });
 
-router.get("/users", requireAuth, requireAdmin, async (_req, res) => {
+router.get("/users", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
   const users = await db.select().from(usersTable).orderBy(desc(usersTable.createdAt));
-  res.json(users.map(mapUser));
+  res.json(filterUsersByViewerRole(viewerRole, users).map(mapUser));
 });
 
 router.get("/users/:id", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
   const id = parseInt(String(req.params.id));
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  if (!canViewRole(viewerRole, user.role)) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
   res.json(mapUser(user));
 });
 
+router.get("/users/:id/full", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  if (!canViewRole(viewerRole, user.role)) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  const { getUserFullDetail } = await import("../helpers/userFullDetailService");
+  const detail = await getUserFullDetail(id);
+  res.json(detail);
+});
+
+router.get("/users/:id/payment-accounts", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
+  const id = parseInt(String(req.params.id));
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  if (!canViewRole(viewerRole, user.role)) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  const rows = await db.select().from(userPaymentAccountsTable)
+    .where(and(eq(userPaymentAccountsTable.userId, id), eq(userPaymentAccountsTable.isActive, true)))
+    .orderBy(userPaymentAccountsTable.isDefault);
+  res.json(rows.map(mapPaymentAccount));
+});
+
 router.patch("/users/:id", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
   const id = parseInt(String(req.params.id));
   const { role, kycStatus, balanceFiat, balanceCrypto, isActive, managerId } = req.body;
+
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "User not found" }); return; }
+  if (!canViewRole(viewerRole, existing.role)) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  if (role !== undefined && !assignableRoles(viewerRole).includes(role)) {
+    res.status(403).json({ error: "Forbidden — cannot assign this role" });
+    return;
+  }
+
   const updates: Record<string, any> = {};
   if (role !== undefined) updates.role = role;
   if (kycStatus !== undefined) updates.kycStatus = kycStatus;
@@ -100,59 +253,152 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res) => {
   res.json(mapUser(user));
 });
 
-router.get("/transactions", requireAuth, requireAdmin, async (_req, res) => {
+router.get("/transactions", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
   const txns = await db.select().from(transactionsTable).orderBy(desc(transactionsTable.createdAt));
-  const users = await db.select({ id: usersTable.id, email: usersTable.email, fullName: usersTable.fullName }).from(usersTable);
+  const users = await db.select({
+    id: usersTable.id,
+    email: usersTable.email,
+    fullName: usersTable.fullName,
+    role: usersTable.role,
+  }).from(usersTable);
   const userMap = new Map(users.map(u => [u.id, u]));
-  res.json(txns.map(t => {
-    const u = userMap.get(t.userId);
-    return mapTxn(t, u?.email, u?.fullName);
-  }));
+  const reviewerIds = [...new Set(txns.map(t => t.reviewedByUserId).filter(Boolean))] as number[];
+  const reviewers = reviewerIds.length
+    ? await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(inArray(usersTable.id, reviewerIds))
+    : [];
+  const reviewerMap = new Map(reviewers.map(r => [r.id, r.email]));
+  res.json(txns
+    .filter((t) => {
+      const u = userMap.get(t.userId);
+      return u ? canViewRole(viewerRole, u.role) : false;
+    })
+    .map(t => {
+      const u = userMap.get(t.userId);
+      return mapTxn(t, u?.email, u?.fullName, t.reviewedByUserId ? reviewerMap.get(t.reviewedByUserId) || null : null);
+    }));
+});
+
+router.get("/ledger/summary", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
+  const allUsers = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable);
+  const visibleIds = allUsers.filter(u => canViewRole(viewerRole, u.role)).map(u => u.id);
+  const summary = await getLedgerQueueSummary(visibleIds);
+  res.json(summary);
+});
+
+router.get("/ledger", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
+  const limit = Math.min(Number(req.query.limit) || 100, 500);
+  const offset = Number(req.query.offset) || 0;
+  const typeParam = req.query.type as string | undefined;
+  const types = typeParam && typeParam !== "all"
+    ? typeParam.split(",").filter(Boolean) as ("deposit" | "withdrawal")[]
+    : undefined;
+
+  const allUsers = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable);
+  const visibleIds = allUsers.filter(u => canViewRole(viewerRole, u.role)).map(u => u.id);
+
+  const [entries, total] = await Promise.all([
+    getPlatformLedger({ userIds: visibleIds, types, limit, offset }),
+    countPlatformLedger(visibleIds),
+  ]);
+
+  res.json({ entries, total, limit, offset });
+});
+
+router.get("/transactions/:id/blockchain-verify", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid transaction id" }); return; }
+
+  try {
+    const { verifyBlockchainDeposit } = await import("../helpers/blockchainVerificationService");
+    const result = await verifyBlockchainDeposit(id);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Verification failed" });
+  }
 });
 
 router.post("/transactions/:id/approve", requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(String(req.params.id));
-  const [txn] = await db.update(transactionsTable).set({ status: "approved" })
-    .where(eq(transactionsTable.id, id)).returning();
-  if (!txn) { res.status(404).json({ error: "Transaction not found" }); return; }
-  if (txn.type === "deposit") {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, txn.userId)).limit(1);
-    if (user) {
-      const isCrypto = ["BTC", "ETH", "USDT"].includes(txn.currency);
-      if (isCrypto) {
-        await db.update(usersTable).set({ balanceCrypto: String(Number(user.balanceCrypto) + Number(txn.amount)) })
-          .where(eq(usersTable.id, user.id));
-      } else {
-        await db.update(usersTable).set({ balanceFiat: String(Number(user.balanceFiat) + Number(txn.amount)) })
-          .where(eq(usersTable.id, user.id));
+  const { adminNotes, verifyBlockchain } = req.body;
+  const reviewerUserId = (req as any).user.userId as number;
+
+  try {
+    const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Transaction not found" }); return; }
+
+    if (verifyBlockchain) {
+      const { verifyBlockchainDeposit, isCryptoDeposit } = await import("../helpers/blockchainVerificationService");
+      if (isCryptoDeposit(existing)) {
+        const chain = await verifyBlockchainDeposit(id);
+        if (!chain.verified) {
+          res.status(400).json({
+            error: chain.message,
+            code: "BLOCKCHAIN_NOT_VERIFIED",
+            blockchain: chain,
+          });
+          return;
+        }
       }
     }
+
+    const txn = await approveTransaction({ transactionId: id, reviewerUserId, adminNotes });
+    const users = await db.select({ id: usersTable.id, email: usersTable.email, fullName: usersTable.fullName }).from(usersTable);
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const u = userMap.get(txn.userId);
+    const reviewer = users.find(r => r.id === txn.reviewedByUserId);
+    res.json(mapTxn(txn, u?.email, u?.fullName, reviewer?.email || null));
+  } catch (err) {
+    if (err instanceof WalletError) {
+      res.status(400).json({ error: err.message, code: err.code });
+      return;
+    }
+    throw err;
   }
-  const users = await db.select({ id: usersTable.id, email: usersTable.email, fullName: usersTable.fullName }).from(usersTable);
-  const userMap = new Map(users.map(u => [u.id, u]));
-  const u = userMap.get(txn.userId);
-  res.json(mapTxn(txn, u?.email, u?.fullName));
 });
 
 router.post("/transactions/:id/reject", requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(String(req.params.id));
-  const [txn] = await db.update(transactionsTable).set({ status: "rejected" })
-    .where(eq(transactionsTable.id, id)).returning();
-  if (!txn) { res.status(404).json({ error: "Transaction not found" }); return; }
-  const users = await db.select({ id: usersTable.id, email: usersTable.email, fullName: usersTable.fullName }).from(usersTable);
-  const userMap = new Map(users.map(u => [u.id, u]));
-  const u = userMap.get(txn.userId);
-  res.json(mapTxn(txn, u?.email, u?.fullName));
+  const { adminNotes } = req.body;
+  const reviewerUserId = (req as any).user.userId as number;
+
+  try {
+    const txn = await rejectTransaction({ transactionId: id, reviewerUserId, adminNotes });
+    const users = await db.select({ id: usersTable.id, email: usersTable.email, fullName: usersTable.fullName }).from(usersTable);
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const u = userMap.get(txn.userId);
+    const reviewer = users.find(r => r.id === txn.reviewedByUserId);
+    res.json(mapTxn(txn, u?.email, u?.fullName, reviewer?.email || null));
+  } catch (err) {
+    if (err instanceof WalletError) {
+      res.status(400).json({ error: err.message, code: err.code });
+      return;
+    }
+    throw err;
+  }
 });
 
-router.get("/kyc", requireAuth, requireAdmin, async (_req, res) => {
+router.get("/kyc", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
   const kycs = await db.select().from(kycRecordsTable).orderBy(desc(kycRecordsTable.createdAt));
-  const users = await db.select({ id: usersTable.id, email: usersTable.email, fullName: usersTable.fullName }).from(usersTable);
+  const users = await db.select({
+    id: usersTable.id,
+    email: usersTable.email,
+    fullName: usersTable.fullName,
+    role: usersTable.role,
+  }).from(usersTable);
   const userMap = new Map(users.map(u => [u.id, u]));
-  res.json(kycs.map(k => {
-    const u = userMap.get(k.userId);
-    return mapKyc(k, u?.email, u?.fullName);
-  }));
+  res.json(kycs
+    .filter((k) => {
+      const u = userMap.get(k.userId);
+      return u ? canViewRole(viewerRole, u.role) : false;
+    })
+    .map(k => {
+      const u = userMap.get(k.userId);
+      return mapKyc(k, u?.email, u?.fullName);
+    }));
 });
 
 router.post("/kyc/:id/approve", requireAuth, requireAdmin, async (req, res) => {
@@ -160,7 +406,15 @@ router.post("/kyc/:id/approve", requireAuth, requireAdmin, async (req, res) => {
   const [kyc] = await db.update(kycRecordsTable).set({ status: "verified" })
     .where(eq(kycRecordsTable.id, id)).returning();
   if (!kyc) { res.status(404).json({ error: "KYC not found" }); return; }
-  await db.update(usersTable).set({ kycStatus: "verified" }).where(eq(usersTable.id, kyc.userId));
+  const [user] = await db.update(usersTable).set({ kycStatus: "verified" }).where(eq(usersTable.id, kyc.userId)).returning();
+  if (user) {
+    await sendTransactionalEmail({
+      to: user.email,
+      purpose: "kyc_approved",
+      subject: "KYC verified successfully",
+      html: buildKycEmail({ name: user.fullName, status: "approved" }),
+    });
+  }
   res.json(mapKyc(kyc));
 });
 
@@ -171,7 +425,15 @@ router.post("/kyc/:id/reject", requireAuth, requireAdmin, async (req, res) => {
     .set({ status: "rejected", rejectionReason: reason || "Not approved" })
     .where(eq(kycRecordsTable.id, id)).returning();
   if (!kyc) { res.status(404).json({ error: "KYC not found" }); return; }
-  await db.update(usersTable).set({ kycStatus: "rejected" }).where(eq(usersTable.id, kyc.userId));
+  const [user] = await db.update(usersTable).set({ kycStatus: "rejected" }).where(eq(usersTable.id, kyc.userId)).returning();
+  if (user) {
+    await sendTransactionalEmail({
+      to: user.email,
+      purpose: "kyc_rejected",
+      subject: "KYC verification update",
+      html: buildKycEmail({ name: user.fullName, status: "rejected", reason: reason || "Not approved" }),
+    });
+  }
   res.json(mapKyc(kyc));
 });
 
@@ -241,21 +503,119 @@ router.post("/wallet-adjust", requireAuth, requireAdmin, async (req, res) => {
   if (!userId || amount === undefined || !walletType || !reason) {
     res.status(400).json({ error: "userId, amount, walletType, reason are required" }); return;
   }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (!user) { res.status(404).json({ error: "User not found" }); return; }
-  if (walletType === "fiat") {
-    await db.update(usersTable).set({ balanceFiat: String(Math.max(0, Number(user.balanceFiat) + amount)) })
-      .where(eq(usersTable.id, userId));
-  } else {
-    await db.update(usersTable).set({ balanceCrypto: String(Math.max(0, Number(user.balanceCrypto) + amount)) })
-      .where(eq(usersTable.id, userId));
+  const numAmount = Number(amount);
+  const currency = walletType === "fiat" ? "USD" : "USDT";
+  try {
+    if (numAmount >= 0) {
+      await creditWallet({ userId, amount: numAmount, currency, type: "adjustment", description: reason });
+    } else {
+      await debitWallet({ userId, amount: Math.abs(numAmount), currency, type: "adjustment", description: reason });
+    }
+    res.json({ message: `Wallet adjusted by ${numAmount} for user ${userId}` });
+  } catch (err) {
+    if (err instanceof WalletError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
   }
-  res.json({ message: `Wallet adjusted by ${amount} for user ${userId}` });
+});
+
+router.post("/transactions/manual", requireAuth, requireAdmin, async (req, res) => {
+  const { userId, type, amount, currency, notes, autoApprove, paymentMethod } = req.body;
+  if (!userId || !type || amount === undefined) {
+    res.status(400).json({ error: "userId, type, and amount are required" }); return;
+  }
+  if (!["deposit", "withdrawal"].includes(type)) {
+    res.status(400).json({ error: "type must be deposit or withdrawal" }); return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, Number(userId))).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const curr = currency || "USD";
+  const approveNow = autoApprove === true;
+  const [txn] = await db.insert(transactionsTable).values({
+    userId: Number(userId),
+    type,
+    amount: String(amount),
+    currency: curr,
+    status: approveNow ? "approved" : "pending",
+    paymentMethod: paymentMethod || "manual_admin",
+    notes: notes || null,
+    adminNotes: approveNow ? "Created and approved by admin" : "Created by admin — pending review",
+  }).returning();
+
+  try {
+    if (approveNow) {
+      const reviewerUserId = (req as any).user.userId as number;
+      if (type === "deposit") {
+        await creditWallet({
+          userId: Number(userId), amount: Number(amount), currency: curr,
+          type: "deposit", referenceType: "transaction", referenceId: txn.id,
+          description: notes || "Manual admin deposit",
+        });
+      } else {
+        await debitWallet({
+          userId: Number(userId), amount: Number(amount), currency: curr,
+          type: "withdrawal", referenceType: "transaction", referenceId: txn.id,
+          description: notes || "Manual admin withdrawal",
+        });
+      }
+      await db.update(transactionsTable).set({
+        reviewedByUserId: reviewerUserId,
+        reviewedAt: new Date(),
+      }).where(eq(transactionsTable.id, txn.id));
+    } else if (type === "withdrawal") {
+      // Pending withdrawal — no wallet hold until admin approves via ledger service
+    }
+    res.status(201).json(mapTxn(txn, user.email, user.fullName));
+  } catch (err) {
+    await db.update(transactionsTable).set({ status: "rejected", adminNotes: "Wallet operation failed" }).where(eq(transactionsTable.id, txn.id));
+    if (err instanceof WalletError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });
 
 router.get("/mt5-accounts", requireAuth, requireAdmin, async (_req, res) => {
-  const accounts = await db.select().from(mt5AccountsTable).orderBy(desc(mt5AccountsTable.createdAt));
-  res.json(accounts.map(mapAccount));
+  const { listEnrichedMtAccounts } = await import("../helpers/mtLinkedAccountsService");
+  res.json(await listEnrichedMtAccounts());
+});
+
+router.patch("/mt5-accounts/:id/review", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const { status } = req.body;
+  if (!["active", "inactive", "pending_review"].includes(status)) {
+    res.status(400).json({ error: "status must be active, inactive, or pending_review" });
+    return;
+  }
+  const { reviewMtAccount } = await import("../helpers/mtLinkedAccountsService");
+  const account = await reviewMtAccount(id, status);
+  if (!account) { res.status(404).json({ error: "Account not found" }); return; }
+  res.json(account);
+});
+
+router.get("/mt5-requests", requireAuth, requireAdmin, async (_req, res) => {
+  const { listEnrichedMt5Requests } = await import("../helpers/mtLinkedAccountsService");
+  res.json(await listEnrichedMt5Requests());
+});
+
+router.post("/mt5-requests/:id/forward", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const { forwardMt5Request } = await import("../helpers/mtLinkedAccountsService");
+  const result = await forwardMt5Request(id);
+  if (!result.ok) { res.status(404).json({ error: result.error }); return; }
+  res.json({ message: "Request forwarded" });
+});
+
+router.patch("/mt5-requests/:id/status", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const { status, externalResponse } = req.body;
+  const { updateMt5RequestStatus } = await import("../helpers/mtLinkedAccountsService");
+  await updateMt5RequestStatus(id, status, externalResponse);
+  res.json({ message: "Status updated" });
 });
 
 router.get("/tickets", requireAuth, requireAdmin, async (_req, res) => {
@@ -278,6 +638,27 @@ router.post("/tickets/:id/reply", requireAuth, requireAdmin, async (req, res) =>
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
   await db.insert(ticketRepliesTable).values({ ticketId: id, userId, message, isAdmin: true });
   await db.update(ticketsTable).set({ status: "in_progress" }).where(eq(ticketsTable.id, id));
+
+  const [ticketUser] = await db.select().from(usersTable).where(eq(usersTable.id, ticket.userId)).limit(1);
+  if (ticketUser) {
+    await sendTransactionalEmail({
+      to: ticketUser.email,
+      purpose: "ticket_reply",
+      subject: `Support ticket #${id} — new reply`,
+      html: `
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#050A14;color:#fff;padding:32px">
+  <div style="max-width:480px;margin:0 auto;background:#0a1628;border-radius:12px;padding:28px;border:1px solid rgba(212,175,55,0.2)">
+    <h2 style="color:#D4AF37;margin:0 0 12px">Support Ticket Update</h2>
+    <p>Hi ${ticketUser.fullName},</p>
+    <p style="line-height:1.6;color:rgba(255,255,255,0.75)">Our team replied to your ticket <strong>#${id}</strong>:</p>
+    <blockquote style="border-left:3px solid #D4AF37;padding-left:12px;color:rgba(255,255,255,0.6);margin:16px 0">${message}</blockquote>
+    <p style="font-size:13px;color:rgba(255,255,255,0.4)">Log in to view the full conversation.</p>
+  </div>
+</body></html>`,
+    });
+  }
+
   res.json({ message: "Reply sent" });
 });
 
@@ -356,9 +737,27 @@ router.delete("/payment-gateways/:id", requireAuth, requireAdmin, async (req, re
   res.json({ message: "Gateway deleted" });
 });
 
+router.post("/upload/qr-code", requireAuth, requireAdmin, qrCodeUpload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "QR code image is required" });
+    return;
+  }
+  const url = getUploadUrl("qr_codes", req.file.filename);
+  res.json({ url });
+});
+
+router.post("/upload/branding", requireAuth, requireAdmin, brandingUpload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "Image file is required" });
+    return;
+  }
+  const url = getUploadUrl("branding", req.file.filename);
+  res.json({ url });
+});
+
 // ── Site Settings ──────────────────────────────────────────────────────────
 const DEFAULT_SETTINGS = [
-  { key: "site_name", value: "Kuber Quant", label: "Site Name", category: "general", description: "Platform name shown in header and emails" },
+  { key: "site_name", value: "Kuber Quant", label: "Site Name", category: "general", description: "Full platform name used in emails and metadata" },
   { key: "site_tagline", value: "Where Wealth Multiplies", label: "Tagline", category: "general", description: "Hero tagline on landing page" },
   { key: "announcement_text", value: "", label: "Announcement Text", category: "general", description: "Global banner shown to all users (leave empty to hide)" },
   { key: "announcement_enabled", value: "false", label: "Announcement Enabled", category: "general", description: "Show/hide the global announcement banner" },
@@ -373,23 +772,34 @@ const DEFAULT_SETTINGS = [
   { key: "min_withdrawal_fiat", value: "50", label: "Min Fiat Withdrawal ($)", category: "financial", description: "Minimum fiat withdrawal amount" },
   { key: "withdrawal_fee_percent", value: "2", label: "Withdrawal Fee %", category: "financial", description: "Percentage fee deducted on withdrawals" },
   { key: "kyc_required", value: "true", label: "KYC Required", category: "financial", description: "Require KYC before deposits/withdrawals" },
+  { key: "site_title_gold", value: "Kuber", label: "Header Title (Gold Part)", category: "appearance", description: "First part of the header title — shown in gold" },
+  { key: "site_title_silver", value: "Quant", label: "Header Title (Silver Part)", category: "appearance", description: "Second part of the header title — shown in silver" },
+  { key: "site_title_gold_color", value: "#D4AF37", label: "Gold Title Color", category: "appearance", description: "Hex color for the gold title word (default: #D4AF37)" },
+  { key: "site_title_silver_color", value: "#C0C0C0", label: "Silver Title Color", category: "appearance", description: "Hex color for the silver title word (default: #C0C0C0)" },
   { key: "logo_url", value: "", label: "Logo URL", category: "appearance", description: "URL of the platform logo image" },
   { key: "favicon_url", value: "", label: "Favicon URL", category: "appearance", description: "URL of the favicon image" },
   { key: "primary_color", value: "#D4AF37", label: "Primary Color", category: "appearance", description: "Brand primary/accent color (hex)" },
+  { key: "google_oauth_enabled", value: "false", label: "Google OAuth Enabled", category: "authentication", description: "Allow users to sign in with Google on the login page" },
+  { key: "google_client_id", value: "", label: "Google OAuth Client ID", category: "authentication", description: "OAuth 2.0 Client ID from Google Cloud Console (overrides env if set)" },
 ];
 
 router.get("/site-settings", requireAuth, requireAdmin, async (_req, res) => {
-  const settings = await db.select().from(siteSettingsTable).orderBy(asc(siteSettingsTable.category));
+  let settings = await db.select().from(siteSettingsTable).orderBy(asc(siteSettingsTable.category));
+  const existingKeys = new Set(settings.map(s => s.key));
+  const missing = DEFAULT_SETTINGS.filter(s => !existingKeys.has(s.key));
   if (settings.length === 0) {
     await db.insert(siteSettingsTable).values(DEFAULT_SETTINGS);
-    res.json(DEFAULT_SETTINGS.map(s => ({ ...s, description: s.description || null, updatedAt: new Date().toISOString() })));
-    return;
+    settings = await db.select().from(siteSettingsTable).orderBy(asc(siteSettingsTable.category));
+  } else if (missing.length > 0) {
+    await db.insert(siteSettingsTable).values(missing).onConflictDoNothing();
+    settings = await db.select().from(siteSettingsTable).orderBy(asc(siteSettingsTable.category));
   }
   res.json(settings.map(s => ({ ...s, description: s.description || null, updatedAt: s.updatedAt.toISOString() })));
 });
 
 router.patch("/site-settings", requireAuth, requireAdmin, async (req, res) => {
   const updates = req.body as Record<string, string>;
+  const { invalidateSiteSettingsCache } = await import("../helpers/siteSettings");
   for (const [key, value] of Object.entries(updates)) {
     const existing = DEFAULT_SETTINGS.find(s => s.key === key);
     await db.insert(siteSettingsTable).values({
@@ -399,6 +809,7 @@ router.patch("/site-settings", requireAuth, requireAdmin, async (req, res) => {
       description: existing?.description,
     }).onConflictDoUpdate({ target: siteSettingsTable.key, set: { value: String(value) } });
   }
+  invalidateSiteSettingsCache();
   res.json({ message: "Settings updated" });
 });
 
@@ -425,10 +836,62 @@ router.post("/managers", requireAuth, requireAdmin, async (req, res) => {
 });
 
 router.delete("/managers/:id", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
   const id = parseInt(String(req.params.id));
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!existing || existing.role !== "manager") { res.status(404).json({ error: "Manager not found" }); return; }
+  if (!canViewRole(viewerRole, existing.role)) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
   const [user] = await db.update(usersTable).set({ role: "user" }).where(eq(usersTable.id, id)).returning();
   if (!user) { res.status(404).json({ error: "Manager not found" }); return; }
   res.json({ message: "Manager demoted to user" });
+});
+
+router.get("/transactions/export", requireAuth, requireAdmin, async (_req, res) => {
+  const txns = await db.select().from(transactionsTable).orderBy(desc(transactionsTable.createdAt));
+  const allUsers = await db.select().from(usersTable);
+  const userMap = new Map(allUsers.map(u => [u.id, u]));
+  const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const header = "ID,User ID,Email,Name,Type,Amount,Currency,Status,Method,UTR,Proof,Date\n";
+  const rows = txns.map(t => {
+    const u = userMap.get(t.userId);
+    return [
+      t.id, t.userId, u?.email, u?.fullName, t.type, t.amount, t.currency,
+      t.status, t.paymentMethod, t.utrReference, t.proofUrl, t.createdAt.toISOString(),
+    ].map(escape).join(",");
+  }).join("\n");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="transactions-${Date.now()}.csv"`);
+  res.send(header + rows);
+});
+
+router.post("/broadcast", requireAuth, requireAdmin, async (req, res) => {
+  const { subject, message, role } = req.body;
+  if (!subject || !message) {
+    res.status(400).json({ error: "subject and message are required" });
+    return;
+  }
+  const allUsers = await db.select().from(usersTable);
+  const targets = role
+    ? allUsers.filter(u => u.role === role)
+    : allUsers.filter(u => u.role === "user");
+  let sent = 0;
+  for (const u of targets) {
+    const ok = await sendTransactionalEmail({
+      to: u.email,
+      purpose: "broadcast",
+      subject,
+      html: `<p>${String(message).replace(/\n/g, "<br>")}</p>`,
+      text: message,
+    });
+    if (ok) sent++;
+    await db.insert(notificationsTable).values({
+      userId: u.id, title: subject, message, type: "info", isRead: false,
+    });
+  }
+  res.json({ sent, total: targets.length });
 });
 
 export default router;

@@ -2,8 +2,8 @@ import { Router } from "express";
 import { db, agreementsTable, agreementEventsTable, agreementTemplatesTable, usersTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
-import { generateAgreement, signAgreement, getAgreementPDF } from "../helpers/agreementEngine";
-import { DEFAULT_TEMPLATES } from "../helpers/agreementTemplates";
+import { generateAgreement, signAgreement, getAgreementPDF, previewTemplateContent } from "../helpers/agreementEngine";
+import { DEFAULT_TEMPLATES, getDefaultTemplate, templateContentToMarkdown, AGREEMENT_PLACEHOLDERS } from "../helpers/agreementTemplates";
 
 const router = Router();
 
@@ -170,30 +170,130 @@ router.patch("/admin/:id/revoke", requireAuth, requireAdmin, async (req, res) =>
 // ── Templates ─────────────────────────────────────────────────────────────────
 
 // List templates (returns built-in defaults + any custom ones)
-router.get("/templates", requireAuth, async (req, res) => {
-  const dbTemplates = await db.select().from(agreementTemplatesTable).orderBy(desc(agreementsTable.createdAt)).catch(() => []);
+router.get("/templates", requireAuth, async (_req, res) => {
+  const dbTemplates = await db.select().from(agreementTemplatesTable).orderBy(desc(agreementTemplatesTable.createdAt)).catch(() => []);
   const defaults = DEFAULT_TEMPLATES.map(t => ({
     id: null, type: t.type, title: t.title, version: "built-in", isActive: true, isBuiltIn: true,
     sectionCount: t.sections.length,
   }));
-  res.json({ defaults, custom: dbTemplates });
+  res.json({ defaults, custom: dbTemplates.map(t => ({ ...t, isBuiltIn: false })) });
 });
 
-// Preview filled template (admin, returns JSON)
-router.post("/templates/preview", requireAuth, requireAdmin, async (req, res) => {
-  const { type, userId } = req.body;
-  if (!type || !userId) { res.status(400).json({ error: "type and userId required" }); return; }
-  const result = await generateAgreement({
-    userId: parseInt(userId), type,
-    triggerEvent: "preview",
-    ipAddress: getIp(req),
-    userAgent: req.headers["user-agent"] || "",
+router.get("/templates/placeholders", requireAuth, requireAdmin, async (_req, res) => {
+  res.json(AGREEMENT_PLACEHOLDERS);
+});
+
+router.get("/templates/default/:type", requireAuth, requireAdmin, async (req, res) => {
+  const type = String(req.params.type);
+  const template = getDefaultTemplate(type);
+  if (!template) { res.status(404).json({ error: "Built-in template not found for this type" }); return; }
+  res.json({
+    type: template.type,
+    title: template.title,
+    content: templateContentToMarkdown(template),
+    isBuiltIn: true,
   });
-  // fetch the agreement to return filledData
-  const [agr] = await db.select().from(agreementsTable).where(eq(agreementsTable.id, result.id)).limit(1);
-  // then delete it (preview only)
-  await db.delete(agreementsTable).where(eq(agreementsTable.id, result.id)).catch(() => {});
-  res.json({ agreementUid: result.agreementUid, filledData: agr?.filledData });
+});
+
+router.get("/templates/custom/:id", requireAuth, requireAdmin, async (req, res) => {
+  const id = toInt(req.params.id);
+  const [tpl] = await db.select().from(agreementTemplatesTable).where(eq(agreementTemplatesTable.id, id)).limit(1);
+  if (!tpl) { res.status(404).json({ error: "Template not found" }); return; }
+  res.json(tpl);
+});
+
+router.post("/templates", requireAuth, requireAdmin, async (req, res) => {
+  const adminId = (req as any).user.userId;
+  const { type, title, version, content, isActive } = req.body;
+  if (!type || !title?.trim() || !content?.trim()) {
+    res.status(400).json({ error: "type, title, and content are required" });
+    return;
+  }
+  const [tpl] = await db.insert(agreementTemplatesTable).values({
+    type,
+    title: title.trim(),
+    version: version?.trim() || "1.0",
+    content: content.trim(),
+    isActive: isActive !== false,
+    createdBy: adminId,
+  }).returning();
+  res.json(tpl);
+});
+
+router.patch("/templates/:id", requireAuth, requireAdmin, async (req, res) => {
+  const id = toInt(req.params.id);
+  const { title, version, content, isActive, type } = req.body;
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  if (title !== undefined) patch.title = title;
+  if (version !== undefined) patch.version = version;
+  if (content !== undefined) patch.content = content;
+  if (isActive !== undefined) patch.isActive = isActive;
+  if (type !== undefined) patch.type = type;
+  const [tpl] = await db.update(agreementTemplatesTable).set(patch).where(eq(agreementTemplatesTable.id, id)).returning();
+  if (!tpl) { res.status(404).json({ error: "Template not found" }); return; }
+  res.json(tpl);
+});
+
+router.delete("/templates/:id", requireAuth, requireAdmin, async (req, res) => {
+  const id = toInt(req.params.id);
+  const [tpl] = await db.delete(agreementTemplatesTable).where(eq(agreementTemplatesTable.id, id)).returning();
+  if (!tpl) { res.status(404).json({ error: "Template not found" }); return; }
+  res.json({ success: true });
+});
+
+// Preview filled template content without creating an agreement
+router.post("/templates/preview-content", requireAuth, requireAdmin, async (req, res) => {
+  const { type, userId, title, content, triggerEntityId, extraData } = req.body;
+  if (!type || !userId || !title?.trim() || !content?.trim()) {
+    res.status(400).json({ error: "type, userId, title, and content are required" });
+    return;
+  }
+  try {
+    const preview = await previewTemplateContent({
+      userId: parseInt(String(userId)),
+      type: String(type),
+      title: String(title),
+      content: String(content),
+      triggerEntityId: triggerEntityId ? parseInt(String(triggerEntityId)) : undefined,
+      ipAddress: getIp(req),
+      userAgent: req.headers["user-agent"] || "",
+      extraData: extraData || {},
+    });
+    res.json(preview);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Preview failed" });
+  }
+});
+
+router.post("/templates/preview", requireAuth, requireAdmin, async (req, res) => {
+  const { type, userId, title, content } = req.body;
+  if (!type || !userId) { res.status(400).json({ error: "type and userId required" }); return; }
+  try {
+    if (title && content) {
+      const preview = await previewTemplateContent({
+        userId: parseInt(String(userId)),
+        type: String(type),
+        title: String(title),
+        content: String(content),
+        ipAddress: getIp(req),
+        userAgent: req.headers["user-agent"] || "",
+      });
+      res.json(preview);
+      return;
+    }
+    const result = await generateAgreement({
+      userId: parseInt(String(userId)),
+      type: String(type),
+      triggerEvent: "preview",
+      ipAddress: getIp(req),
+      userAgent: req.headers["user-agent"] || "",
+    });
+    const [agr] = await db.select().from(agreementsTable).where(eq(agreementsTable.id, result.id)).limit(1);
+    await db.delete(agreementsTable).where(eq(agreementsTable.id, result.id)).catch(() => {});
+    res.json({ agreementUid: result.agreementUid, filledData: agr?.filledData });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Preview failed" });
+  }
 });
 
 export default router;

@@ -1,5 +1,4 @@
 import { useListTrades, useGetTradeStats } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,8 +9,7 @@ export default function TradesPage() {
   const { data: stats, isLoading: statsLoading } = useGetTradeStats();
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Trade History</h1>
           <p className="text-muted-foreground">Overview of your trading activity and statistics.</p>
@@ -73,8 +71,7 @@ export default function TradesPage() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
-  );
+);
 }
 
 function StatCard({ title, value, isLoading, prefix = "", suffix = "", isProfit = false }: any) {

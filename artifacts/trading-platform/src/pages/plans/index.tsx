@@ -1,6 +1,5 @@
 import { useState } from "react";
 import * as ApiHooks from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,8 +96,7 @@ export default function PlansPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
@@ -353,6 +351,5 @@ export default function PlansPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AppLayout>
-  );
+);
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import * as ApiHooks from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { useGetKyc } from "@workspace/api-client-react";
+import { getStoredToken } from "@/lib/token-store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,31 +11,16 @@ import { CheckCircle2, Circle, ShieldCheck, User, CreditCard, Building2, FileTex
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardFooter } from "@/components/ui/card";
-
-const COUNTRY_CODES = [
-  { code: "+91", flag: "🇮🇳", name: "India" },
-  { code: "+1",  flag: "🇺🇸", name: "USA" },
-  { code: "+44", flag: "🇬🇧", name: "UK" },
-  { code: "+61", flag: "🇦🇺", name: "Australia" },
-  { code: "+1",  flag: "🇨🇦", name: "Canada" },
-  { code: "+971",flag: "🇦🇪", name: "UAE" },
-  { code: "+65", flag: "🇸🇬", name: "Singapore" },
-  { code: "+49", flag: "🇩🇪", name: "Germany" },
-  { code: "+33", flag: "🇫🇷", name: "France" },
-  { code: "+81", flag: "🇯🇵", name: "Japan" },
-  { code: "+86", flag: "🇨🇳", name: "China" },
-  { code: "+7",  flag: "🇷🇺", name: "Russia" },
-  { code: "+55", flag: "🇧🇷", name: "Brazil" },
-  { code: "+27", flag: "🇿🇦", name: "South Africa" },
-  { code: "+60", flag: "🇲🇾", name: "Malaysia" },
-];
+import { PhoneCountryCodeSelect } from "@/components/forms/PhoneCountryCodeSelect";
+import { DEFAULT_DIAL_CODE } from "@/lib/country-codes";
 
 export default function KycPage() {
-  const useGetKyc = (ApiHooks as any).useGetKyc;
-  const useSubmitKyc = (ApiHooks as any).useSubmitKyc;
+  const [submitting, setSubmitting] = useState(false);
+  const [idDoc, setIdDoc] = useState<File | null>(null);
+  const [addressProof, setAddressProof] = useState<File | null>(null);
+  const [selfie, setSelfie] = useState<File | null>(null);
 
-  const { data: kyc, isLoading, refetch } = useGetKyc ? useGetKyc() : { data: null, isLoading: true, refetch: () => {} };
-  const submitMutation = useSubmitKyc ? useSubmitKyc() : { mutate: () => {}, isPending: false };
+  const { data: kyc, isLoading, refetch } = useGetKyc();
   const { toast } = useToast();
 
   const [step, setStep] = useState(1);
@@ -57,29 +42,41 @@ export default function KycPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    submitMutation.mutate({
-      data: {
-        fullName: formData.fullName,
-        address: formData.address,
-        country: formData.country,
-        phone: formData.phone,
-        idType: formData.idType as any,
-        idNumber: formData.idNumber,
-        bankAccount: formData.bankAccount,
-        bankName: formData.bankName,
-        ifscCode: formData.ifscCode,
-      }
-    }, {
-      onSuccess: () => {
-        toast({ title: "KYC Submitted", description: "Our team will review your application within 24-48 hours." });
-        refetch();
-      },
-      onError: (err: any) => {
-        toast({ title: "Submission Failed", description: err.message, variant: "destructive" });
-      }
-    });
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append("fullName", formData.fullName);
+      fd.append("address", formData.address);
+      fd.append("country", formData.country);
+      fd.append("idType", formData.idType);
+      fd.append("idNumber", formData.idNumber);
+      fd.append("bankAccountNumber", formData.bankAccount);
+      fd.append("bankName", formData.bankName);
+      fd.append("ifscCode", formData.ifscCode);
+      if (formData.panCard) fd.append("panCard", formData.panCard);
+      if (formData.aadhaarNumber) fd.append("aadhaarNumber", formData.aadhaarNumber);
+      if (idDoc) fd.append("idDocument", idDoc);
+      if (addressProof) fd.append("addressProof", addressProof);
+      if (selfie) fd.append("selfie", selfie);
+
+      const token = getStoredToken();
+      const res = await fetch("/api/kyc", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Submission failed");
+
+      toast({ title: "KYC Submitted", description: "Our team will review your application within 24-48 hours." });
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Submission Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const steps = [
@@ -90,18 +87,15 @@ export default function KycPage() {
   ];
 
   if (isLoading) return (
-    <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-[400px] w-full" />
       </div>
-    </AppLayout>
-  );
+);
 
   if (kyc && kyc.status !== 'rejected') {
     return (
-      <AppLayout>
-        <div className="max-w-2xl mx-auto py-12">
+      <div className="max-w-2xl mx-auto py-12">
           <Card className="bg-white/5 backdrop-blur-sm border-white/10 text-center py-12">
             <CardContent className="space-y-6">
               <div className="flex justify-center">
@@ -136,13 +130,11 @@ export default function KycPage() {
             </CardContent>
           </Card>
         </div>
-      </AppLayout>
-    );
+);
   }
 
   return (
-    <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-8">
+    <div className="max-w-2xl mx-auto space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">Identity Verification</h1>
           <p className="text-muted-foreground mt-2">Complete your KYC to unlock full trading and withdrawal capabilities.</p>
@@ -153,7 +145,7 @@ export default function KycPage() {
              <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
              <div className="space-y-1">
                <p className="text-sm font-bold text-red-400">Application Rejected</p>
-               <p className="text-xs text-red-200/60">Reason: {kyc.rejectReason || "Documents provided were not clear. Please resubmit."}</p>
+               <p className="text-xs text-red-200/60">Reason: {kyc.rejectionReason || "Documents provided were not clear. Please resubmit."}</p>
              </div>
           </div>
         )}
@@ -185,21 +177,18 @@ export default function KycPage() {
                   <div className="space-y-2">
                     <Label>Phone Number</Label>
                     <div className="flex gap-2">
-                      <select
-                        value={formData.phone.match(/^\+\d+/)?.[0] || "+91"}
-                        onChange={e => {
+                      <PhoneCountryCodeSelect
+                        value={formData.phone.match(/^\+\d+/)?.[0] || DEFAULT_DIAL_CODE}
+                        onChange={code => {
                           const num = formData.phone.replace(/^\+\d+\s*/, "");
-                          setFormData(prev => ({ ...prev, phone: `${e.target.value} ${num}` }));
+                          setFormData(prev => ({ ...prev, phone: `${code} ${num}` }));
                         }}
-                        className="h-10 rounded-md border border-white/10 bg-white/5 text-white text-sm px-2 focus:outline-none focus:ring-1 focus:ring-amber-500/50 w-28 shrink-0"
-                      >
-                        {COUNTRY_CODES.map(c => <option key={c.code} value={c.code} className="bg-[#050A14]">{c.flag} {c.code}</option>)}
-                      </select>
+                      />
                       <Input
                         placeholder="9876543210"
                         value={formData.phone.replace(/^\+\d+\s*/, "")}
                         onChange={e => {
-                          const code = formData.phone.match(/^\+\d+/)?.[0] || "+91";
+                          const code = formData.phone.match(/^\+\d+/)?.[0] || DEFAULT_DIAL_CODE;
                           setFormData(prev => ({ ...prev, phone: `${code} ${e.target.value}` }));
                         }}
                         required
@@ -240,11 +229,22 @@ export default function KycPage() {
                     <Label>ID Document Number</Label>
                     <Input name="idNumber" placeholder="Enter ID number" value={formData.idNumber} onChange={handleInputChange} required />
                   </div>
-                  <div className="p-8 border-2 border-dashed border-white/10 rounded-xl bg-white/5 flex flex-col items-center justify-center text-center">
-                     <FileText className="h-10 w-10 text-muted-foreground mb-4" />
-                     <p className="text-sm font-medium">Upload Document Front</p>
-                     <p className="text-[10px] text-muted-foreground mt-1">PNG, JPG or PDF up to 5MB</p>
-                     <Button type="button" variant="link" className="text-amber-500">Select File</Button>
+                  <div className="space-y-3">
+                    <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                      <Label className="text-xs text-muted-foreground">ID Document</Label>
+                      <Input type="file" accept="image/*,.pdf" className="mt-1 bg-white/5 border-white/10"
+                        onChange={e => setIdDoc(e.target.files?.[0] || null)} />
+                    </div>
+                    <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                      <Label className="text-xs text-muted-foreground">Address Proof</Label>
+                      <Input type="file" accept="image/*,.pdf" className="mt-1 bg-white/5 border-white/10"
+                        onChange={e => setAddressProof(e.target.files?.[0] || null)} />
+                    </div>
+                    <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                      <Label className="text-xs text-muted-foreground">Selfie</Label>
+                      <Input type="file" accept="image/*" className="mt-1 bg-white/5 border-white/10"
+                        onChange={e => setSelfie(e.target.files?.[0] || null)} />
+                    </div>
                   </div>
                 </div>
               )}
@@ -308,14 +308,13 @@ export default function KycPage() {
                   Next Step
                 </Button>
               ) : (
-                <Button type="submit" className="bg-amber-500 text-black font-bold" disabled={submitMutation.isPending}>
-                  {submitMutation.isPending ? "Submitting..." : "Submit Application"}
+                <Button type="submit" className="bg-amber-500 text-black font-bold" disabled={submitting}>
+                  {submitting ? "Submitting..." : "Submit Application"}
                 </Button>
               )}
             </CardFooter>
           </form>
         </Card>
       </div>
-    </AppLayout>
-  );
+);
 }

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, numeric, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -12,6 +12,9 @@ export const eaSubscriptionsTable = pgTable("ea_subscriptions", {
   mtAccountNumber: text("mt_account_number").notNull(),
   mtPlatform: text("mt_platform").notNull().default("mt5"),
   plan: eaSubscriptionPlanEnum("plan").notNull().default("monthly"),
+  profitSharingPercent: integer("profit_sharing_percent"),
+  amount: numeric("amount", { precision: 18, scale: 2 }),
+  currency: text("currency").default("USD"),
   licenseKey: text("license_key").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   downloadCount: integer("download_count").notNull().default(0),

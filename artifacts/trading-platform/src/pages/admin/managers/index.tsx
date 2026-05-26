@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useListAdminManagers, useCreateAdminManager, useDeleteAdminManager, User } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,8 +51,8 @@ export default function AdminManagersPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <>
+    <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-primary">Manager Accounts</h1>
@@ -241,6 +240,6 @@ export default function AdminManagersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </>
   );
 }

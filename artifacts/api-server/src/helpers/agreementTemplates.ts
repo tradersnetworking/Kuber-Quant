@@ -75,57 +75,38 @@ IP Address: {{IP_ADDRESS}}
 Device: {{DEVICE_INFO}}
 Verification Hash: {{PDF_HASH}}`;
 
+const COMPACT_STANDARD_TERMS = `1. NO GUARANTEED RETURNS: ${NO_GUARANTEED_RETURNS}
+
+2. RISK DISCLOSURE: ${RISK_DISCLOSURES}
+
+3. AML/KYC: ${AML_KYC_CLAUSE}
+
+4. CRYPTO PAYMENTS (if applicable): ${CRYPTO_DISCLOSURE}
+
+5. DATA PRIVACY: ${DATA_PRIVACY}
+
+6. FORCE MAJEURE: ${FORCE_MAJEURE}
+
+7. LIMITATION OF LIABILITY: ${LIMITATION_OF_LIABILITY}
+
+8. DISPUTE RESOLUTION: ${DISPUTE_RESOLUTION}`;
+
 export const DEFAULT_TEMPLATES: AgreementTemplateContent[] = [
   {
     type: "investment",
     title: "KUBER QUANT PRIVATE INVESTMENT & PROFIT SHARING AGREEMENT",
     sections: [
       {
-        heading: "PARTIES TO THE AGREEMENT",
-        body: `This Investment Agreement ("Agreement") is entered into as of {{AGREEMENT_DATE}}, by and between:\n\nService Provider: Kuber Quant (hereinafter referred to as the "Platform", "Fund Manager", or "Service Provider")\n\nInvestor:\n${INVESTOR_DETAILS_SECTION}`,
+        heading: "PARTIES, INVESTOR & PLAN DETAILS",
+        body: `This Investment Agreement ("Agreement") is entered into as of {{AGREEMENT_DATE}} between Kuber Quant ("Platform") and the Investor identified below.\n\n${INVESTOR_DETAILS_SECTION}\n\nSelected Investment Plan: {{PLAN_NAME}} ({{PLAN_CATEGORY}} — {{PLAN_TYPE}})\nInvestment Type: {{INVESTMENT_TYPE}}\nInvestment Amount: {{INVESTMENT_AMOUNT}} {{CURRENCY}}\nExpected ROI: {{ROI_RATE}}% per period | Duration: {{DURATION}} days\nStart Date: {{START_DATE}} | Maturity Date: {{MATURITY_DATE}}\nTransaction Reference: {{TRANSACTION_ID}}\nPayment / Wallet Reference: {{WALLET_ADDRESS}}`,
       },
       {
-        heading: "INVESTMENT PLAN DETAILS",
-        body: `Investment Plan: {{PLAN_NAME}}
-Investment Amount: {{INVESTMENT_AMOUNT}} {{CURRENCY}}
-ROI Rate: {{ROI_RATE}}% per period
-Duration: {{DURATION}} days
-Start Date: {{START_DATE}}
-Maturity Date: {{MATURITY_DATE}}
-Transaction ID: {{TRANSACTION_ID}}
-Wallet / Payment Reference: {{WALLET_ADDRESS}}`,
+        heading: "ROI, PROFIT SHARING & SERVICE TERMS",
+        body: `The Platform will endeavour to generate returns based on the selected plan. Profit distributions, if any, are credited upon maturity subject to actual performance. Profit sharing and ROI structures may be updated with 30-day notice.\n\nProfit Share — Fund Manager: {{PROFIT_SHARING}}% | Investor: {{INVESTOR_SHARE}}%`,
       },
       {
-        heading: "ROI STRUCTURE & PROFIT SHARING",
-        body: `The Platform will endeavour to generate returns based on the selected investment plan. ${NO_GUARANTEED_RETURNS}\n\nProfit Distribution: Profits, if any, will be credited to the Investor's platform wallet upon plan maturity. Profit sharing is subject to actual profitability and market conditions. The Platform reserves the right to modify ROI structures with 30-day notice.`,
-      },
-      {
-        heading: "RISK ACKNOWLEDGEMENT",
-        body: RISK_DISCLOSURES,
-      },
-      {
-        heading: "CRYPTOCURRENCY PAYMENT DISCLOSURE",
-        body: CRYPTO_DISCLOSURE,
-      },
-      {
-        heading: "AML/KYC COMPLIANCE",
-        body: AML_KYC_CLAUSE,
-      },
-      {
-        heading: "DATA PRIVACY & SECURITY",
-        body: DATA_PRIVACY,
-      },
-      {
-        heading: "FORCE MAJEURE",
-        body: FORCE_MAJEURE,
-      },
-      {
-        heading: "LIMITATION OF LIABILITY",
-        body: LIMITATION_OF_LIABILITY,
-      },
-      {
-        heading: "DISPUTE RESOLUTION & GOVERNING LAW",
-        body: DISPUTE_RESOLUTION,
+        heading: "STANDARD LEGAL TERMS & DISCLOSURES",
+        body: COMPACT_STANDARD_TERMS,
       },
       {
         heading: "AGREEMENT METADATA",
@@ -139,42 +120,15 @@ Wallet / Payment Reference: {{WALLET_ADDRESS}}`,
     sections: [
       {
         heading: "PARTIES & SUBSCRIPTION DETAILS",
-        body: `This EA Subscription Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Service Provider) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nSubscription Plan: {{EA_PLAN}}\nEA Strategy: {{EA_NAME}}\nLicense Key: {{LICENSE_KEY}}\nMT4/MT5 Account: {{MT_ACCOUNT}}\nPlatform: {{MT_PLATFORM}}\nBroker Server: {{BROKER_SERVER}}\nSubscription Period: {{SUBSCRIPTION_DAYS}} days\nExpiry Date: {{EXPIRY_DATE}}\nSubscription Fee: {{SUBSCRIPTION_FEE}} USD`,
+        body: `This EA Subscription Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Service Provider) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nSubscription Plan: {{EA_PLAN}} | EA Strategy: {{EA_NAME}}\nLicense Key: {{LICENSE_KEY}} | MT4/MT5 Account: {{MT_ACCOUNT}}\nPlatform: {{MT_PLATFORM}} | Broker Server: {{BROKER_SERVER}}\nSubscription Period: {{SUBSCRIPTION_DAYS}} days | Expiry: {{EXPIRY_DATE}} | Fee: {{SUBSCRIPTION_FEE}} USD`,
       },
       {
-        heading: "EA SOFTWARE DISCLAIMER",
-        body: `(a) Expert Advisors (EAs) are automated software tools designed to execute trading strategies and do not constitute financial advice.
-(b) Past backtested or live performance of any EA does not guarantee future results.
-(c) Trading in financial markets involves substantial risk of loss and may not be suitable for all investors.
-(d) The Subscriber is responsible for ensuring their broker's conditions (spread, slippage, execution) are suitable for the EA.
-(e) VPS, network connectivity, or power outages may affect EA performance and execution. The Platform accepts no liability for such interruptions.
-(f) The Platform is not liable for broker execution delays, requotes, or slippage that affect EA trading results.
-(g) The license is bound to the MT4/MT5 account number specified above and cannot be transferred.`,
+        heading: "EA SOFTWARE & LICENSE TERMS",
+        body: `(a) Expert Advisors are automated tools, not financial advice. Past performance does not guarantee future results.\n(b) License is bound to MT account {{MT_ACCOUNT}}, non-transferable, valid {{SUBSCRIPTION_DAYS}} days.\n(c) Subscriber is responsible for broker conditions, VPS, and connectivity. Platform is not liable for execution delays or slippage.`,
       },
       {
-        heading: "LICENSE TERMS",
-        body: `The EA license is:
-- Bound to MT4/MT5 account: {{MT_ACCOUNT}}
-- Valid for: {{SUBSCRIPTION_DAYS}} days from activation
-- Non-transferable and non-refundable after download
-- Subject to deactivation upon subscription expiry or terms breach
-- Protected by digital license verification technology`,
-      },
-      {
-        heading: "RISK ACKNOWLEDGEMENT",
-        body: RISK_DISCLOSURES,
-      },
-      {
-        heading: "AML/KYC COMPLIANCE",
-        body: AML_KYC_CLAUSE,
-      },
-      {
-        heading: "LIMITATION OF LIABILITY",
-        body: LIMITATION_OF_LIABILITY,
-      },
-      {
-        heading: "DISPUTE RESOLUTION",
-        body: DISPUTE_RESOLUTION,
+        heading: "STANDARD LEGAL TERMS & DISCLOSURES",
+        body: COMPACT_STANDARD_TERMS,
       },
       {
         heading: "AGREEMENT METADATA",
@@ -188,40 +142,15 @@ Wallet / Payment Reference: {{WALLET_ADDRESS}}`,
     sections: [
       {
         heading: "PARTIES & COPY TRADING DETAILS",
-        body: `This Copy Trading Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Service Provider) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nMaster Trader / Strategy: {{TRADER_NAME}}\nMT4/MT5 Slave Account: {{MT_ACCOUNT}}\nPlatform: {{MT_PLATFORM}}\nBroker: {{BROKER_SERVER}}\nAllocation: {{INVESTMENT_AMOUNT}} {{CURRENCY}}\nCopy Ratio: {{COPY_RATIO}}`,
+        body: `This Copy Trading Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Service Provider) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nMaster Trader: {{TRADER_NAME}} (ROI: {{TRADER_ROI}} | Risk: {{TRADER_RISK}})\nMT4/MT5 Slave Account: {{MT_ACCOUNT}} | Platform: {{MT_PLATFORM}}\nBroker / Server: {{BROKER_SERVER}}\nAllocation Amount: {{COPY_AMOUNT}} {{CURRENCY}} | Copy Ratio: {{COPY_RATIO}}\nProfit Sharing: {{PROFIT_SHARING}}% (Investor retains {{INVESTOR_SHARE}}%)\nRequest Status: {{REQUEST_STATUS}} | Notes: {{REQUEST_DETAILS}}`,
       },
       {
-        heading: "COPY TRADING DISCLAIMER",
-        body: `(a) Past performance of the master trader is not indicative of future results under copy trading.
-(b) Trade execution may vary between the master and slave accounts due to broker differences, liquidity, and execution speed.
-(c) Slippage and spread differences between brokers may affect copied trade results.
-(d) Interruptions to the copy trading service may occur due to technology, network, or broker issues.
-(e) Third-party copy trading services (including trade copier software/API) are involved and Kuber Quant is not liable for their technical failures.
-(f) The Subscriber acknowledges that copy trading does not guarantee profits and losses may occur.`,
+        heading: "COPY TRADING TERMS",
+        body: `(a) Past master-trader performance is not indicative of future copy results.\n(b) Execution may differ between master and slave accounts due to broker, spread, and latency.\n(c) Third-party trade copier infrastructure is involved; technical failures may interrupt copying.\n(d) Copy trading does not guarantee profits; losses may occur.`,
       },
       {
-        heading: "RISK ACKNOWLEDGEMENT",
-        body: RISK_DISCLOSURES,
-      },
-      {
-        heading: "AML/KYC COMPLIANCE",
-        body: AML_KYC_CLAUSE,
-      },
-      {
-        heading: "CRYPTOCURRENCY PAYMENT DISCLOSURE",
-        body: CRYPTO_DISCLOSURE,
-      },
-      {
-        heading: "FORCE MAJEURE",
-        body: FORCE_MAJEURE,
-      },
-      {
-        heading: "LIMITATION OF LIABILITY",
-        body: LIMITATION_OF_LIABILITY,
-      },
-      {
-        heading: "DISPUTE RESOLUTION",
-        body: DISPUTE_RESOLUTION,
+        heading: "STANDARD LEGAL TERMS & DISCLOSURES",
+        body: COMPACT_STANDARD_TERMS,
       },
       {
         heading: "AGREEMENT METADATA",
@@ -235,45 +164,37 @@ Wallet / Payment Reference: {{WALLET_ADDRESS}}`,
     sections: [
       {
         heading: "PARTIES & ACCOUNT DETAILS",
-        body: `This Account Handling Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Service Provider) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nMT4/MT5 Account: {{MT_ACCOUNT}}\nBroker: {{BROKER_SERVER}}\nPlatform: {{MT_PLATFORM}}\nProfit Sharing: {{PROFIT_SHARING}}%`,
+        body: `This Account Handling Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Service Provider) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nMT4/MT5 Account: {{MT_ACCOUNT}} | Platform: {{MT_PLATFORM}}\nBroker / Server: {{BROKER_SERVER}}\nProfit Sharing: {{PROFIT_SHARING}}% to Fund Manager | {{INVESTOR_SHARE}}% to Investor\nRequest Status: {{REQUEST_STATUS}} | Additional Details: {{REQUEST_DETAILS}}`,
       },
       {
-        heading: "ACCOUNT HANDLING DISCLAIMER",
-        body: `(a) The Investor voluntarily provides MT4/MT5 account credentials (investor password) to Kuber Quant solely for the purpose of trade management.
-(b) Kuber Quant acts only as a service provider and trading manager and does not take ownership of the account or funds.
-(c) Market losses may occur despite the Fund Manager's best efforts, and the Investor acknowledges this risk.
-(d) The Investor acknowledges all trading risks associated with leveraged financial markets.
-(e) Profit sharing is subject to actual net profitability and calculated after deducting trading costs, commissions, and applicable fees.
-(f) The Investor retains the right to withdraw funds from the broker account at any time.
-(g) The Fund Manager may cease management upon 7 days written notice by either party.`,
+        heading: "ACCOUNT MANAGEMENT & PROFIT SHARING",
+        body: `(a) Investor voluntarily provides MT4/MT5 investor credentials for trade management only; Kuber Quant does not take ownership of funds.\n(b) ${NO_GUARANTEED_RETURNS}\n(c) Profit share calculated on net profits monthly; investor may withdraw from broker at any time.\n(d) Either party may terminate management with 7 days written notice.`,
       },
       {
-        heading: "PROFIT SHARING STRUCTURE",
-        body: `${NO_GUARANTEED_RETURNS}\n\nProfit Share Arrangement:\n- Fund Manager Share: {{PROFIT_SHARING}}% of net profits\n- Investor Share: {{INVESTOR_SHARE}}% of net profits\n- Calculation Period: Monthly\n- Payout Method: Platform wallet or direct broker withdrawal`,
+        heading: "STANDARD LEGAL TERMS & DISCLOSURES",
+        body: COMPACT_STANDARD_TERMS,
       },
       {
-        heading: "RISK ACKNOWLEDGEMENT",
-        body: RISK_DISCLOSURES,
+        heading: "AGREEMENT METADATA",
+        body: AGREEMENT_META,
+      },
+    ],
+  },
+  {
+    type: "algo_trading",
+    title: "KUBER QUANT ALGORITHMIC TRADING SUBSCRIPTION AGREEMENT",
+    sections: [
+      {
+        heading: "PARTIES & ALGO STRATEGY DETAILS",
+        body: `This Algorithmic Trading Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Service Provider) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nStrategy Name: {{ALGO_STRATEGY}}\nStrategy Description: {{ALGO_DESCRIPTION}}\nExpected ROI: {{ALGO_ROI}} | Risk Level: {{ALGO_RISK}}\nSubscription Amount: {{ALGO_AMOUNT}} {{CURRENCY}}\nSubscription Date: {{ALGO_SUBSCRIPTION_DATE}}`,
       },
       {
-        heading: "AML/KYC COMPLIANCE",
-        body: AML_KYC_CLAUSE,
+        heading: "ALGO TRADING TERMS",
+        body: `(a) Algorithmic strategies are automated systems; past backtests or live performance do not guarantee future results.\n(b) Market conditions, latency, and broker execution may affect strategy performance.\n(c) Subscriber acknowledges leveraged trading risks and that capital loss is possible.\n(d) Strategy parameters may be updated for risk management with reasonable notice.`,
       },
       {
-        heading: "DATA PRIVACY & SECURITY",
-        body: DATA_PRIVACY,
-      },
-      {
-        heading: "FORCE MAJEURE",
-        body: FORCE_MAJEURE,
-      },
-      {
-        heading: "LIMITATION OF LIABILITY",
-        body: LIMITATION_OF_LIABILITY,
-      },
-      {
-        heading: "DISPUTE RESOLUTION",
-        body: DISPUTE_RESOLUTION,
+        heading: "STANDARD LEGAL TERMS & DISCLOSURES",
+        body: COMPACT_STANDARD_TERMS,
       },
       {
         heading: "AGREEMENT METADATA",
@@ -437,31 +358,11 @@ Wallet / Payment Reference: {{WALLET_ADDRESS}}`,
     sections: [
       {
         heading: "PARTIES & PROFIT SHARING DETAILS",
-        body: `This Profit Sharing Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Fund Manager) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nInvestment Amount: {{INVESTMENT_AMOUNT}} {{CURRENCY}}\nROI Plan: {{PLAN_NAME}}\nExpected ROI: {{ROI_RATE}}% per period\nProfit Share to Fund Manager: {{PROFIT_SHARING}}%\nProfit Share to Investor: {{INVESTOR_SHARE}}%`,
+        body: `This Profit Sharing Agreement is entered into as of {{AGREEMENT_DATE}} between Kuber Quant (Fund Manager) and:\n\n${INVESTOR_DETAILS_SECTION}\n\nInvestment Amount: {{INVESTMENT_AMOUNT}} {{CURRENCY}} | Plan: {{PLAN_NAME}}\nExpected ROI: {{ROI_RATE}}% | Profit Share — Manager: {{PROFIT_SHARING}}% | Investor: {{INVESTOR_SHARE}}%`,
       },
       {
-        heading: "PROFIT DISTRIBUTION",
-        body: `${NO_GUARANTEED_RETURNS}\n\nProfit distributions, if any, shall be:\n(a) Calculated based on actual net returns after deducting all fees and costs\n(b) Credited to the Investor's platform wallet within 7 business days of plan maturity\n(c) Reported transparently through the platform dashboard\n(d) Subject to applicable tax obligations of the Investor's jurisdiction`,
-      },
-      {
-        heading: "RISK ACKNOWLEDGEMENT",
-        body: RISK_DISCLOSURES,
-      },
-      {
-        heading: "AML/KYC COMPLIANCE",
-        body: AML_KYC_CLAUSE,
-      },
-      {
-        heading: "CRYPTOCURRENCY PAYMENT DISCLOSURE",
-        body: CRYPTO_DISCLOSURE,
-      },
-      {
-        heading: "LIMITATION OF LIABILITY",
-        body: LIMITATION_OF_LIABILITY,
-      },
-      {
-        heading: "DISPUTE RESOLUTION",
-        body: DISPUTE_RESOLUTION,
+        heading: "PROFIT DISTRIBUTION & STANDARD TERMS",
+        body: `${NO_GUARANTEED_RETURNS}\n\nProfits, if any, are calculated on net returns after fees, credited within 7 business days of maturity, and reported via the platform dashboard.\n\n${COMPACT_STANDARD_TERMS}`,
       },
       {
         heading: "AGREEMENT METADATA",
@@ -473,4 +374,39 @@ Wallet / Payment Reference: {{WALLET_ADDRESS}}`,
 
 export function getDefaultTemplate(type: string): AgreementTemplateContent | undefined {
   return DEFAULT_TEMPLATES.find(t => t.type === type);
+}
+
+/** Convert structured template to editable markdown (Word-style sections with ## headings). */
+export function templateContentToMarkdown(template: AgreementTemplateContent): string {
+  return template.sections
+    .map(s => `## ${s.heading}\n\n${s.body}`)
+    .join("\n\n");
+}
+
+/** Replace {{PLACEHOLDER}} tokens with user data. */
+export function fillTemplatePlaceholders(text: string, data: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => data[key] ?? `[${key}]`);
+}
+
+export { AGREEMENT_PLACEHOLDERS } from "./userDataPlaceholders";
+
+export function dbTemplateToContent(row: { type: string; title: string; content: string }): AgreementTemplateContent {
+  const sections = row.content.split(/\n(?=#{1,2} )/).filter(Boolean);
+  if (sections.length <= 1) {
+    return {
+      type: row.type,
+      title: row.title,
+      sections: [{ heading: row.title, body: row.content }],
+    };
+  }
+  return {
+    type: row.type,
+    title: row.title,
+    sections: sections.map(block => {
+      const lines = block.split("\n");
+      const heading = lines[0].replace(/^#+\s*/, "").trim();
+      const body = lines.slice(1).join("\n").trim();
+      return { heading, body };
+    }),
+  };
 }

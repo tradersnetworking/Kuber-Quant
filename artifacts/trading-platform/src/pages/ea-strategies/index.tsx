@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Cpu, Zap, Key, Clock, CheckCircle, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
+import { MtAccountCredentialsForm, EMPTY_MT_ACCOUNT, type MtAccountFormValues } from "@/components/forms/MtAccountCredentialsForm";
 
 const API_BASE = "/api";
 const getToken = () => localStorage.getItem("token");
@@ -62,7 +62,9 @@ export default function EAStrategiesPage() {
   const [filterCat, setFilterCat] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [subDialog, setSubDialog] = useState<{ open: boolean; strategy: any | null }>({ open: false, strategy: null });
-  const [subForm, setSubForm] = useState({ mtAccountNumber: "", mtPlatform: "mt5", plan: "monthly" });
+  const [subForm, setSubForm] = useState({ plan: "monthly" });
+  const [mtCreds, setMtCreds] = useState<MtAccountFormValues>(EMPTY_MT_ACCOUNT);
+  const [mtErrors, setMtErrors] = useState<Partial<Record<keyof MtAccountFormValues, string>>>({});
   const [subscribing, setSubscribing] = useState(false);
   const [downloading, setDownloading] = useState<number | null>(null);
 
@@ -86,11 +88,24 @@ export default function EAStrategiesPage() {
   });
 
   async function handleSubscribe() {
-    if (!subForm.mtAccountNumber) { toast({ title: "MT Account number required", variant: "destructive" }); return; }
+    const errs: Partial<Record<keyof MtAccountFormValues, string>> = {};
+    if (!mtCreds.mtAccountNumber.trim()) errs.mtAccountNumber = "Account number is required";
+    if (!mtCreds.mtBroker.trim()) errs.mtBroker = "Broker is required";
+    if (!mtCreds.mtServer.trim()) errs.mtServer = "Server is required";
+    if (!mtCreds.mtPassword || mtCreds.mtPassword.length < 4) errs.mtPassword = "Trading password is required";
+    if (Object.keys(errs).length) { setMtErrors(errs); return; }
+    setMtErrors({});
     setSubscribing(true);
     try {
       const result = await apiFetch(`/ea-strategies/catalog/${subDialog.strategy.id}/subscribe`, {
-        method: "POST", body: JSON.stringify(subForm),
+        method: "POST", body: JSON.stringify({
+          plan: subForm.plan,
+          accountNumber: mtCreds.mtAccountNumber.trim(),
+          brokerName: mtCreds.mtBroker.trim(),
+          serverName: mtCreds.mtServer.trim(),
+          platform: mtCreds.mtPlatform,
+          tradingPassword: mtCreds.mtPassword,
+        }),
       });
       setSubscriptions(subs => [...subs, result]);
       setSubDialog({ open: false, strategy: null });
@@ -125,8 +140,7 @@ export default function EAStrategiesPage() {
   const planPrice = (s: any, plan: string) => ({ monthly: s.priceMonthly, quarterly: s.priceQuarterly, biannual: s.priceBiannual, annual: s.priceAnnual }[plan] || s.priceMonthly);
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">EA Strategy Marketplace</h1>
           <p className="text-muted-foreground mt-1">Professional Expert Advisor strategies for MT4/MT5. Subscribe and download your licensed .ex5 file instantly.</p>
@@ -217,7 +231,12 @@ export default function EAStrategiesPage() {
                             <Download className="h-3.5 w-3.5 mr-1.5" />My Sub
                           </Button>
                         ) : (
-                          <Button className="flex-1 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-semibold hover:opacity-90 text-xs" onClick={() => { setSubDialog({ open: true, strategy: s }); setSubForm({ mtAccountNumber: "", mtPlatform: "mt5", plan: "monthly" }); }}>
+                          <Button className="flex-1 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-semibold hover:opacity-90 text-xs" onClick={() => {
+                            setSubDialog({ open: true, strategy: s });
+                            setSubForm({ plan: "monthly" });
+                            setMtCreds({ ...EMPTY_MT_ACCOUNT, mtPlatform: s.platform === "mt4" ? "mt4" : "mt5" });
+                            setMtErrors({});
+                          }}>
                             <Zap className="h-3.5 w-3.5 mr-1.5" />Subscribe
                           </Button>
                         )}
@@ -322,21 +341,14 @@ export default function EAStrategiesPage() {
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">MT4/MT5 Account Number</Label>
-                  <Input placeholder="e.g. 12345678" value={subForm.mtAccountNumber} onChange={e => setSubForm(f => ({ ...f, mtAccountNumber: e.target.value }))} className="bg-white/5 border-white/10" />
-                  <p className="text-[11px] text-muted-foreground">The EA will be locked to this account number only.</p>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Platform</Label>
-                  <Select value={subForm.mtPlatform} onValueChange={v => setSubForm(f => ({ ...f, mtPlatform: v }))}>
-                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mt5">MetaTrader 5 (MT5)</SelectItem>
-                      <SelectItem value="mt4">MetaTrader 4 (MT4)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <MtAccountCredentialsForm
+                  values={mtCreds}
+                  onChange={(k, v) => setMtCreds(prev => ({ ...prev, [k]: v }))}
+                  showDeferOption={false}
+                  required
+                  hideHeader
+                  errors={mtErrors}
+                />
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-300">
                   <strong>Note:</strong> After subscribing, download your licensed .ex5 file. The EA contains your license key, account binding, and expiry check built in.
                 </div>
@@ -352,6 +364,5 @@ export default function EAStrategiesPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AppLayout>
-  );
+);
 }

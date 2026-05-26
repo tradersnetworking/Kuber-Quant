@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Shield, ShieldCheck, ShieldOff, Smartphone, Copy, CheckCircle, AlertTriangle, ExternalLink, Key, Monitor, Globe, Clock, RefreshCw, Lock, Eye, EyeOff } from "lucide-react";
+import { Shield, ShieldCheck, ShieldOff, Smartphone, Copy, CheckCircle, AlertTriangle, ExternalLink, Key, Monitor, Globe, Clock, RefreshCw, Lock, Eye, EyeOff, User, CreditCard, Activity } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import * as ApiHooks from "@workspace/api-client-react";
 import QRCode from "qrcode";
+import { PersonalPaymentAccounts } from "@/components/wallet/PersonalPaymentAccounts";
+import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
+import { AccountProfilePanel } from "@/components/account/AccountProfilePanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const getToken = () => localStorage.getItem("token");
 
@@ -261,46 +264,43 @@ export default function SettingsPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-8">
+    <>
+    <div className="max-w-4xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-            Account Settings
+            My Account
           </h1>
-          <p className="text-muted-foreground mt-1">Manage your security and account preferences.</p>
+          <p className="text-muted-foreground mt-1">Profile, payout accounts, security, and wallet actions in one place.</p>
         </div>
 
-        {/* Profile Info */}
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Key className="h-4 w-4 text-amber-400" /> Account Info
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs text-muted-foreground">Full Name</Label>
-              <p className="font-medium mt-1">{user?.fullName || "—"}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Email</Label>
-              <p className="font-medium mt-1">{user?.email || "—"}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Role</Label>
-              <Badge className="mt-1 bg-amber-500/20 text-amber-400 border-amber-500/30 capitalize">{user?.role}</Badge>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">KYC Status</Label>
-              <Badge className="mt-1 capitalize bg-white/10 text-zinc-300 border-white/10">{user?.kycStatus}</Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="profile" className="space-y-4">
+          <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto">
+            <TabsTrigger value="profile" className="gap-1.5"><User className="h-3.5 w-3.5" />Profile</TabsTrigger>
+            <TabsTrigger value="payout" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" />Payout Accounts</TabsTrigger>
+            <TabsTrigger value="security" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Security</TabsTrigger>
+            <TabsTrigger value="activity" className="gap-1.5"><Activity className="h-3.5 w-3.5" />Activity</TabsTrigger>
+          </TabsList>
 
+          <TabsContent value="profile" className="space-y-4 mt-4">
+            <AccountProfilePanel />
+            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+              <CardHeader>
+                <CardTitle className="text-base">Wallet Quick Actions</CardTitle>
+                <CardDescription>Deposit to portal wallet or withdraw to your personal account</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WalletQuickActions layout="row" />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payout" className="mt-4">
+            <PersonalPaymentAccounts />
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-6 mt-4">
         {/* Change Password */}
         <ChangePasswordCard />
-
-        {/* Two-Factor Auth */}
         <Card className="bg-white/5 backdrop-blur-sm border-white/10">
           <CardHeader>
             <div className="flex items-start justify-between">
@@ -357,6 +357,9 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+          </TabsContent>
+
+          <TabsContent value="activity" className="space-y-6 mt-4">
         {/* Referral Code */}
         <Card className="bg-white/5 backdrop-blur-sm border-white/10">
           <CardHeader>
@@ -383,6 +386,8 @@ export default function SettingsPage() {
 
         {/* Login History */}
         <LoginHistoryCard />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* ── 2FA Setup Dialog ── */}
@@ -505,6 +510,6 @@ export default function SettingsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </AppLayout>
+    </>
   );
 }

@@ -1,5 +1,4 @@
 import { useGetAdminStats } from "@workspace/api-client-react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +8,7 @@ import {
   Users, FileCheck, Ticket, Briefcase, LayoutGrid, ClipboardList,
   TrendingUp, CreditCard, Settings, UserCheck, DollarSign, ArrowUpRight,
   ArrowDownLeft, Shield, Activity, Wallet, BarChart3, Bell, Globe,
-  AlertTriangle, CheckCircle2, Clock, Zap, PieChart, RefreshCw,
+  AlertTriangle, CheckCircle2, Clock, Zap, PieChart, RefreshCw, Mail,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -17,40 +16,28 @@ import {
   PieChart as RPieChart, Pie, Cell,
 } from "recharts";
 import { motion } from "framer-motion";
+import { useAdminAnalytics } from "@/lib/staff-api";
+import { formatActivityTime } from "@/lib/format-activity-time";
+import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
+import { SafeBoundary } from "@/components/SafeBoundary";
+import { SupportMailInboxPanel } from "@/components/support/SupportMailInboxPanel";
 
-// ── Mock chart data (replace with real API when available) ──────────────────
-const REVENUE_DATA = [
-  { month: "Jan", revenue: 42000, deposits: 58000, withdrawals: 16000 },
-  { month: "Feb", revenue: 55000, deposits: 72000, withdrawals: 17000 },
-  { month: "Mar", revenue: 48000, deposits: 65000, withdrawals: 17000 },
-  { month: "Apr", revenue: 71000, deposits: 91000, withdrawals: 20000 },
-  { month: "May", revenue: 84000, deposits: 108000, withdrawals: 24000 },
-  { month: "Jun", revenue: 96000, deposits: 124000, withdrawals: 28000 },
+const FALLBACK_CASH_FLOW = [
+  { month: "Jan", revenue: 0, deposits: 0, withdrawals: 0 },
+  { month: "Feb", revenue: 0, deposits: 0, withdrawals: 0 },
+  { month: "Mar", revenue: 0, deposits: 0, withdrawals: 0 },
+  { month: "Apr", revenue: 0, deposits: 0, withdrawals: 0 },
+  { month: "May", revenue: 0, deposits: 0, withdrawals: 0 },
+  { month: "Jun", revenue: 0, deposits: 0, withdrawals: 0 },
 ];
 
-const USER_GROWTH = [
-  { month: "Jan", users: 1200, active: 980 },
-  { month: "Feb", users: 1580, active: 1240 },
-  { month: "Mar", users: 2100, active: 1680 },
-  { month: "Apr", users: 2800, active: 2200 },
-  { month: "May", users: 3600, active: 2900 },
-  { month: "Jun", users: 4500, active: 3700 },
-];
-
-const SUBSCRIPTION_PIE = [
-  { name: "Investment Plans", value: 45, color: "#F59E0B" },
-  { name: "Copy Trading", value: 28, color: "#6366f1" },
-  { name: "Algo/EA", value: 18, color: "#22c55e" },
-  { name: "Account Handling", value: 9, color: "#f43f5e" },
-];
-
-const LIVE_FEED = [
-  { id: 1, type: "deposit", user: "Rajesh K.", amount: "$5,000", time: "2m ago", status: "pending" },
-  { id: 2, type: "kyc", user: "Priya M.", amount: null, time: "5m ago", status: "review" },
-  { id: 3, type: "withdrawal", user: "Ankit S.", amount: "$12,000", time: "8m ago", status: "pending" },
-  { id: 4, type: "register", user: "Neha R.", amount: null, time: "11m ago", status: "new" },
-  { id: 5, type: "investment", user: "Vikram P.", amount: "$25,000", time: "14m ago", status: "active" },
-  { id: 6, type: "kyc", user: "Sunita D.", amount: null, time: "20m ago", status: "approved" },
+const FALLBACK_USER_GROWTH = [
+  { month: "Jan", users: 0 },
+  { month: "Feb", users: 0 },
+  { month: "Mar", users: 0 },
+  { month: "Apr", users: 0 },
+  { month: "May", users: 0 },
+  { month: "Jun", users: 0 },
 ];
 
 const FEED_CONFIG: Record<string, { icon: any; color: string; bg: string; label: string }> = {
@@ -120,6 +107,22 @@ function MetricCard({
 
 export default function AdminDashboardPage() {
   const { data: stats, isLoading } = useGetAdminStats();
+  const { data: analytics, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics } = useAdminAnalytics();
+
+  const cashFlow = analytics?.cashFlow?.length ? analytics.cashFlow : FALLBACK_CASH_FLOW;
+  const userGrowth = analytics?.userGrowth?.length ? analytics.userGrowth : FALLBACK_USER_GROWTH;
+  const subscriptionPie = analytics?.subscriptionMix?.length ? analytics.subscriptionMix : [{ name: "Investment Plans", value: 1, color: "#F59E0B" }];
+  const pieTotal = subscriptionPie.reduce((s: number, d: any) => s + d.value, 0) || 1;
+  const liveFeed = (analytics?.recentActivity || []).map((item: any) => ({
+    id: item.id,
+    type: item.type,
+    user: item.userName || "User",
+    amount: item.type === "deposit" || item.type === "withdrawal"
+      ? `$${Number(item.amount).toLocaleString()}`
+      : null,
+    time: formatActivityTime(item.createdAt),
+    status: item.status,
+  }));
 
   const topMetrics = [
     { title: "Total Users", value: stats?.totalUsers, icon: <Users className="h-4 w-4 text-blue-400" />, href: "/admin/users", trend: "up", trendVal: "+248" },
@@ -143,17 +146,19 @@ export default function AdminDashboardPage() {
     { label: "Users", href: "/admin/users", icon: Users, color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
     { label: "KYC Queue", href: "/admin/kyc", icon: FileCheck, color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
     { label: "Tickets", href: "/admin/tickets", icon: Ticket, color: "bg-red-500/10 text-red-400 border-red-500/20" },
+    { label: "Support Mail Desk", href: "/admin/mail", icon: Mail, color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
     { label: "Transactions", href: "/admin/transactions", icon: ClipboardList, color: "bg-green-500/10 text-green-400 border-green-500/20" },
     { label: "Plans", href: "/admin/plans", icon: LayoutGrid, color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
     { label: "Referrals", href: "/admin/referrals", icon: TrendingUp, color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" },
     { label: "Managers", href: "/admin/managers", icon: UserCheck, color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" },
     { label: "Gateways", href: "/admin/payment-gateways", icon: CreditCard, color: "bg-pink-500/10 text-pink-400 border-pink-500/20" },
+    { label: "Copy Trading", href: "/copy-trading", icon: Users, color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" },
+    { label: "User MT Accounts", href: "/admin/mt5-accounts", icon: BarChart3, color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
     { label: "Settings", href: "/admin/settings", icon: Settings, color: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20" },
   ];
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -168,11 +173,23 @@ export default function AdminDashboardPage() {
             <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs px-3 py-1.5">
               <CheckCircle2 className="h-3 w-3 mr-1.5" /> All Systems Operational
             </Badge>
-            <Button size="sm" variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5">
+            <Button size="sm" variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5" onClick={() => refetchAnalytics()}>
               <RefreshCw className="h-3 w-3" /> Refresh
             </Button>
           </div>
         </div>
+
+        {analyticsError && (
+          <Card className="border-red-500/30 bg-red-500/10">
+            <CardContent className="pt-4 flex items-center justify-between gap-4">
+              <p className="text-sm text-red-400 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Platform analytics failed to load. Metrics may be incomplete.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => refetchAnalytics()}>Retry</Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Top Metrics Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -208,7 +225,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={REVENUE_DATA} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <BarChart data={cashFlow} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="month" stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
@@ -236,24 +253,19 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={USER_GROWTH} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <AreaChart data={userGrowth} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="totalGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
-                    <linearGradient id="activeGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="month" stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `${(v/1000).toFixed(1)}k`} />
+                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip content={<ChartTooltip />} />
                   <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                  <Area type="monotone" dataKey="users" name="Total Users" stroke="#6366f1" strokeWidth={2} fill="url(#totalGrad)" dot={false} />
-                  <Area type="monotone" dataKey="active" name="Active Users" stroke="#22c55e" strokeWidth={2} fill="url(#activeGrad)" dot={false} />
+                  <Area type="monotone" dataKey="users" name="New Users" stroke="#6366f1" strokeWidth={2} fill="url(#totalGrad)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -273,21 +285,21 @@ export default function AdminDashboardPage() {
             <CardContent>
               <ResponsiveContainer width="100%" height={160}>
                 <RPieChart>
-                  <Pie data={SUBSCRIPTION_PIE} cx="50%" cy="50%" innerRadius={45} outerRadius={68}
+                  <Pie data={subscriptionPie} cx="50%" cy="50%" innerRadius={45} outerRadius={68}
                     dataKey="value" stroke="none" paddingAngle={3}>
-                    {SUBSCRIPTION_PIE.map((d, i) => <Cell key={i} fill={d.color} />)}
+                    {subscriptionPie.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
                   </Pie>
-                  <Tooltip formatter={(v: any) => `${v}%`} contentStyle={{ backgroundColor: '#050A14', borderColor: 'rgba(255,255,255,0.1)', fontSize: 12 }} />
+                  <Tooltip formatter={(v: any) => `${Math.round((v / pieTotal) * 100)}%`} contentStyle={{ backgroundColor: '#050A14', borderColor: 'rgba(255,255,255,0.1)', fontSize: 12 }} />
                 </RPieChart>
               </ResponsiveContainer>
               <div className="space-y-2 mt-2">
-                {SUBSCRIPTION_PIE.map(d => (
+                {subscriptionPie.map((d: any) => (
                   <div key={d.name} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
                       <span className="text-zinc-400">{d.name}</span>
                     </div>
-                    <span className="font-bold">{d.value}%</span>
+                    <span className="font-bold">{Math.round((d.value / pieTotal) * 100)}%</span>
                   </div>
                 ))}
               </div>
@@ -309,7 +321,11 @@ export default function AdminDashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {LIVE_FEED.map((item, i) => {
+              {analyticsLoading ? (
+                <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
+              ) : liveFeed.length === 0 ? (
+                <p className="text-center text-muted-foreground py-6 text-sm">No recent activity yet.</p>
+              ) : liveFeed.map((item: any, i: number) => {
                 const cfg = FEED_CONFIG[item.type] || FEED_CONFIG.register;
                 const Icon = cfg.icon;
                 return (
@@ -337,6 +353,18 @@ export default function AdminDashboardPage() {
           </Card>
         </div>
 
+        {/* My Wallet */}
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold">My Wallet</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SafeBoundary label="Wallet actions unavailable">
+              <WalletQuickActions layout="row" />
+            </SafeBoundary>
+          </CardContent>
+        </Card>
+
         {/* Quick Actions */}
         <Card className="bg-white/5 border-white/10">
           <CardHeader className="pb-3">
@@ -355,7 +383,24 @@ export default function AdminDashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="bg-white/5 border-white/10">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Mail className="h-4 w-4 text-sky-400" />
+              Support Mail — support@kuberquant.com
+            </CardTitle>
+            <Link href="/admin/mail">
+              <Button variant="ghost" size="sm" className="text-amber-400 text-xs">Open full inbox</Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              Manage client queries, complaints, disputes, and other emails sent to support@kuberquant.com directly from the admin dashboard.
+            </p>
+            <SupportMailInboxPanel compact apiBase="/admin/mail" title="" description="" />
+          </CardContent>
+        </Card>
       </div>
-    </AppLayout>
-  );
+);
 }

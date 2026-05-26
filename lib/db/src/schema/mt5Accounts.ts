@@ -3,13 +3,16 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const mt5AccountStatusEnum = pgEnum("mt5_account_status", ["active", "inactive", "pending_review"]);
+export const mtPlatformEnum = pgEnum("mt_platform", ["mt4", "mt5"]);
 
 export const mt5AccountsTable = pgTable("mt5_accounts", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
+  platform: mtPlatformEnum("platform").notNull().default("mt5"),
   accountNumber: text("account_number").notNull(),
   broker: text("broker").notNull(),
   serverName: text("server_name"),
+  passwordEnc: text("password_enc"),
   balance: numeric("balance", { precision: 18, scale: 2 }),
   equity: numeric("equity", { precision: 18, scale: 2 }),
   profit: numeric("profit", { precision: 18, scale: 2 }),

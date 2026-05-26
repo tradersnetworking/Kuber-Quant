@@ -7,6 +7,7 @@ export const agreementTypeEnum = pgEnum("agreement_type", [
   "ea_subscription",
   "copy_trading",
   "account_handling",
+  "algo_trading",
   "risk_disclosure",
   "aml_kyc",
   "privacy_policy",

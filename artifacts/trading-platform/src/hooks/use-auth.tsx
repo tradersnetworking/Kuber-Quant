@@ -1,50 +1,115 @@
-import { createContext, useContext, useState, ReactNode } from "react";
-import { User, setAuthTokenGetter } from "@workspace/api-client-react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { User, setAuthTokenGetter, setTokenRefresher } from "@workspace/api-client-react";
+import {
+  clearSession,
+  getStoredToken,
+  getStoredUser,
+  isTokenExpired,
+  refreshAccessToken,
+  setAuthFailureHandler,
+} from "@/lib/token-store";
 
 setAuthTokenGetter(() => localStorage.getItem("token"));
+setTokenRefresher(refreshAccessToken);
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, refreshToken?: string) => void;
   logout: () => void;
+  isRestoring: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem("user");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  });
-  
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem("token");
+  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
+  const [isRestoring, setIsRestoring] = useState(() => {
+    const t = getStoredToken();
+    return !!t && isTokenExpired(t);
   });
 
-  const login = (newToken: string, newUser: User) => {
+  const logout = useCallback(() => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (refreshToken) {
+      fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        body: JSON.stringify({ refreshToken }),
+      }).catch(() => {});
+    }
+    clearSession();
+    setToken(null);
+    setUser(null);
+  }, []);
+
+  useEffect(() => {
+    setAuthFailureHandler(() => {
+      setToken(null);
+      setUser(null);
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login?session=expired";
+      }
+    });
+    return () => setAuthFailureHandler(null);
+  }, []);
+
+  useEffect(() => {
+    const stored = getStoredToken();
+    if (!stored) {
+      setIsRestoring(false);
+      return;
+    }
+
+    const storedUser = getStoredUser();
+    if (!storedUser) {
+      clearSession();
+      setToken(null);
+      setUser(null);
+      setIsRestoring(false);
+      return;
+    }
+
+    setUser(prev => prev ?? storedUser);
+    setToken(stored);
+
+    if (!isTokenExpired(stored)) {
+      setIsRestoring(false);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setIsRestoring(false), 8000);
+
+    refreshAccessToken().then((newToken) => {
+      if (newToken) {
+        setToken(newToken);
+        setUser(getStoredUser());
+      } else {
+        logout();
+      }
+      setIsRestoring(false);
+    }).catch(() => {
+      logout();
+      setIsRestoring(false);
+    });
+
+    return () => window.clearTimeout(timeout);
+  }, [logout]);
+
+  const login = (newToken: string, newUser: User, refreshToken?: string) => {
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
+    if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
     setToken(newToken);
     setUser(newUser);
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setToken(null);
-    setUser(null);
-  };
-
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isRestoring }}>
       {children}
     </AuthContext.Provider>
   );

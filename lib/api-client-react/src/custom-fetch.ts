@@ -15,8 +15,11 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 // Module-level configuration
 // ---------------------------------------------------------------------------
 
+export type TokenRefresher = () => Promise<string | null>;
+
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _tokenRefresher: TokenRefresher | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -42,6 +45,14 @@ export function setBaseUrl(url: string | null): void {
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+/**
+ * Register a function that refreshes the access token and returns the new token.
+ * Called automatically on 401 responses before retrying the request once.
+ */
+export function setTokenRefresher(refresher: TokenRefresher | null): void {
+  _tokenRefresher = refresher;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -360,7 +371,15 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  let response = await fetch(input, { ...init, method, headers });
+
+  if (response.status === 401 && _tokenRefresher && !requestInfo.url.includes("/auth/refresh")) {
+    const newToken = await _tokenRefresher();
+    if (newToken) {
+      headers.set("authorization", `Bearer ${newToken}`);
+      response = await fetch(input, { ...init, method, headers });
+    }
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

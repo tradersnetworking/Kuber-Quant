@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,7 @@ const TYPE_LABELS: Record<string, string> = {
   ea_subscription: "EA Subscription Agreement",
   copy_trading: "Copy Trading Agreement",
   account_handling: "Account Handling Agreement",
+  algo_trading: "Algo Trading Agreement",
   risk_disclosure: "Risk Disclosure",
   aml_kyc: "AML/KYC Declaration",
   privacy_policy: "Privacy Policy",
@@ -239,8 +239,7 @@ export default function AgreementsPage() {
   const pendingCount = agreements.filter(a => a.status === "pending_signature").length;
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -449,6 +448,5 @@ export default function AgreementsPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AppLayout>
-  );
+);
 }

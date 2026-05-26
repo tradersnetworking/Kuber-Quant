@@ -1,9 +1,7 @@
-import { AppLayout } from "@/components/layout/AppLayout";
 
 export default function BlankPage({ title }: { title: string }) {
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
           <p className="text-muted-foreground">This section is currently under development.</p>
@@ -12,6 +10,5 @@ export default function BlankPage({ title }: { title: string }) {
           Content coming soon
         </div>
       </div>
-    </AppLayout>
-  );
+);
 }

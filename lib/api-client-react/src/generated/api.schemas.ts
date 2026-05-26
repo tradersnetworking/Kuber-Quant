@@ -450,6 +450,11 @@ export interface AlgoStrategy {
 export interface StrategySubscription {
   amount: number;
   currency?: string;
+  accountNumber: string;
+  brokerName: string;
+  serverName: string;
+  platform?: string;
+  tradingPassword: string;
 }
 
 export type CopyTraderStatus = typeof CopyTraderStatus[keyof typeof CopyTraderStatus];
@@ -490,6 +495,12 @@ export interface CopyTrader {
 export interface CopyTradeInput {
   amount: number;
   currency: string;
+  profitSharingPercent?: number;
+  accountNumber: string;
+  brokerName: string;
+  serverName: string;
+  platform?: string;
+  tradingPassword: string;
 }
 
 export type EAStrategyType = typeof EAStrategyType[keyof typeof EAStrategyType];
@@ -583,9 +594,17 @@ export const EASubscribeInputPlan = {
 } as const;
 
 export interface EASubscribeInput {
-  mtAccountNumber: string;
+  mtAccountNumber?: string;
+  accountNumber?: string;
+  brokerName?: string;
+  serverName?: string;
+  tradingPassword?: string;
   mtPlatform?: EASubscribeInputMtPlatform;
-  plan: EASubscribeInputPlan;
+  platform?: EASubscribeInputMtPlatform;
+  profitSharingPercent?: number;
+  amount?: number;
+  currency?: string;
+  plan?: EASubscribeInputPlan;
 }
 
 export interface EASubscription {
