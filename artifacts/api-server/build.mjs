@@ -54,6 +54,7 @@ async function buildAll() {
     "imapflow",
     "mailparser",
     "handlebars",
+    "ioredis",
       "knex",
       "typeorm",
       "protobufjs",

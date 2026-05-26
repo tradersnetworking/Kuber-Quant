@@ -29,7 +29,12 @@
     "build:prod": "pnpm build:web && pnpm build:api",
     "start": "node --env-file=.env server.js",
     "start:prod": "node --env-file=.env server.js",
-    "deploy:hostinger": "node --env-file=.env scripts/deploy-hostinger.mjs"
+    "deploy:hostinger": "node --env-file=.env scripts/deploy-hostinger.mjs",
+    "docker:up": "docker compose --env-file .env up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:ps": "docker compose ps",
+    "docker:db:push": "docker compose exec backend ./node_modules/.bin/pnpm run db:push"
   },
   "dependencies": {
     "express": "^5.2.1"

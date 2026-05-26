@@ -1,5 +1,7 @@
 # Kuber Quant — Hostinger Deployment Guide
 
+> **Docker VPS (recommended):** See **[DEPLOYMENT-DOCKER.md](./DEPLOYMENT-DOCKER.md)** for the production multi-container stack (Nginx, PostgreSQL, Redis, PM2).
+
 ## Prerequisites
 
 - Hostinger Business Hosting with **Node.js** enabled

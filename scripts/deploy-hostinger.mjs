@@ -27,7 +27,6 @@ const API_BASE = "https://developers.hostinger.com/api/vps/v1";
 const REQUIRED = [
   "HOSTINGER_API_KEY",
   "HOSTINGER_VM_ID",
-  "DATABASE_URL",
   "SESSION_SECRET",
   "ENCRYPTION_KEY",
   "APP_URL",
@@ -38,9 +37,18 @@ const REQUIRED = [
 const DEPLOY_ENV_KEYS = [
   "NODE_ENV",
   "PORT",
+  "HTTP_PORT",
+  "HTTPS_PORT",
+  "ENABLE_SSL",
+  "POSTGRES_USER",
+  "POSTGRES_PASSWORD",
+  "POSTGRES_DB",
+  "REDIS_PASSWORD",
+  "SERVE_SPA",
   "WEB_DIST",
   "UPLOAD_DIR",
   "DATABASE_URL",
+  "REDIS_URL",
   "SESSION_SECRET",
   "ENCRYPTION_KEY",
   "JWT_EXPIRES_IN",
@@ -48,6 +56,9 @@ const DEPLOY_ENV_KEYS = [
   "APP_URL",
   "API_URL",
   "CORS_ORIGINS",
+  "PM2_INSTANCES",
+  "PM2_MAX_MEMORY",
+  "VITE_API_URL",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_SECURE",
@@ -163,7 +174,8 @@ async function deploy({ projectName, githubUrl }) {
   console.log("1. Open hPanel → VPS → Docker Manager and confirm the project is running.");
   console.log("2. Point your domain A record to the VPS IP.");
   console.log(`3. Visit ${process.env.APP_URL} after containers are healthy.`);
-  console.log("4. Run database migrations once: pnpm db:push (via SSH) if tables are empty.");
+  console.log("4. Run database init once via SSH:");
+  console.log("   docker compose exec backend ./node_modules/.bin/pnpm run db:push");
 }
 
 const opts = parseArgs();

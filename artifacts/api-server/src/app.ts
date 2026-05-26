@@ -72,7 +72,7 @@ app.use("/api/auth/verify-otp", authLimiter);
 
 app.use("/api", router);
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" && process.env.SERVE_SPA !== "false") {
   const webDist = process.env.WEB_DIST || path.resolve(process.cwd(), "../trading-platform/dist/public");
   app.use(express.static(webDist));
   app.get("*", (req, res, next) => {

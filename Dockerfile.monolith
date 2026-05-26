@@ -1,13 +1,8 @@
-# Deprecated: use Docker Compose multi-container setup instead.
-# See DEPLOYMENT-DOCKER.md and docker/backend/Dockerfile
-#
-# Quick monolith build (API serves SPA):
-#   docker build -f Dockerfile.monolith -t kuber-quant:monolith .
-
+# Monolith image — API serves built SPA (single container)
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 RUN npm install -g pnpm@9.15.0
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json server.js ./
 COPY artifacts ./artifacts
 COPY lib ./lib
 COPY scripts ./scripts

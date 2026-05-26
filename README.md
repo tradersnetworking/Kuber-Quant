@@ -76,6 +76,16 @@ scripts/            Seed + utilities
 
 Change these immediately in any shared environment.
 
+## Production (Docker on VPS)
+
+See **[DEPLOYMENT-DOCKER.md](./DEPLOYMENT-DOCKER.md)** for the full multi-container setup (Nginx, PostgreSQL, Redis, PM2).
+
+```bash
+cp .env.docker.example .env
+docker compose up -d --build
+docker compose exec backend ./node_modules/.bin/pnpm run db:push
+```
+
 ## Troubleshooting (local)
 
 **`Cannot find module ... vite ... dist.js` (Internal Server Error)**  

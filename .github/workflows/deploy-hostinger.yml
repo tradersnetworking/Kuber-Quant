@@ -1,9 +1,12 @@
-name: Deploy to Hostinger VPS
+name: Deploy to Hostinger VPS (Docker)
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "attached_assets/**"
 
 jobs:
   deploy:
@@ -12,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to Hostinger VPS
+      - name: Deploy Docker Compose stack to Hostinger VPS
         uses: hostinger/deploy-on-vps@v2
         with:
           api-key: ${{ secrets.HOSTINGER_API_KEY }}
@@ -21,18 +24,41 @@ jobs:
           docker-compose-path: docker-compose.yml
           environment-variables: |
             NODE_ENV=production
-            PORT=8080
-            WEB_DIST=/app/artifacts/trading-platform/dist/public
-            UPLOAD_DIR=/app/uploads
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
-            ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
             APP_URL=${{ vars.APP_URL }}
             API_URL=${{ vars.API_URL }}
             CORS_ORIGINS=${{ vars.CORS_ORIGINS }}
+            ENABLE_SSL=${{ vars.ENABLE_SSL || 'false' }}
+            HTTP_PORT=80
+            HTTPS_PORT=443
+            POSTGRES_USER=kuber
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            POSTGRES_DB=kuber
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+            ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+            JWT_EXPIRES_IN=1h
+            JWT_REFRESH_EXPIRES_IN=30d
+            VITE_API_URL=/api
+            VITE_GOOGLE_CLIENT_ID=${{ vars.VITE_GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+            PM2_INSTANCES=1
+            PM2_MAX_MEMORY=768M
             SMTP_HOST=${{ secrets.SMTP_HOST }}
             SMTP_PORT=${{ secrets.SMTP_PORT }}
             SMTP_SECURE=${{ secrets.SMTP_SECURE }}
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             SMTP_FROM=${{ secrets.SMTP_FROM }}
+            RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
+            RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
+            RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
+            PHONEPE_MERCHANT_ID=${{ secrets.PHONEPE_MERCHANT_ID }}
+            PHONEPE_SALT_KEY=${{ secrets.PHONEPE_SALT_KEY }}
+            PHONEPE_SALT_INDEX=${{ secrets.PHONEPE_SALT_INDEX }}
+            PHONEPE_ENV=${{ vars.PHONEPE_ENV }}
+            PAYPAL_CLIENT_ID=${{ secrets.PAYPAL_CLIENT_ID }}
+            PAYPAL_CLIENT_SECRET=${{ secrets.PAYPAL_CLIENT_SECRET }}
+            PAYPAL_MODE=${{ vars.PAYPAL_MODE }}
+            PAYU_MERCHANT_KEY=${{ secrets.PAYU_MERCHANT_KEY }}
+            PAYU_MERCHANT_SALT=${{ secrets.PAYU_MERCHANT_SALT }}
+            PAYU_ENV=${{ vars.PAYU_ENV }}
