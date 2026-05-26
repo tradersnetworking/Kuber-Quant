@@ -17,7 +17,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(import.meta.dirname, "src"),
-        "@assets": path.resolve(rootDir, "attached_assets"),
       },
       dedupe: ["react", "react-dom"],
     },
