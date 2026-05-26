@@ -8,12 +8,13 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "concurrently -n api,web -c blue,amber \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": "pnpm --filter @workspace/api-server run dev",
     "dev:web": "pnpm --filter @workspace/trading-platform run dev",
     "build": "node scripts/hostinger-build.mjs",
+    "hostinger:install": "node scripts/hostinger-install.mjs",
+    "hostinger:build": "node scripts/hostinger-build.mjs",
     "build:check": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",

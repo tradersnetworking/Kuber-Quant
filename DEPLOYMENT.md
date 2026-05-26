@@ -33,12 +33,28 @@ Set at minimum:
 
 ## 3. Install & Build
 
+Hostinger **must not use Corepack** for pnpm (it fails with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` on alt-nodejs).
+
+In **hPanel → Node.js** set:
+
+| Field | Value |
+|-------|--------|
+| **Install command** | `node scripts/hostinger-install.mjs` |
+| **Build command** | `HOSTINGER_SKIP_INSTALL=1 node scripts/hostinger-build.mjs` |
+
+Or use a **single build command** (install + build):
+
 ```bash
-npm install -g pnpm
-pnpm install
-pnpm db:push
-pnpm db:seed
-pnpm build:prod
+node scripts/hostinger-build.mjs
+```
+
+Manual SSH equivalent:
+
+```bash
+corepack disable
+npm install -g pnpm@9.15.0
+pnpm install --frozen-lockfile
+pnpm run build:prod
 ```
 
 ## 4. Start with PM2

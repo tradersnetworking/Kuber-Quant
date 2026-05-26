@@ -1,9 +1,10 @@
 {
   "framework": "express",
   "nodeVersion": "20",
-  "buildCommand": "node scripts/hostinger-build.mjs",
+  "installCommand": "node scripts/hostinger-install.mjs",
+  "buildCommand": "HOSTINGER_SKIP_INSTALL=1 node scripts/hostinger-build.mjs",
   "startCommand": "node server.js",
   "outputDirectory": "artifacts/trading-platform/dist/public",
   "entryFile": "server.js",
-  "notes": "Monorepo: Express API in artifacts/api-server, Vite SPA in artifacts/trading-platform. Select framework 'Other' or 'Express' in hPanel if auto-detect fails."
+  "notes": "Do NOT use Corepack on Hostinger — it fails with ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING. Use installCommand above. If hPanel has separate Install/Build fields: Install = node scripts/hostinger-install.mjs, Build = HOSTINGER_SKIP_INSTALL=1 node scripts/hostinger-build.mjs. Or use a single Build command: node scripts/hostinger-build.mjs"
 }
