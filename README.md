@@ -15,7 +15,7 @@ Institutional-grade algorithmic trading and wealth management platform.
 
 ```bash
 pnpm install
-cp .env.example .env
+pnpm setup            # creates .env from .env.example if missing
 # Edit .env — set DATABASE_URL, SESSION_SECRET, ENCRYPTION_KEY
 
 pnpm db:push
@@ -23,12 +23,23 @@ pnpm db:seed          # development only
 pnpm dev              # API :8080 + Web :3000
 ```
 
+**Windows:** `.\scripts\dev-local.ps1`
+
+**Production-style local run:**
+
+```bash
+pnpm build
+pnpm start            # loads .env automatically
+```
+
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
+| `pnpm setup` | Create `.env` from `.env.example` |
 | `pnpm dev` | Start API + frontend |
-| `pnpm build` | Typecheck + build all packages |
+| `pnpm build` | Build web + API for production |
+| `pnpm hostinger:build` | Hostinger deploy build (install + build) |
 | `pnpm typecheck` | Run TypeScript checks |
 | `pnpm db:push` | Sync DB schema (dev) |
 | `pnpm db:generate` | Generate Drizzle migrations |
@@ -64,3 +75,19 @@ scripts/            Seed + utilities
 | user@kuberquant.com | user123 | Investor |
 
 Change these immediately in any shared environment.
+
+## Troubleshooting (local)
+
+**`Cannot find module ... vite ... dist.js` (Internal Server Error)**  
+Dependencies are corrupted. Run:
+
+```bash
+pnpm clean:install
+pnpm dev
+```
+
+**Port already in use**  
+Vite tries the next port (3001, 3002, …). Open the URL shown in the terminal, or stop other Node processes using ports 3000/8080.
+
+**`DATABASE_URL must be set`**  
+Run `pnpm setup`, edit `.env`, then `pnpm db:push`.
