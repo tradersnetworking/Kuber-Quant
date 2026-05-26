@@ -13,6 +13,7 @@ import {
 import { sendMail, buildWelcomeEmail, buildPasswordResetEmail } from "../helpers/mailer";
 import { getSiteSettings } from "../helpers/siteSettings";
 import { getUserProfile, updateUserProfile } from "../helpers/profileService";
+import { resolveLoginEmail } from "../helpers/defaultUsers";
 import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
 
 const router = Router();
@@ -81,7 +82,8 @@ router.post("/login", async (req, res) => {
     res.status(400).json({ error: "email and password are required" });
     return;
   }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);
+  const loginEmail = resolveLoginEmail(email);
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, loginEmail)).limit(1);
   if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
@@ -141,7 +143,8 @@ router.post("/forgot-password", async (req, res) => {
     res.status(400).json({ error: "email is required" });
     return;
   }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);
+  const loginEmail = resolveLoginEmail(email);
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, loginEmail)).limit(1);
   // Always return success to prevent email enumeration
   if (!user) {
     res.json({ message: "If an account exists, a verification code has been sent." });

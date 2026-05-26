@@ -5,7 +5,7 @@ import {
   userPaymentAccountsTable, userProfilesTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import bcrypt from "bcryptjs";
+import { migrateLegacyEmails, upsertDefaultUsers } from "../../artifacts/api-server/src/helpers/defaultUsers.ts";
 
 async function seed() {
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED !== "true") {
@@ -13,60 +13,11 @@ async function seed() {
     process.exit(1);
   }
   console.log("Migrating legacy @kubercapital.com emails to @kuberquant.com...");
-  const emailMigrations: [string, string][] = [
-    ["superadmin@kubercapital.com", "superadmin@kuberquant.com"],
-    ["admin@kubercapital.com", "admin@kuberquant.com"],
-    ["manager@kubercapital.com", "manager@kuberquant.com"],
-    ["user@kubercapital.com", "user@kuberquant.com"],
-  ];
-  for (const [oldEmail, newEmail] of emailMigrations) {
-    const [existingNew] = await db.select().from(usersTable).where(eq(usersTable.email, newEmail)).limit(1);
-    const [existingOld] = await db.select().from(usersTable).where(eq(usersTable.email, oldEmail)).limit(1);
-    if (existingOld) {
-      if (existingNew) {
-        await db.delete(usersTable).where(eq(usersTable.email, oldEmail));
-      } else {
-        await db.update(usersTable).set({ email: newEmail }).where(eq(usersTable.email, oldEmail));
-      }
-    }
-  }
+  await migrateLegacyEmails();
   console.log("Email migration complete.");
 
   console.log("Seeding default users...");
-  const defaultUsers = [
-    { email: "superadmin@kuberquant.com", password: "superadmin123", fullName: "Super Admin", role: "superadmin" as const, referralCode: "KCSUPER1" },
-    { email: "admin@kuberquant.com", password: "admin123", fullName: "Platform Admin", role: "admin" as const, referralCode: "KCADMIN1" },
-    { email: "manager@kuberquant.com", password: "manager123", fullName: "Ravi Sharma", role: "manager" as const, referralCode: "KCMGR01", isPromoter: true, promoterCommissionType: "revenue_share" as const },
-    { email: "support@kuberquant.com", password: "support123", fullName: "Support Agent", role: "support" as const, referralCode: "KCSUP01" },
-    { email: "user@kuberquant.com", password: "user123", fullName: "John Investor", role: "user" as const, referralCode: "KCUSER01", balanceFiat: "12450.00", kycStatus: "verified" as const },
-  ];
-  for (const u of defaultUsers) {
-    const hash = await bcrypt.hash(u.password, 10);
-    await db.insert(usersTable).values({
-      email: u.email,
-      passwordHash: hash,
-      fullName: u.fullName,
-      role: u.role,
-      kycStatus: u.kycStatus ?? "verified",
-      balanceFiat: u.balanceFiat ?? "0",
-      balanceCrypto: "0",
-      totalProfit: "0",
-      referralCode: u.referralCode,
-      isActive: true,
-      ...(u.isPromoter ? { isPromoter: true, promoterCommissionType: u.promoterCommissionType, promoterEnabledAt: new Date() } : {}),
-    }).onConflictDoUpdate({
-      target: usersTable.email,
-      set: {
-        passwordHash: hash,
-        fullName: u.fullName,
-        role: u.role,
-        kycStatus: u.kycStatus ?? "verified",
-        isActive: true,
-        ...(u.balanceFiat ? { balanceFiat: u.balanceFiat } : {}),
-        ...(u.isPromoter ? { isPromoter: true, promoterCommissionType: u.promoterCommissionType, promoterEnabledAt: new Date() } : {}),
-      },
-    });
-  }
+  await upsertDefaultUsers({ resetPasswords: true });
   console.log("Default users seeded.");
 
   console.log("Seeding investment plans...");

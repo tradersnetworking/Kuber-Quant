@@ -5,8 +5,15 @@
  * Kuber Capital Trading Platform API
  * OpenAPI spec version: 0.2.0
  */
+import type { CopyTradeInputPlatform } from './copyTradeInputPlatform';
 
 export interface CopyTradeInput {
   amount: number;
   currency: string;
+  profitSharingPercent?: number;
+  accountNumber: string;
+  brokerName: string;
+  serverName: string;
+  platform?: CopyTradeInputPlatform;
+  tradingPassword: string;
 }

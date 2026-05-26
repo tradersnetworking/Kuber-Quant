@@ -5,6 +5,7 @@ import cron from "node-cron";
 import { processMaturedInvestments } from "./helpers/roiEngine";
 import { syncSupportInboxFromImap } from "./helpers/supportMailService";
 import { getSupportMailDeskConfig } from "./helpers/supportMailDeskSettings";
+import { ensureDefaultUsers } from "./helpers/bootstrapUsers";
 
 assertProductionSecrets();
 warnDevSecrets();
@@ -23,6 +24,8 @@ if (Number.isNaN(port) || port <= 0) {
 
 const server = app.listen(port, () => {
   logger.info({ port, env: process.env.NODE_ENV || "development" }, "Server listening");
+
+  void ensureDefaultUsers();
 
   cron.schedule("0 * * * *", async () => {
     logger.info("ROI automation: starting cycle");

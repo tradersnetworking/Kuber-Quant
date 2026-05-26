@@ -51,7 +51,9 @@ export type UserRole = typeof UserRole[keyof typeof UserRole];
 export const UserRole = {
   user: 'user',
   manager: 'manager',
+  support: 'support',
   admin: 'admin',
+  superadmin: 'superadmin',
 } as const;
 
 export type UserKycStatus = typeof UserKycStatus[keyof typeof UserKycStatus];
@@ -104,7 +106,9 @@ export type AdminUserUpdateRole = typeof AdminUserUpdateRole[keyof typeof AdminU
 export const AdminUserUpdateRole = {
   user: 'user',
   manager: 'manager',
+  support: 'support',
   admin: 'admin',
+  superadmin: 'superadmin',
 } as const;
 
 export type AdminUserUpdateKycStatus = typeof AdminUserUpdateKycStatus[keyof typeof AdminUserUpdateKycStatus];
@@ -447,13 +451,21 @@ export interface AlgoStrategy {
   currency?: string;
 }
 
+export type StrategySubscriptionPlatform = typeof StrategySubscriptionPlatform[keyof typeof StrategySubscriptionPlatform];
+
+
+export const StrategySubscriptionPlatform = {
+  mt4: 'mt4',
+  mt5: 'mt5',
+} as const;
+
 export interface StrategySubscription {
   amount: number;
   currency?: string;
   accountNumber: string;
   brokerName: string;
   serverName: string;
-  platform?: string;
+  platform?: StrategySubscriptionPlatform;
   tradingPassword: string;
 }
 
@@ -492,6 +504,14 @@ export interface CopyTrader {
   isFollowing?: boolean;
 }
 
+export type CopyTradeInputPlatform = typeof CopyTradeInputPlatform[keyof typeof CopyTradeInputPlatform];
+
+
+export const CopyTradeInputPlatform = {
+  mt4: 'mt4',
+  mt5: 'mt5',
+} as const;
+
 export interface CopyTradeInput {
   amount: number;
   currency: string;
@@ -499,7 +519,7 @@ export interface CopyTradeInput {
   accountNumber: string;
   brokerName: string;
   serverName: string;
-  platform?: string;
+  platform?: CopyTradeInputPlatform;
   tradingPassword: string;
 }
 
@@ -583,6 +603,14 @@ export const EASubscribeInputMtPlatform = {
   mt5: 'mt5',
 } as const;
 
+export type EASubscribeInputPlatform = typeof EASubscribeInputPlatform[keyof typeof EASubscribeInputPlatform];
+
+
+export const EASubscribeInputPlatform = {
+  mt4: 'mt4',
+  mt5: 'mt5',
+} as const;
+
 export type EASubscribeInputPlan = typeof EASubscribeInputPlan[keyof typeof EASubscribeInputPlan];
 
 
@@ -600,7 +628,11 @@ export interface EASubscribeInput {
   serverName?: string;
   tradingPassword?: string;
   mtPlatform?: EASubscribeInputMtPlatform;
-  platform?: EASubscribeInputMtPlatform;
+  platform?: EASubscribeInputPlatform;
+  /**
+     * @minimum 10
+     * @maximum 40
+     */
   profitSharingPercent?: number;
   amount?: number;
   currency?: string;
@@ -901,7 +933,10 @@ export interface Mt5AccountInput {
   accountNumber: string;
   broker: string;
   serverName?: string;
+  /** MT4/MT5 trading password (deprecated alias — use tradingPassword) */
   investorPassword?: string;
+  /** MT4/MT5 trading password */
+  tradingPassword?: string;
 }
 
 export type TicketStatus = typeof TicketStatus[keyof typeof TicketStatus];

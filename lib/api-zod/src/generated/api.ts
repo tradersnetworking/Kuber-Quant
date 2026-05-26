@@ -40,7 +40,7 @@ export const LoginResponse = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -68,7 +68,7 @@ export const GoogleAuthResponse = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -96,7 +96,7 @@ export const GetMeResponse = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -147,7 +147,7 @@ export const TwoFactorVerifyLoginResponse = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -313,7 +313,12 @@ export const SubscribeAlgoStrategyParams = zod.object({
 
 export const SubscribeAlgoStrategyBody = zod.object({
   "amount": zod.number(),
-  "currency": zod.string().optional()
+  "currency": zod.string().optional(),
+  "accountNumber": zod.string(),
+  "brokerName": zod.string(),
+  "serverName": zod.string(),
+  "platform": zod.enum(['mt4', 'mt5']).optional(),
+  "tradingPassword": zod.string()
 })
 
 export const SubscribeAlgoStrategyResponse = zod.object({
@@ -366,7 +371,13 @@ export const FollowCopyTraderParams = zod.object({
 
 export const FollowCopyTraderBody = zod.object({
   "amount": zod.number(),
-  "currency": zod.string()
+  "currency": zod.string(),
+  "profitSharingPercent": zod.number().optional(),
+  "accountNumber": zod.string(),
+  "brokerName": zod.string(),
+  "serverName": zod.string(),
+  "platform": zod.enum(['mt4', 'mt5']).optional(),
+  "tradingPassword": zod.string()
 })
 
 export const FollowCopyTraderResponse = zod.object({
@@ -457,10 +468,23 @@ export const SubscribeToEAStrategyParams = zod.object({
   "catalogId": zod.coerce.number()
 })
 
+export const subscribeToEAStrategyBodyProfitSharingPercentMin = 10;
+export const subscribeToEAStrategyBodyProfitSharingPercentMax = 40;
+
+
+
 export const SubscribeToEAStrategyBody = zod.object({
-  "mtAccountNumber": zod.string(),
+  "mtAccountNumber": zod.string().optional(),
+  "accountNumber": zod.string().optional(),
+  "brokerName": zod.string().optional(),
+  "serverName": zod.string().optional(),
+  "tradingPassword": zod.string().optional(),
   "mtPlatform": zod.enum(['mt4', 'mt5']).optional(),
-  "plan": zod.enum(['monthly', 'quarterly', 'biannual', 'annual'])
+  "platform": zod.enum(['mt4', 'mt5']).optional(),
+  "profitSharingPercent": zod.number().min(subscribeToEAStrategyBodyProfitSharingPercentMin).max(subscribeToEAStrategyBodyProfitSharingPercentMax).optional(),
+  "amount": zod.number().optional(),
+  "currency": zod.string().optional(),
+  "plan": zod.enum(['monthly', 'quarterly', 'biannual', 'annual']).optional()
 })
 
 
@@ -526,7 +550,7 @@ export const GetSuperAdminUsersResponseItem = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -803,7 +827,8 @@ export const CreateMt5AccountBody = zod.object({
   "accountNumber": zod.string(),
   "broker": zod.string(),
   "serverName": zod.string().optional(),
-  "investorPassword": zod.string().optional()
+  "investorPassword": zod.string().optional().describe('MT4\/MT5 trading password (deprecated alias — use tradingPassword)'),
+  "tradingPassword": zod.string().optional().describe('MT4\/MT5 trading password')
 })
 
 
@@ -965,7 +990,7 @@ export const ListAdminUsersResponseItem = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -991,7 +1016,7 @@ export const GetAdminUserResponse = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -1012,7 +1037,7 @@ export const UpdateAdminUserParams = zod.object({
 })
 
 export const UpdateAdminUserBody = zod.object({
-  "role": zod.enum(['user', 'manager', 'admin']).optional(),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']).optional(),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']).optional(),
   "balanceFiat": zod.number().optional(),
   "balanceCrypto": zod.number().optional(),
@@ -1025,7 +1050,7 @@ export const UpdateAdminUserResponse = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -1480,7 +1505,7 @@ export const ListAdminManagersResponseItem = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),
@@ -1528,7 +1553,7 @@ export const ListManagerClientsResponseItem = zod.object({
   "email": zod.string(),
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['user', 'manager', 'admin']),
+  "role": zod.enum(['user', 'manager', 'support', 'admin', 'superadmin']),
   "kycStatus": zod.enum(['pending', 'submitted', 'verified', 'rejected']),
   "balanceFiat": zod.number().nullish(),
   "balanceCrypto": zod.number().nullish(),

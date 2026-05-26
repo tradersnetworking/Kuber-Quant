@@ -72,7 +72,10 @@ const portal: StaffPortal = getStaffPortal();
 
 function ProtectedRoute({ component: Component, adminOnly = false, managerOnly = false, superAdminOnly = false, supportOnly = false, promoterOnly = false, ...rest }: any) {
   const { user } = useAuth();
-  if (!user) return <Redirect to="/login" />;
+  if (!user) {
+    const loginPath = superAdminOnly || adminOnly || managerOnly || supportOnly ? "/staff-login" : "/login";
+    return <Redirect to={loginPath} />;
+  }
 
   const home = getPostLoginPath(user.role as string);
   if (superAdminOnly && (user.role as string) !== "superadmin") return <Redirect to={home} />;

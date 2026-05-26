@@ -10,5 +10,8 @@ export interface Mt5AccountInput {
   accountNumber: string;
   broker: string;
   serverName?: string;
+  /** MT4/MT5 trading password (deprecated alias — use tradingPassword) */
   investorPassword?: string;
+  /** MT4/MT5 trading password */
+  tradingPassword?: string;
 }

@@ -7,9 +7,22 @@
  */
 import type { EASubscribeInputMtPlatform } from './eASubscribeInputMtPlatform';
 import type { EASubscribeInputPlan } from './eASubscribeInputPlan';
+import type { EASubscribeInputPlatform } from './eASubscribeInputPlatform';
 
 export interface EASubscribeInput {
-  mtAccountNumber: string;
+  mtAccountNumber?: string;
+  accountNumber?: string;
+  brokerName?: string;
+  serverName?: string;
+  tradingPassword?: string;
   mtPlatform?: EASubscribeInputMtPlatform;
-  plan: EASubscribeInputPlan;
+  platform?: EASubscribeInputPlatform;
+  /**
+     * @minimum 10
+     * @maximum 40
+     */
+  profitSharingPercent?: number;
+  amount?: number;
+  currency?: string;
+  plan?: EASubscribeInputPlan;
 }

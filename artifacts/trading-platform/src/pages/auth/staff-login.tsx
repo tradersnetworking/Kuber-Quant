@@ -13,7 +13,7 @@ import * as ApiHooks from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { getPostLoginPath } from "@/lib/nav-config";
 
-const STAFF_ROLES = new Set(["superadmin", "admin", "manager"]);
+const STAFF_ROLES = new Set(["superadmin", "admin", "manager", "support"]);
 
 function isStaffRole(role: string): boolean {
   return STAFF_ROLES.has(role);
@@ -49,7 +49,7 @@ export default function StaffLoginPage() {
             setLoginError("This portal is for staff accounts only. Please use the user login page.");
             return;
           }
-          login(data.token, data.user);
+          login(data.token, data.user, data.refreshToken);
           setLocation(getPostLoginPath(data.user.role));
         },
         onError: (err: any) => {
@@ -70,7 +70,7 @@ export default function StaffLoginPage() {
             setLoginError("This portal is for staff accounts only.");
             return;
           }
-          login(data.token, data.user);
+          login(data.token, data.user, data.refreshToken);
           setLocation(getPostLoginPath(data.user.role));
         },
         onError: (err: any) => {
@@ -145,7 +145,7 @@ export default function StaffLoginPage() {
               </div>
               <CardTitle className="text-2xl font-bold text-center text-white">Staff Sign In</CardTitle>
               <CardDescription className="text-center text-zinc-500">
-                Super Admin, Admin and Manager access only
+                Super Admin, Admin, Manager, and Support access
               </CardDescription>
             </CardHeader>
 
