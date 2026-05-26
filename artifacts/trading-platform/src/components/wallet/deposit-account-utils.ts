@@ -51,6 +51,13 @@ export const ONLINE_GATEWAY_CATALOG: OnlineGatewayMeta[] = [
 
 export const ONLINE_GATEWAY_TYPES = ONLINE_GATEWAY_CATALOG.map(g => g.type);
 
+/** Gateways with live checkout flow implemented in the app. */
+export const LIVE_CHECKOUT_GATEWAY_TYPES = new Set(["razorpay", "phonepe", "payu", "paypal"]);
+
+export function isLiveCheckoutGateway(type: string): boolean {
+  return LIVE_CHECKOUT_GATEWAY_TYPES.has(type);
+}
+
 export function getOnlineGatewayMeta(type: string): OnlineGatewayMeta | undefined {
   return ONLINE_GATEWAY_CATALOG.find(g => g.type === type);
 }

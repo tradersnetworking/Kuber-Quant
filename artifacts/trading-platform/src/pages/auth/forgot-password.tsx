@@ -1,5 +1,5 @@
 import { useState } from "react";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,7 +117,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-[#050A14] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img src={logo} alt="Kuber Quant" className="h-12 mx-auto mb-4" />
+          <BrandLogo className="h-12 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white">Reset Password</h1>
         </div>
 

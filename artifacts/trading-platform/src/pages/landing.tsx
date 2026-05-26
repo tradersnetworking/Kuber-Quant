@@ -1,5 +1,6 @@
 import { Link } from "wouter";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { useSiteBranding } from "@/hooks/use-site-branding";
 import {
   Cpu, Users, ArrowRightLeft, Shield, BarChart3, Globe, ChevronRight, TrendingUp,
   Award, Zap, Bot, LineChart, Activity, Lock, Target, BarChart2, Layers,
@@ -160,7 +161,7 @@ export default function LandingPage() {
   const role = (user?.role as string) || "user";
   const dashboardHref = isLoggedIn ? getPostLoginPath(role) : "/register";
   const appHref = (path: string) => (isLoggedIn ? getRoleAwareHref(role, path) : "/register");
-  const logoSrc = branding.logoUrl || logo;
+  const logoSrc = branding.logoUrl;
 
   return (
     <div className="min-h-screen bg-[#050A14] text-white flex flex-col font-sans selection:bg-amber-500/30">
@@ -169,7 +170,7 @@ export default function LandingPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {/* Logo + site title — one line on all screen sizes */}
           <div className="flex items-center gap-2 min-w-0">
-            <img src={logoSrc} alt={branding.siteName} className="h-10 w-10 object-contain shrink-0" />
+            <BrandLogo className="h-10 w-10 shrink-0" logoUrl={logoSrc} alt={branding.siteName} />
             <BrandTitle size="lg" className="truncate leading-tight" />
           </div>
 
@@ -596,7 +597,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-5">
-              <img src={logo} alt="Kuber Quant" className="h-8 w-8 object-contain" />
+              <BrandLogo className="h-8 w-8" logoUrl={branding.logoUrl} alt={branding.siteName} />
               <div className="text-xl font-bold text-white tracking-tight">Kuber Quant</div>
             </div>
             <p className="text-white/40 max-w-sm mb-6 leading-relaxed text-sm">

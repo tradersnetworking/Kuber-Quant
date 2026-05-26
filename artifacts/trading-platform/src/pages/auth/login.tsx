@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogin, useGoogleAuth } from "@workspace/api-client-react";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,7 +104,7 @@ export default function LoginPage() {
       <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl" />
       <div className="relative z-10 max-w-lg">
         <div className="mb-8">
-          <img src={logo} alt="Kuber Quant" className="h-20 w-20 object-contain mb-6" />
+          <BrandLogo className="h-20 w-20 mb-6" />
           <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
             Kuber <span className="text-amber-500">Quant</span>
           </h1>
@@ -134,7 +134,7 @@ export default function LoginPage() {
           <Card className="w-full max-w-md border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
             <CardHeader className="space-y-1">
               <div className="flex justify-center mb-4 md:hidden">
-                <img src={logo} alt="Kuber Quant" className="h-14 w-14 object-contain" />
+                <BrandLogo className="h-14 w-14" />
               </div>
               <CardTitle className="text-3xl font-bold text-center text-white">Sign In</CardTitle>
               <CardDescription className="text-center text-zinc-400">

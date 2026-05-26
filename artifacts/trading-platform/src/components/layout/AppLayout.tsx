@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, Menu, Bell } from "lucide-react";
 import { SupportWidget } from "@/components/SupportWidget";
@@ -58,7 +58,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const { data: platformStats } = usePlatformStats(isSuperAdmin || role === "admin");
   const branding = useSiteBranding();
-  const logoSrc = branding.logoUrl || logo;
 
   const unreadCount = Array.isArray(notifications)
     ? notifications.filter((n: Notification) => !n.isRead).length
@@ -81,7 +80,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex flex-col w-64 min-h-0 shrink-0 border-r border-border bg-card/50 backdrop-blur-xl">
         <div className="p-6 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
-            <img src={logoSrc} alt={branding.siteName} className="h-9 w-9 object-contain" />
+            <BrandLogo className="h-9 w-9" logoUrl={branding.logoUrl} alt={branding.siteName} />
             <div>
               <BrandTitle size="md" />
               {staff && (
@@ -141,7 +140,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="flex items-center gap-2 shrink-0 md:hidden">
-                <img src={logoSrc} alt={branding.siteName} className="h-8 w-8 object-contain" />
+                <BrandLogo className="h-8 w-8" logoUrl={branding.logoUrl} alt={branding.siteName} />
               </div>
               <h2 className="text-sm sm:text-base font-semibold truncate min-w-0 max-w-[140px] sm:max-w-[200px] lg:max-w-none">
                 {getPageTitle()}
@@ -203,7 +202,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
-                  <img src={logoSrc} alt={branding.siteName} className="h-10 w-10 object-contain" />
+                  <BrandLogo className="h-10 w-10" logoUrl={branding.logoUrl} alt={branding.siteName} />
                   <BrandTitle size="md" />
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>

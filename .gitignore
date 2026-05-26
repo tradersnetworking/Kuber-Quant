@@ -51,6 +51,9 @@ Thumbs.db
 # Uploads
 uploads/
 
+# Archives (do not commit deployment zips)
+*.zip
+
 # Replit
 .cache/
 .local/

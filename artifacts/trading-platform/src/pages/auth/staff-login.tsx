@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLogin } from "@workspace/api-client-react";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +92,7 @@ export default function StaffLoginPage() {
         <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-amber-600/5 rounded-full blur-3xl" />
 
         <div className="relative z-10 max-w-sm text-center">
-          <img src={logo} alt="Kuber Quant" className="h-28 w-28 object-contain mx-auto mb-6" />
+          <BrandLogo className="h-28 w-28 mx-auto mb-6" />
           <h1 className="text-4xl font-black tracking-tight mb-2">
             <span className="text-amber-400">KUBER</span>
             <span className="text-zinc-200"> QUANT</span>
@@ -136,7 +136,7 @@ export default function StaffLoginPage() {
           <Card className="w-full max-w-md border-amber-500/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/50">
             <CardHeader className="space-y-3 pb-6">
               <div className="flex justify-center mb-2 md:hidden">
-                <img src={logo} alt="Kuber Quant" className="h-16 w-16 object-contain" />
+                <BrandLogo className="h-16 w-16" />
               </div>
               <div className="flex items-center justify-center gap-2">
                 <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs font-mono tracking-widest uppercase px-3 py-1">

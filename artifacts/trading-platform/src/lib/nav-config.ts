@@ -359,7 +359,7 @@ export const INVESTOR_TO_SUPER_ADMIN: Record<string, string> = {
   "/agreements": "/super-admin/agreements",
   "/settings": "/super-admin/settings",
   "/account": "/super-admin/settings",
-  "/notifications": "/super-admin",
+  "/notifications": "/super-admin/notifications",
   "/trades": "/super-admin/transactions",
   "/promoter": "/super-admin/referrals",
 };

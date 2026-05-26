@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { ArrowLeft, Shield } from "lucide-react";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 interface LegalLayoutProps {
   title: string;
@@ -15,7 +15,7 @@ export function LegalLayout({ title, lastUpdated, children }: LegalLayoutProps) 
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#050A14]/95 backdrop-blur-md">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
-            <img src={logo} alt="Kuber Quant" className="h-8 w-8 object-contain" />
+            <BrandLogo className="h-8 w-8" />
             <span className="font-bold text-lg bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
               Kuber Quant
             </span>
