@@ -2,13 +2,19 @@
   "name": "kuber-quant",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "main": "server.js",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "preinstall": "node -e \"if(!process.env.npm_config_user_agent?.includes('pnpm')){console.error('Use pnpm to install dependencies');process.exit(1)}\"",
     "dev": "concurrently -n api,web -c blue,amber \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": "pnpm --filter @workspace/api-server run dev",
     "dev:web": "pnpm --filter @workspace/trading-platform run dev",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "build": "node scripts/hostinger-build.mjs",
+    "build:check": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "db:push": "pnpm --filter @workspace/db run push-force",
@@ -18,8 +24,12 @@
     "build:web": "pnpm --filter @workspace/trading-platform run build",
     "build:api": "pnpm --filter @workspace/api-server run build",
     "build:prod": "pnpm build:web && pnpm build:api",
-    "start:prod": "node --env-file=.env artifacts/api-server/dist/index.mjs",
+    "start": "node server.js",
+    "start:prod": "node --env-file=.env server.js",
     "deploy:hostinger": "node --env-file=.env scripts/deploy-hostinger.mjs"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

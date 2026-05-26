@@ -1,0 +1,9 @@
+{
+  "framework": "express",
+  "nodeVersion": "20",
+  "buildCommand": "node scripts/hostinger-build.mjs",
+  "startCommand": "node server.js",
+  "outputDirectory": "artifacts/trading-platform/dist/public",
+  "entryFile": "server.js",
+  "notes": "Monorepo: Express API in artifacts/api-server, Vite SPA in artifacts/trading-platform. Select framework 'Other' or 'Express' in hPanel if auto-detect fails."
+}
