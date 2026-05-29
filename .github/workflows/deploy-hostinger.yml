@@ -11,14 +11,30 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: >-
-      github.repository != '' &&
-      secrets.HOSTINGER_API_KEY != '' &&
-      vars.HOSTINGER_VM_ID != ''
+    if: github.repository != ''
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Hostinger deploy prerequisites
+        id: gate
+        env:
+          HOSTINGER_API_KEY: ${{ secrets.HOSTINGER_API_KEY }}
+          HOSTINGER_VM_ID: ${{ vars.HOSTINGER_VM_ID }}
+        run: |
+          if [ -z "$HOSTINGER_API_KEY" ]; then
+            echo "Deploy skipped — set HOSTINGER_API_KEY in GitHub Actions secrets."
+            echo "See DEPLOYMENT-DOCKER.md section 7."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$HOSTINGER_VM_ID" ]; then
+            echo "Deploy skipped — set HOSTINGER_VM_ID in GitHub Actions variables."
+            echo "See DEPLOYMENT-DOCKER.md section 7."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy Docker Compose stack to Hostinger VPS
+        if: steps.gate.outputs.skip != 'true'
         uses: hostinger/deploy-on-vps@v2
         with:
           api-key: ${{ secrets.HOSTINGER_API_KEY }}
@@ -72,15 +88,3 @@ jobs:
             PAYU_MERCHANT_KEY=${{ secrets.PAYU_MERCHANT_KEY }}
             PAYU_MERCHANT_SALT=${{ secrets.PAYU_MERCHANT_SALT }}
             PAYU_ENV=${{ vars.PAYU_ENV }}
-
-  deploy-skipped:
-    runs-on: ubuntu-latest
-    if: >-
-      github.repository != '' &&
-      (secrets.HOSTINGER_API_KEY == '' || vars.HOSTINGER_VM_ID == '')
-    steps:
-      - name: Hostinger deploy not configured
-        run: |
-          echo "Deploy skipped — GitHub secrets/variables are not set yet."
-          echo "Required: HOSTINGER_API_KEY (secret), HOSTINGER_VM_ID (variable)."
-          echo "See DEPLOYMENT-DOCKER.md section 7 for the full checklist."
