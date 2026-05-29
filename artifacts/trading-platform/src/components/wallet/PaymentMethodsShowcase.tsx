@@ -6,6 +6,7 @@ import {
   DEPOSIT_METHOD_BANNER_ROW_1,
   DEPOSIT_METHOD_BANNER_ROW_2,
   DEPOSIT_WITHDRAW_FEATURE_CHIPS,
+  DIGITAL_RUPEE_BRANDS,
   GATEWAY_BRANDS,
   UPI_APP_BRANDS,
   type PaymentBrandCategory,
@@ -17,6 +18,7 @@ const FEATURE_ICONS = [ShieldCheck, BarChart3, Handshake, Target] as const;
 
 const CATEGORY_ITEMS: Record<PaymentBrandCategory, typeof UPI_APP_BRANDS> = {
   upi: UPI_APP_BRANDS,
+  digital_rupee: DIGITAL_RUPEE_BRANDS,
   bank: BANK_RAIL_BRANDS,
   gateway: [...GATEWAY_BRANDS, ...CARD_BRANDS],
   card: CARD_BRANDS,
@@ -130,7 +132,7 @@ export function PaymentMethodsShowcase({
       <div className="min-w-0 mb-3">
         <h3 className={cn("font-bold leading-snug break-words", compact ? "text-sm" : "text-base sm:text-lg")}>
           <span className="text-foreground">{mode === "withdraw" ? "Withdraw via " : "Pay with "}</span>
-          <span className="text-emerald-600 dark:text-emerald-400">UPI · Bank · Gateway · Crypto</span>
+          <span className="text-emerald-600 dark:text-emerald-400">UPI · Digital Rupee · Bank · Gateway · Crypto</span>
         </h3>
         {!compact && (
           <p className="text-[11px] sm:text-xs text-muted-foreground mt-1 leading-relaxed">

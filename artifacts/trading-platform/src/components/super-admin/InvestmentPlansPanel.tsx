@@ -24,7 +24,7 @@ export function InvestmentPlansPanel({
   apiBase = "/super-admin",
   readOnly = false,
 }: {
-  apiBase?: "/super-admin" | "/support-team";
+  apiBase?: "/super-admin" | "/support-team" | "/manager";
   readOnly?: boolean;
 }) {
   const { toast } = useToast();

@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { getHeaderTradingNav, isNavItemActive, getNavIconColor, getRoleAwareHref } from "@/lib/nav-config";
 import { NAV_HREF_I18N } from "@/lib/i18n/nav-keys";
+import { useServiceVisibility } from "@/hooks/use-service-visibility";
+import { hiddenNavHrefs } from "@/lib/service-catalog";
 
 /** Compact labels for md–lg screens and mobile scroll row */
 const SHORT_NAV_KEYS: Record<string, string> = {
@@ -26,7 +28,10 @@ export function HeaderTradingNav({
 }) {
   const [location] = useLocation();
   const { t } = useTranslation();
-  const items = getHeaderTradingNav(role, location);
+  const { services } = useServiceVisibility();
+  const isInvestor = !["superadmin", "admin", "manager", "support"].includes(role);
+  const hidden = isInvestor ? hiddenNavHrefs(services) : new Set<string>();
+  const items = getHeaderTradingNav(role, location).filter(item => !hidden.has(item.href));
 
   if (items.length === 0) return null;
 

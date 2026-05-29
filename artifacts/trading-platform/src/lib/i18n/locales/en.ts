@@ -137,7 +137,7 @@ export const en: TranslationTree = {
     referralProgram: "Referral Program",
     promoterHub: "Promoter Hub",
     support: "Support",
-    kycVerification: "KYC Verification",
+    kycVerification: "My KYC & Accounts",
     legalAgreements: "Legal Agreements",
     myAccount: "My Account",
     myDashboard: "My Dashboard",

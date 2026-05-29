@@ -20,7 +20,13 @@ const emptyStrategy = {
   riskLevel: "Medium", category: "Forex",
 };
 
-export function EAStrategiesPanel() {
+export function EAStrategiesPanel({
+  apiBase = "/super-admin",
+  readOnly = false,
+}: {
+  apiBase?: "/super-admin" | "/manager" | "/support-team";
+  readOnly?: boolean;
+} = {}) {
   const { toast } = useToast();
   const [strategies, setStrategies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,11 +34,12 @@ export function EAStrategiesPanel() {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyStrategy });
   const [search, setSearch] = useState("");
+  const canWrite = !readOnly && apiBase === "/super-admin";
 
   const load = async () => {
     setLoading(true);
     try {
-      setStrategies(await staffFetch<any[]>("/super-admin/ea-catalog"));
+      setStrategies(await staffFetch<any[]>(`${apiBase}/ea-catalog`));
     } catch (e: any) {
       toast({ title: "Failed to load EA catalog", description: e.message, variant: "destructive" });
     } finally {
@@ -40,10 +47,11 @@ export function EAStrategiesPanel() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [apiBase]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canWrite) return;
     try {
       if (editing) {
         await staffFetch(`/super-admin/ea-catalog/${editing.id}`, { method: "PATCH", body: JSON.stringify(form) });
@@ -62,6 +70,7 @@ export function EAStrategiesPanel() {
   };
 
   const remove = async (id: number) => {
+    if (!canWrite) return;
     if (!confirm("Remove this EA strategy from the catalog?")) return;
     try {
       await staffFetch(`/super-admin/ea-catalog/${id}`, { method: "DELETE" });
@@ -92,14 +101,16 @@ export function EAStrategiesPanel() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2"><Cpu className="h-5 w-5 text-purple-600 dark:text-purple-400" />EA Strategies Catalog</h2>
-          <p className="text-sm text-muted-foreground">Manage EA strategies shown to users — create, edit, delete, modify pricing and metadata.</p>
+          <p className="text-sm text-muted-foreground">{readOnly ? "EA strategy catalog for client guidance (read-only)." : "Manage EA strategies shown to users — create, edit, delete, modify pricing and metadata."}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="w-40 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
           <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /></Button>
-          <Button size="sm" className="bg-amber-500 text-black" onClick={() => { setEditing(null); setForm({ ...emptyStrategy }); setOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" />Add Strategy
-          </Button>
+          {canWrite && (
+            <Button size="sm" className="bg-amber-500 text-black" onClick={() => { setEditing(null); setForm({ ...emptyStrategy }); setOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" />Add Strategy
+            </Button>
+          )}
         </div>
       </div>
 
@@ -121,21 +132,24 @@ export function EAStrategiesPanel() {
                     ROI {s.backtestRoi}% · Win {s.winRate}% · From ${s.priceMonthly}/mo
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => { setEditing(s); setForm({ ...emptyStrategy, ...s }); setOpen(true); }}>
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => duplicate(s)} title="Duplicate"><Copy className="h-3 w-3" /></Button>
-                  <Button size="sm" variant="outline" className="text-red-400" onClick={() => remove(s.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                {canWrite && (
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => { setEditing(s); setForm({ ...emptyStrategy, ...s }); setOpen(true); }}>
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => duplicate(s)} title="Duplicate"><Copy className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="outline" className="text-red-400" onClick={() => remove(s.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
+      {canWrite && (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-background border-border dark:border-white/10 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? "Edit EA Strategy" : "Add EA Strategy"}</DialogTitle></DialogHeader>
@@ -166,6 +180,7 @@ export function EAStrategiesPanel() {
           </form>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

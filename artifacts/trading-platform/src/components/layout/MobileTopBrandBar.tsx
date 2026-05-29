@@ -7,11 +7,11 @@ type MobileTopBrandBarProps = {
   href?: string;
   branding?: SiteBranding;
   className?: string;
-  /** Extra controls rendered after the language selector (e.g. theme toggle). */
+  /** Theme toggle and notifications — rendered before the language selector. */
   trailing?: React.ReactNode;
 };
 
-/** Logo + site title + language — brand left, language pinned to the top-right corner. */
+/** Mobile top row: brand on the left; theme, bell, and language on the right. */
 export function MobileTopBrandBar({ href = "/", branding, className, trailing }: MobileTopBrandBarProps) {
   const live = useSiteBranding();
   const b = branding ?? live;
@@ -19,28 +19,24 @@ export function MobileTopBrandBar({ href = "/", branding, className, trailing }:
   return (
     <div
       className={cn(
-        "relative flex items-center min-h-[3.25rem] py-2 pr-[3.75rem] min-w-0 max-w-full w-full",
-        trailing && "pr-[6.5rem]",
+        "flex items-center gap-1.5 min-h-[2.75rem] py-1.5 min-w-0 max-w-full w-full",
         className,
       )}
     >
       <BrandMark
         href={href}
-        className="min-w-0 flex-1 overflow-hidden"
-        titleSize="md"
-        logoClassName="h-9 w-auto max-w-[80px] sm:h-10 sm:max-w-[96px]"
+        shrinkable
+        titleSize="sm"
+        className="min-w-0 overflow-hidden"
+        logoClassName="h-7 w-auto max-w-[48px] shrink-0"
         branding={b}
       />
-      <LanguageSelector
-        compact
-        inline
-        className="absolute right-0 top-1/2 -translate-y-1/2 z-10"
-      />
-      {trailing ? (
-        <div className="absolute right-[3.75rem] top-1/2 -translate-y-1/2 flex items-center shrink-0 z-10">
-          {trailing}
-        </div>
-      ) : null}
+      <div className="flex items-center shrink-0 gap-1 ml-auto pl-1">
+        {trailing}
+        {/* Divider keeps the language picker from visually colliding with the bell on phones */}
+        <span aria-hidden className="h-5 w-px bg-border/60 mx-0.5 shrink-0" />
+        <LanguageSelector compact brandBar />
+      </div>
     </div>
   );
 }

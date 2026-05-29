@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,23 +16,19 @@ import {
   networksForSymbol,
   networksMatch,
 } from "@/components/wallet/crypto-networks";
-import { Building2, CreditCard, Smartphone, Coins, Plus } from "lucide-react";
+import { Building2, Smartphone, Coins, Plus, IndianRupee } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import {
+  PaymentMethodCategorySelect,
   PaymentMethodFieldLabel,
   PaymentMethodSelect,
-  PaymentMethodTabsList,
-  PaymentMethodTabsTrigger,
   financeInputClass,
 } from "@/components/wallet/PaymentMethodField";
-import {
-  PaymentMethodCategoryStrip,
-} from "@/components/wallet/PaymentMethodsShowcase";
 import { DepositWithdrawalMethodsBanner } from "@/components/finance/DepositWithdrawalMethodsBanner";
-import { mobileBtnWrap } from "@/lib/mobile-ui";
+import { fetchPaymentMethodVisibility, ALL_ENABLED } from "@/lib/payment-method-visibility";
 
-export type WalletWithdrawMethod = "upi" | "bank" | "gateway" | "crypto";
+export type WalletWithdrawMethod = "upi" | "digital_rupee" | "bank" | "gateway" | "crypto";
 
 type Props = {
   accounts: PaymentAccount[];
@@ -49,10 +46,12 @@ type Props = {
   onCryptoChainChange: (v: string) => void;
 };
 
+// Gateway is intentionally excluded — online gateways are deposit-only; payouts go to
+// saved UPI / Digital Rupee / bank / crypto destinations after admin approval.
 const TAB_META: { value: WalletWithdrawMethod; label: string; icon: typeof Smartphone }[] = [
   { value: "upi", label: "UPI", icon: Smartphone },
+  { value: "digital_rupee", label: "Digital Rupee", icon: IndianRupee },
   { value: "bank", label: "Bank", icon: Building2 },
-  { value: "gateway", label: "Gateway", icon: CreditCard },
   { value: "crypto", label: "Crypto", icon: Coins },
 ];
 
@@ -71,6 +70,14 @@ export function WalletWithdrawMethodPanel({
   cryptoChain,
   onCryptoChainChange,
 }: Props) {
+  const { data: visibility } = useQuery({
+    queryKey: ["/api/payments/method-visibility"],
+    queryFn: fetchPaymentMethodVisibility,
+    staleTime: 60_000,
+  });
+  const enabled = visibility?.withdrawal ?? ALL_ENABLED;
+  const visibleTabs = TAB_META.filter(t => enabled[t.value] !== false);
+
   const cryptoAccounts = useMemo(
     () => accounts.filter(a =>
       a.accountType === "crypto" &&
@@ -122,19 +129,17 @@ export function WalletWithdrawMethodPanel({
       <div className="rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent p-3 sm:p-4 min-w-0">
         <p className="text-sm font-medium text-amber-800 dark:text-amber-200/90">Step 1 — Choose withdrawal method</p>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Withdraw to your saved UPI, bank, or crypto wallet — same payout options as Sell Crypto on the exchange.
+          Withdraw to your saved UPI, Digital Rupee, bank, or crypto wallet — same payout options as Sell Crypto on the exchange.
         </p>
       </div>
 
       <Tabs value={method} onValueChange={v => handleTabChange(v as WalletWithdrawMethod)}>
-        <PaymentMethodTabsList>
-          {TAB_META.map(({ value, label, icon: Icon }) => (
-            <PaymentMethodTabsTrigger key={value} value={value} tone={value}>
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{label}</span>
-            </PaymentMethodTabsTrigger>
-          ))}
-        </PaymentMethodTabsList>
+        <PaymentMethodCategorySelect
+          label="Step 1 — Choose withdrawal method"
+          value={method}
+          onValueChange={v => handleTabChange(v as WalletWithdrawMethod)}
+          options={visibleTabs.map(({ value, label, icon }) => ({ value, label, icon }))}
+        />
 
         <TabsContent value="upi" className="mt-3 min-w-0 space-y-3">
           <FiatPayoutAccountPanel
@@ -150,8 +155,21 @@ export function WalletWithdrawMethodPanel({
           />
         </TabsContent>
 
+        <TabsContent value="digital_rupee" className="mt-3 min-w-0 space-y-3">
+          <FiatPayoutAccountPanel
+            accounts={accounts}
+            selectedId={selectedAccountId}
+            onSelect={onSelectAccount}
+            onAccountsUpdated={onAccountsUpdated}
+            payoutConfirmed={payoutConfirmed}
+            onPayoutConfirmedChange={onPayoutConfirmedChange}
+            submitting={submitting}
+            fixedMethod="digital_rupee"
+            context="wallet"
+          />
+        </TabsContent>
+
         <TabsContent value="bank" className="mt-3 min-w-0 space-y-3">
-          <PaymentMethodCategoryStrip category="bank" label="Bank transfer rails" />
           <FiatPayoutAccountPanel
             accounts={accounts}
             selectedId={selectedAccountId}
@@ -163,25 +181,6 @@ export function WalletWithdrawMethodPanel({
             fixedMethod="bank"
             context="wallet"
           />
-        </TabsContent>
-
-        <TabsContent value="gateway" className="mt-3 space-y-3 min-w-0">
-          <PaymentMethodCategoryStrip category="gateway" label="Cards & payment gateways" />
-          <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 sm:p-4 space-y-3 min-w-0">
-            <p className="text-sm font-medium text-violet-800 dark:text-violet-200/90">Payment gateway withdrawals</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Instant online gateway payouts are not available for wallet withdrawals. Funds are sent manually to your verified{" "}
-              <strong className="text-foreground">UPI</strong> or <strong className="text-foreground">bank</strong> account after admin approval.
-            </p>
-            <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-              <Button type="button" size="wrap" variant="outline" className={cn("border-amber-500/30 text-amber-700 dark:text-amber-400", mobileBtnWrap)} onClick={() => handleTabChange("upi")}>
-                Use UPI
-              </Button>
-              <Button type="button" size="wrap" variant="outline" className={cn("border-amber-500/30 text-amber-700 dark:text-amber-400", mobileBtnWrap)} onClick={() => handleTabChange("bank")}>
-                Use Bank transfer
-              </Button>
-            </div>
-          </div>
         </TabsContent>
 
         <TabsContent value="crypto" className="mt-3 space-y-4 min-w-0">

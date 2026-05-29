@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldCheck, RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { ShieldCheck, RefreshCw, CheckCircle, XCircle, FileText } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
 import { UserFullDetailSheet } from "@/components/super-admin/UserFullDetailSheet";
+import { KycDocumentReview } from "@/components/super-admin/KycDocumentReview";
 import { STAFF_CARD, STAFF_HEADER_ROW, STAFF_PAGE_STACK } from "@/lib/staff-dashboard-ui";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ export function KycManagementPanel() {
   const [rejectReason, setRejectReason] = useState("");
   const [detailUserId, setDetailUserId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [docsUserId, setDocsUserId] = useState<number | null>(null);
 
   const openUserDetail = (userId: number) => {
     setDetailUserId(userId);
@@ -190,9 +192,16 @@ export function KycManagementPanel() {
                 headerClassName: "text-right",
                 cellClassName: "text-right",
                 hideOnMobile: true,
-                cell: (r: any) => r.status === "submitted" ? (
-                  <KycActionButtons recordId={r.id} onApprove={approve} onReject={setRejectId} />
-                ) : null,
+                cell: (r: any) => (
+                  <div className="flex flex-col xs:flex-row gap-2 justify-end" onClick={e => e.stopPropagation()}>
+                    <Button size="sm" variant="outline" className="touch-target" onClick={() => setDocsUserId(r.userId)}>
+                      <FileText className="h-3 w-3 mr-1" />Docs
+                    </Button>
+                    {r.status === "submitted" && (
+                      <KycActionButtons recordId={r.id} onApprove={approve} onReject={setRejectId} />
+                    )}
+                  </div>
+                ),
               },
             ]}
             mobileHeader={(r: any) => (
@@ -201,9 +210,16 @@ export function KycManagementPanel() {
                 <Badge variant="outline" className="capitalize text-[10px] shrink-0">{r.status}</Badge>
               </div>
             )}
-            mobileFooter={(r: any) => r.status === "submitted" ? (
-              <KycActionButtons recordId={r.id} onApprove={approve} onReject={setRejectId} className="mt-3 pt-3 border-t border-border/60 dark:border-white/5" />
-            ) : null}
+            mobileFooter={(r: any) => (
+              <div className="mt-3 pt-3 border-t border-border/60 dark:border-white/5 space-y-2" onClick={e => e.stopPropagation()}>
+                <Button size="sm" variant="outline" className="w-full touch-target" onClick={() => setDocsUserId(r.userId)}>
+                  <FileText className="h-3 w-3 mr-1" />Review documents
+                </Button>
+                {r.status === "submitted" && (
+                  <KycActionButtons recordId={r.id} onApprove={approve} onReject={setRejectId} />
+                )}
+              </div>
+            )}
           />
         </div>
       )}
@@ -218,6 +234,13 @@ export function KycManagementPanel() {
           <DialogFooter>
             <Button variant="destructive" onClick={reject}>Confirm Rejection</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={docsUserId !== null} onOpenChange={open => !open && setDocsUserId(null)}>
+        <DialogContent className="bg-background border-border dark:border-white/10 max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Review uploaded documents</DialogTitle></DialogHeader>
+          {docsUserId !== null && <KycDocumentReview userId={docsUserId} />}
         </DialogContent>
       </Dialog>
 

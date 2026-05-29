@@ -5,6 +5,7 @@ import {
   ticketsTable, ticketRepliesTable, referralEarningsTable,
   paymentGatewaysTable, siteSettingsTable, notificationsTable,
   userPaymentAccountsTable, promoterApplicationsTable, documentValidationsTable,
+  kycDocumentsTable,
 } from "@workspace/db";
 import { eq, desc, sql, asc, inArray, and } from "@workspace/db/orm";
 import bcrypt from "bcryptjs";
@@ -709,6 +710,42 @@ router.get("/kyc/:userId/validations", requireAuth, requireAdmin, async (req, re
   res.json(await getDocumentValidationsForUser(userId));
 });
 
+// ── Per-document KYC review (approve / reject individual uploads) ─────────────
+router.get("/kyc/:userId/documents", requireAuth, requireAdmin, async (req, res) => {
+  const userId = Number(req.params.userId);
+  const { mapKycDocument } = await import("../helpers/kycDocumentService");
+  const docs = await db.select().from(kycDocumentsTable)
+    .where(eq(kycDocumentsTable.userId, userId))
+    .orderBy(desc(kycDocumentsTable.createdAt));
+  res.json(docs.map(mapKycDocument));
+});
+
+router.post("/kyc/documents/:id/approve", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id), 10);
+  const reviewerId = (req as any).user?.userId;
+  const { approveKycDocumentRow, mapKycDocument } = await import("../helpers/kycDocumentService");
+  const updated = await approveKycDocumentRow(id, reviewerId);
+  if (!updated) { res.status(404).json({ error: "Document not found" }); return; }
+  await logAudit({ req, userId: reviewerId, action: "kyc.document.approve", entity: "kyc_document", entityId: id, details: { userId: updated.userId, docType: updated.docType } });
+  emitN8nEvent("kyc.document.approved", { documentId: id, userId: updated.userId, docType: updated.docType });
+  res.json(mapKycDocument(updated));
+});
+
+router.post("/kyc/documents/:id/reject", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id), 10);
+  const reviewerId = (req as any).user?.userId;
+  const reason = req.body?.reason || "Document not accepted";
+  const { mapKycDocument } = await import("../helpers/kycDocumentService");
+  const [updated] = await db.update(kycDocumentsTable)
+    .set({ status: "rejected", rejectionReason: reason, reviewedBy: reviewerId, reviewedAt: new Date() })
+    .where(eq(kycDocumentsTable.id, id))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "Document not found" }); return; }
+  await logAudit({ req, userId: reviewerId, action: "kyc.document.reject", entity: "kyc_document", entityId: id, details: { userId: updated.userId, docType: updated.docType, reason } });
+  emitN8nEvent("kyc.document.rejected", { documentId: id, userId: updated.userId, docType: updated.docType, reason });
+  res.json(mapKycDocument(updated));
+});
+
 router.get("/plans", requireAuth, requireAdmin, async (_req, res) => {
   const plans = await db.select().from(investmentPlansTable).orderBy(investmentPlansTable.id);
   res.json(plans.map(mapPlan));
@@ -997,6 +1034,29 @@ router.get("/payment-gateways", requireAuth, requireAdmin, async (_req, res) => 
   res.json(gateways.map(mapAdminPaymentGateway));
 });
 
+router.get("/payment-method-visibility", requireAuth, requireAdmin, async (_req, res) => {
+  const { getPaymentMethodVisibility } = await import("../helpers/paymentMethodVisibility");
+  res.json(await getPaymentMethodVisibility());
+});
+
+router.get("/service-visibility", requireAuth, requireAdmin, async (_req, res) => {
+  const { getServiceVisibility } = await import("../helpers/serviceVisibility");
+  res.json({ services: await getServiceVisibility() });
+});
+
+router.patch("/service-visibility", requireAuth, requireAdmin, async (req, res) => {
+  const { updateServiceVisibility } = await import("../helpers/serviceVisibility");
+  const services = Array.isArray(req.body?.services) ? req.body.services : [];
+  res.json({ services: await updateServiceVisibility(services) });
+});
+
+router.patch("/payment-method-visibility", requireAuth, requireAdmin, async (req, res) => {
+  const { updatePaymentMethodVisibility } = await import("../helpers/paymentMethodVisibility");
+  const { deposit, withdrawal } = req.body || {};
+  const updated = await updatePaymentMethodVisibility({ deposit, withdrawal });
+  res.json(updated);
+});
+
 router.post("/payment-gateways", requireAuth, requireAdmin, async (req, res) => {
   try {
     const { assertCanManageCredentials } = await import("../helpers/credentialPolicy");
@@ -1016,6 +1076,7 @@ router.post("/payment-gateways", requireAuth, requireAdmin, async (req, res) => 
     type: String(values.type),
     name: String(values.name),
     upiId: values.upiId as string | null,
+    digitalRupeeId: values.digitalRupeeId as string | null,
     walletAddress: values.walletAddress as string | null,
     qrCodeUrl: req.body.qrCodeUrl || null,
     identifierChanged: identifierChanged || true,
@@ -1052,6 +1113,7 @@ router.patch("/payment-gateways/:id", requireAuth, requireAdmin, async (req, res
     type: String(values.type),
     name: String(values.name),
     upiId: values.upiId as string | null,
+    digitalRupeeId: values.digitalRupeeId as string | null,
     walletAddress: values.walletAddress as string | null,
     qrCodeUrl: req.body.qrCodeUrl !== undefined ? req.body.qrCodeUrl : existing.qrCodeUrl,
     identifierChanged,

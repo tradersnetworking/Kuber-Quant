@@ -332,7 +332,7 @@ export function WalletHistoryPanel({ compact }: { compact?: boolean }) {
       a.href = url;
       const disposition = res.headers.get("Content-Disposition") || "";
       const match = disposition.match(/filename="([^"]+)"/);
-      a.download = match?.[1] || `kuber-statement-${todayIso()}.csv`;
+      a.download = match?.[1] || `kuber-statement-${todayIso()}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -406,7 +406,7 @@ export function WalletHistoryPanel({ compact }: { compact?: boolean }) {
                 ) : (
                   <Download className="h-3.5 w-3.5 mr-1.5" />
                 )}
-                Download CSV
+                Download PDF
               </Button>
               <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching} className="border-border dark:border-white/10 w-full sm:w-auto">
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} /> Refresh

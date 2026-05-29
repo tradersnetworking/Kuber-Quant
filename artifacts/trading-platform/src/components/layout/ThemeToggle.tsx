@@ -40,7 +40,8 @@ export function ThemeToggle({ className }: { className?: string }) {
           title="Theme"
           aria-label="Choose color theme"
           className={cn(
-            "h-9 w-9 rounded-full border border-transparent hover:border-amber-500/30 hover:bg-amber-500/10 dark:hover:bg-amber-500/15",
+            "h-9 w-9 shrink-0 rounded-full border border-transparent hover:border-amber-500/30 hover:bg-amber-500/10 dark:hover:bg-amber-500/15",
+            "[&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0",
             className,
           )}
         >

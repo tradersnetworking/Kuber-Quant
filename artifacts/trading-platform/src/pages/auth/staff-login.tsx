@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Shield, Lock, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Shield, Lock, Eye, EyeOff, ShieldAlert, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getPostLoginPath } from "@/lib/nav-config";
 import { getTrustedDeviceToken } from "@/lib/trusted-device";
@@ -135,7 +135,7 @@ export default function StaffLoginPage() {
           <div className="space-y-4">
             {[
               { icon: Shield, label: "Secured Access", desc: "256-bit encrypted portal" },
-              { icon: Lock, label: "Role-Based Control", desc: "Super Admin, Manager & Support access" },
+              { icon: Lock, label: "Role-Based Control", desc: "Service team access" },
               { icon: ShieldAlert, label: "Audit Logged", desc: "All actions are recorded" },
             ].map(({ icon: Icon, label, desc }) => (
               <div key={label} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 dark:bg-white/[0.03] border border-border/80 dark:border-white/5 text-left">
@@ -166,6 +166,9 @@ export default function StaffLoginPage() {
         {!tempToken ? (
           <Card className="w-full max-w-md border-amber-500/10 bg-muted/50 dark:bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/50">
             <CardHeader className="space-y-3 pb-6">
+              <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors">
+                <ArrowLeft className="h-3.5 w-3.5" /> Back to home
+              </Link>
               <div className="flex justify-center mb-2 md:hidden">
                 <BrandLogo className="h-16 w-auto max-w-[200px]" />
               </div>
@@ -174,9 +177,9 @@ export default function StaffLoginPage() {
                   <Shield className="h-3 w-3 mr-1.5 inline" /> Secure Staff Portal
                 </Badge>
               </div>
-              <CardTitle className="text-2xl font-bold text-center text-white">Staff Sign In</CardTitle>
+              <CardTitle className="text-2xl font-bold text-center text-white">Service Team Sign In</CardTitle>
               <CardDescription className="text-center text-muted-foreground">
-                Super Admin, Manager, and Support access
+                Service team portal access
               </CardDescription>
             </CardHeader>
 

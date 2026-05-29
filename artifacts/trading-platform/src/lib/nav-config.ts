@@ -28,7 +28,6 @@ import {
   Bell,
   Home,
   Database,
-  Briefcase,
   Coins,
   Clock,
   Fingerprint,
@@ -121,8 +120,10 @@ export function getNavIconBg(color?: string): string {
 /** Trading services — quick links in header row (sidebar has full list) */
 export const TRADING_SERVICES_NAV: NavItem[] = [
   { name: "Investment Plans", href: "/plans", icon: TrendingUp, color: "text-yellow-400" },
+  { name: "Earn & Staking", href: "/earn/staking", icon: Coins, color: "text-emerald-600 dark:text-emerald-400" },
   { name: "Copy Trading", href: "/copy-trading", icon: Users, color: "text-cyan-400" },
   { name: "MT4/MT5 Account Handling", href: "/mt5-relay", icon: LineChart, color: "text-violet-400" },
+  { name: "Link MT4/MT5 Account", href: "/mt5-accounts", icon: History, color: "text-sky-400" },
   { name: "Algo Trading", href: "/algo-trading", icon: Cpu, color: "text-indigo-400" },
   { name: "EA Strategies", href: "/ea-strategies", icon: Activity, color: "text-purple-400" },
 ];
@@ -161,7 +162,7 @@ export const USER_NAV: NavItem[] = [
   { name: "Referral Program", href: "/referral", icon: Users2, color: "text-pink-400" },
   { name: "Promoter Hub", href: "/promoter", icon: Tag, color: "text-fuchsia-400", promoterOnly: true },
   { name: "Support", href: "/support", icon: Headset, color: "text-rose-400" },
-  { name: "KYC Verification", href: "/kyc", icon: ShieldCheck, color: "text-teal-400" },
+  { name: "My KYC & Accounts", href: "/kyc", icon: ShieldCheck, color: "text-teal-400" },
   { name: "Legal Agreements", href: "/agreements", icon: FileText, color: "text-lime-400" },
   { name: "My Account", href: "/account", icon: Settings, color: "text-zinc-400" },
 ];
@@ -179,6 +180,10 @@ export const SUPPORT_NAV: NavItem[] = [
 
   ...withSectionLabel("Platform Reference (Read-only)", [
     { name: "Investment Plans", href: "/support-team/plans", icon: TrendingUp, color: "text-yellow-400" },
+    { name: "Staking Plans", href: "/support-team/staking-plans", icon: Coins, color: "text-emerald-400" },
+    { name: "Copy Trading", href: "/support-team/copy-trading", icon: Users, color: "text-cyan-400" },
+    { name: "Algo Strategies", href: "/support-team/algo-strategies", icon: Cpu, color: "text-indigo-400" },
+    { name: "EA Strategies", href: "/support-team/ea-strategies", icon: Activity, color: "text-purple-400" },
     { name: "EA Subscriptions", href: "/support-team/subscriptions", icon: Activity, color: "text-violet-400" },
     { name: "Exchange Orders", href: "/support-team/exchange", icon: ArrowDownUp, color: "text-amber-400" },
     { name: "Finance Ledger", href: "/support-team/transactions", icon: ArrowRightLeft, color: "text-orange-400" },
@@ -205,6 +210,12 @@ export const MANAGER_NAV: NavItem[] = [
   { name: "Upcoming Transactions", href: "/manager/upcoming-transactions", icon: Clock, color: "text-amber-400" },
   { name: "Copy Trading", href: "/copy-trading", icon: Users, color: "text-cyan-400", section: "Trading Services" },
   { name: "MT4/MT5 Account Handling", href: "/mt5-relay", icon: LineChart, color: "text-violet-400" },
+
+  { name: "Investment Plans", href: "/manager/plans", icon: TrendingUp, color: "text-yellow-400", section: "Platform Reference (Read-only)" },
+  { name: "Staking Plans", href: "/manager/staking-plans", icon: Coins, color: "text-emerald-400" },
+  { name: "Copy Trading Catalog", href: "/manager/copy-trading", icon: Users, color: "text-cyan-400" },
+  { name: "Algo Strategies", href: "/manager/algo-strategies", icon: Cpu, color: "text-indigo-400" },
+  { name: "EA Strategies", href: "/manager/ea-strategies", icon: Activity, color: "text-purple-400" },
 ];
 
 function withSectionLabel(section: string, items: NavItem[]): NavItem[] {

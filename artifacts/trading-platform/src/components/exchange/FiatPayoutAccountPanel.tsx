@@ -12,7 +12,7 @@ import { QrImage } from "@/components/wallet/QrImage";
 import type { PaymentAccount } from "@/components/wallet/payout-account-types";
 import { authFetchJson } from "@/lib/token-store";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Loader2, Smartphone } from "lucide-react";
+import { Building2, Loader2, Smartphone, IndianRupee } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mobileBtnWrap } from "@/lib/mobile-ui";
 import {
@@ -23,7 +23,7 @@ import {
   financeInputClass,
 } from "@/components/wallet/PaymentMethodField";
 
-type PayoutMethod = "upi" | "bank";
+type PayoutMethod = "upi" | "digital_rupee" | "bank";
 
 type Props = {
   accounts: PaymentAccount[];
@@ -44,7 +44,15 @@ function methodAccounts(accounts: PaymentAccount[], method: PayoutMethod) {
 }
 
 function payoutMethodLabel(method: PayoutMethod) {
-  return method === "upi" ? "UPI" : "Bank transfer (IMPS / NEFT / RTGS)";
+  if (method === "upi") return "UPI";
+  if (method === "digital_rupee") return "Digital Rupee (e-Rupee / CBDC)";
+  return "Bank transfer (IMPS / NEFT / RTGS)";
+}
+
+function payoutMethodShortLabel(method: PayoutMethod) {
+  if (method === "upi") return "UPI";
+  if (method === "digital_rupee") return "Digital Rupee";
+  return "bank";
 }
 
 export function FiatPayoutAccountPanel({
@@ -59,15 +67,19 @@ export function FiatPayoutAccountPanel({
   context = "exchange",
 }: Props) {
   const { toast } = useToast();
-  const bankUpiAccounts = accounts.filter(a => ["upi", "bank"].includes(a.accountType));
+  const fiatAccounts = accounts.filter(a => ["upi", "digital_rupee", "bank"].includes(a.accountType));
 
   const initialMethod = useMemo((): PayoutMethod => {
-    const selected = bankUpiAccounts.find(a => a.id === selectedId);
+    const selected = fiatAccounts.find(a => a.id === selectedId);
     if (selected?.accountType === "bank") return "bank";
+    if (selected?.accountType === "digital_rupee") return "digital_rupee";
     if (selected?.accountType === "upi") return "upi";
-    const hasUpi = bankUpiAccounts.some(a => a.accountType === "upi");
-    return hasUpi ? "upi" : "bank";
-  }, [bankUpiAccounts, selectedId]);
+    const hasUpi = fiatAccounts.some(a => a.accountType === "upi");
+    if (hasUpi) return "upi";
+    const hasDigitalRupee = fiatAccounts.some(a => a.accountType === "digital_rupee");
+    if (hasDigitalRupee) return "digital_rupee";
+    return "bank";
+  }, [fiatAccounts, selectedId]);
 
   const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>(fixedMethod ?? initialMethod);
 
@@ -78,19 +90,21 @@ export function FiatPayoutAccountPanel({
   const [saving, setSaving] = useState(false);
   const [newLabel, setNewLabel] = useState("My UPI");
   const [newUpiId, setNewUpiId] = useState("");
+  const [newDigitalRupeeId, setNewDigitalRupeeId] = useState("");
   const [newUpiQrUrl, setNewUpiQrUrl] = useState("");
   const [newHolder, setNewHolder] = useState("");
   const [newBankName, setNewBankName] = useState("");
   const [newAccountNumber, setNewAccountNumber] = useState("");
   const [newIfsc, setNewIfsc] = useState("");
 
-  const filteredAccounts = methodAccounts(bankUpiAccounts, payoutMethod);
-  const selected = bankUpiAccounts.find(a => a.id === selectedId) ?? null;
+  const filteredAccounts = methodAccounts(fiatAccounts, payoutMethod);
+  const selected = fiatAccounts.find(a => a.id === selectedId) ?? null;
   const selectedMatchesMethod = selected?.accountType === payoutMethod;
 
   const resetAddForm = (type: PayoutMethod = payoutMethod) => {
-    setNewLabel(type === "upi" ? "My UPI" : "My Bank");
+    setNewLabel(type === "upi" ? "My UPI" : type === "digital_rupee" ? "My Digital Rupee" : "My Bank");
     setNewUpiId("");
+    setNewDigitalRupeeId("");
     setNewUpiQrUrl("");
     setNewHolder("");
     setNewBankName("");
@@ -103,6 +117,11 @@ export function FiatPayoutAccountPanel({
     if (payoutMethod === "upi") {
       if (!newUpiId.trim()) {
         toast({ title: "UPI ID required", variant: "destructive" });
+        return;
+      }
+    } else if (payoutMethod === "digital_rupee") {
+      if (!newDigitalRupeeId.trim()) {
+        toast({ title: "Digital Rupee ID required", variant: "destructive" });
         return;
       }
     } else if (!newHolder.trim() || !newBankName.trim() || !newAccountNumber.trim()) {
@@ -124,7 +143,18 @@ export function FiatPayoutAccountPanel({
             accountType: "upi",
             upiId: newUpiId.trim(),
             upiQrUrl: newUpiQrUrl || undefined,
-            isDefault: bankUpiAccounts.length === 0,
+            isDefault: fiatAccounts.length === 0,
+          }),
+        });
+      } else if (payoutMethod === "digital_rupee") {
+        created = await authFetchJson<PaymentAccount>("/wallet/payment-accounts", {
+          method: "POST",
+          body: JSON.stringify({
+            label: newLabel.trim() || "My Digital Rupee",
+            accountType: "digital_rupee",
+            digitalRupeeId: newDigitalRupeeId.trim(),
+            upiQrUrl: newUpiQrUrl || undefined,
+            isDefault: fiatAccounts.length === 0,
           }),
         });
       } else {
@@ -137,7 +167,7 @@ export function FiatPayoutAccountPanel({
             bankName: newBankName.trim(),
             accountNumber: newAccountNumber.trim(),
             ifscCode: newIfsc.trim() || undefined,
-            isDefault: bankUpiAccounts.length === 0,
+            isDefault: fiatAccounts.length === 0,
           }),
         });
       }
@@ -159,7 +189,7 @@ export function FiatPayoutAccountPanel({
     setAddOpen(false);
     resetAddForm(method);
     onPayoutConfirmedChange(false);
-    const first = methodAccounts(bankUpiAccounts, method)[0];
+    const first = methodAccounts(fiatAccounts, method)[0];
     onSelect(first?.id ?? null);
   };
 
@@ -168,18 +198,26 @@ export function FiatPayoutAccountPanel({
       ? context === "wallet"
         ? `Funds will be sent to UPI ID ${selected.upiId} (${selected.label}) after admin approval.`
         : `INR will be sent to UPI ID ${selected.upiId} (${selected.label}) after your crypto deposit is verified.`
-      : context === "wallet"
-        ? `Funds will be sent via bank transfer to ${selected.bankName} account ending ${String(selected.accountNumber || "").slice(-4)} (${selected.label}) after admin approval.`
-        : `INR will be sent via bank transfer to ${selected.bankName} account ending ${String(selected.accountNumber || "").slice(-4)} (${selected.label}) after your crypto deposit is verified.`
+      : payoutMethod === "digital_rupee"
+        ? context === "wallet"
+          ? `Funds will be sent to Digital Rupee ID ${selected.digitalRupeeId} (${selected.label}) after admin approval.`
+          : `INR will be sent to Digital Rupee ID ${selected.digitalRupeeId} (${selected.label}) after your crypto deposit is verified.`
+        : context === "wallet"
+          ? `Funds will be sent via bank transfer to ${selected.bankName} account ending ${String(selected.accountNumber || "").slice(-4)} (${selected.label}) after admin approval.`
+          : `INR will be sent via bank transfer to ${selected.bankName} account ending ${String(selected.accountNumber || "").slice(-4)} (${selected.label}) after your crypto deposit is verified.`
     : `Select a saved ${payoutMethodLabel(payoutMethod).toLowerCase()} account or add one below.`;
 
   const confirmCheckboxText = context === "wallet"
     ? payoutMethod === "upi"
       ? <>I confirm the UPI ID and payout details are correct. Funds will be sent to this account after admin approval.</>
-      : <>I confirm the bank account details are correct. Funds will be sent via <strong className="text-amber-300/90">bank transfer</strong> after admin approval.</>
+      : payoutMethod === "digital_rupee"
+        ? <>I confirm the Digital Rupee ID and payout details are correct. Funds will be sent to this account after admin approval.</>
+        : <>I confirm the bank account details are correct. Funds will be sent via <strong className="text-amber-300/90">bank transfer</strong> after admin approval.</>
     : <>I confirm the payout account details and{" "}
         <strong className="text-amber-300/90">{payoutMethodLabel(payoutMethod)}</strong>{" "}
         withdrawal mode are correct. I understand INR will be sent to this account after admin verifies my crypto deposit.</>;
+
+  const methodTone = payoutMethod;
 
   return (
     <div className="space-y-4">
@@ -194,12 +232,16 @@ export function FiatPayoutAccountPanel({
 
       {!fixedMethod && (
       <div className="space-y-2">
-        <PaymentMethodFieldLabel tone={payoutMethod}>Payout method</PaymentMethodFieldLabel>
+        <PaymentMethodFieldLabel tone={methodTone}>Payout method</PaymentMethodFieldLabel>
         <Tabs value={payoutMethod} onValueChange={v => handleMethodChange(v as PayoutMethod)}>
           <PaymentMethodTabsList>
             <PaymentMethodTabsTrigger value="upi" tone="upi">
               <Smartphone className="h-3.5 w-3.5" />
               UPI
+            </PaymentMethodTabsTrigger>
+            <PaymentMethodTabsTrigger value="digital_rupee" tone="digital_rupee">
+              <IndianRupee className="h-3.5 w-3.5" />
+              Digital Rupee
             </PaymentMethodTabsTrigger>
             <PaymentMethodTabsTrigger value="bank" tone="bank">
               <Building2 className="h-3.5 w-3.5" />
@@ -213,28 +255,30 @@ export function FiatPayoutAccountPanel({
       <div className="space-y-2">
         {filteredAccounts.length === 0 ? (
           <>
-            <PaymentMethodFieldLabel tone={payoutMethod}>
-              Select saved {payoutMethod === "upi" ? "UPI" : "bank"} account
+            <PaymentMethodFieldLabel tone={methodTone}>
+              Select saved {payoutMethodShortLabel(payoutMethod)} account
             </PaymentMethodFieldLabel>
             <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border dark:border-white/10 px-3 py-2.5">
-              No {payoutMethod === "upi" ? "UPI" : "bank"} account saved yet. Add one below.
+              No {payoutMethodShortLabel(payoutMethod)} account saved yet. Add one below.
             </p>
           </>
         ) : (
           <PaymentMethodSelect
-            tone={payoutMethod}
-            label={`Select saved ${payoutMethod === "upi" ? "UPI" : "bank"} account`}
+            tone={methodTone}
+            label={`Select saved ${payoutMethodShortLabel(payoutMethod)} account`}
             value={selectedMatchesMethod && selectedId ? String(selectedId) : ""}
             onValueChange={v => {
               onSelect(Number(v));
               onPayoutConfirmedChange(false);
             }}
-            placeholder={`Choose ${payoutMethod === "upi" ? "UPI" : "bank"} account`}
+            placeholder={`Choose ${payoutMethodShortLabel(payoutMethod)} account`}
             options={filteredAccounts.map(a => ({
               value: String(a.id),
               label: `${a.label} — ${a.accountType === "upi"
                 ? a.upiId
-                : `${a.bankName} · ****${String(a.accountNumber || "").slice(-4)}`}`,
+                : a.accountType === "digital_rupee"
+                  ? a.digitalRupeeId
+                  : `${a.bankName} · ****${String(a.accountNumber || "").slice(-4)}`}`,
             }))}
           />
         )}
@@ -242,7 +286,7 @@ export function FiatPayoutAccountPanel({
 
       {selected && selectedMatchesMethod && (
         <div className="space-y-2">
-          <PaymentMethodFieldLabel tone={payoutMethod}>Selected account details</PaymentMethodFieldLabel>
+          <PaymentMethodFieldLabel tone={methodTone}>Selected account details</PaymentMethodFieldLabel>
           <PayoutAccountDetailsCard account={selected} />
         </div>
       )}
@@ -256,7 +300,7 @@ export function FiatPayoutAccountPanel({
             if (!addOpen) resetAddForm();
           }}
         >
-          {addOpen ? "− Hide add another account" : `+ Add another ${payoutMethod === "upi" ? "UPI" : "bank"} account`}
+          {addOpen ? "− Hide add another account" : `+ Add another ${payoutMethodShortLabel(payoutMethod)} account`}
         </button>
 
         {addOpen && (
@@ -279,6 +323,28 @@ export function FiatPayoutAccountPanel({
                   <QrImage
                     src={resolvePayoutQrSrc({ accountType: "upi", label: newLabel, upiId: newUpiId })}
                     alt="UPI QR preview"
+                    className="mx-auto max-h-32 rounded border border-border dark:border-white/10 bg-white p-1"
+                  />
+                )}
+              </div>
+            ) : payoutMethod === "digital_rupee" ? (
+              <div className="space-y-2">
+                <Input placeholder="Label (e.g. My Digital Rupee)" value={newLabel} onChange={e => setNewLabel(e.target.value)} className={financeInputClass("h-9 text-sm")} />
+                <Input placeholder="Digital Rupee wallet ID" value={newDigitalRupeeId} onChange={e => setNewDigitalRupeeId(e.target.value)} className={financeInputClass("h-9 text-sm font-mono")} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <UserQrUploadButton onUploaded={setNewUpiQrUrl} disabled={submitting || saving} />
+                  {newUpiQrUrl && (
+                    <QrImage
+                      src={resolvePayoutQrSrc({ accountType: "digital_rupee", label: newLabel, digitalRupeeId: newDigitalRupeeId, upiQrUrl: newUpiQrUrl })}
+                      alt="Uploaded Digital Rupee QR"
+                      className="h-16 w-16 rounded border border-border dark:border-white/10 bg-white p-0.5 object-contain"
+                    />
+                  )}
+                </div>
+                {(newUpiQrUrl || newDigitalRupeeId) && !newUpiQrUrl && newDigitalRupeeId && (
+                  <QrImage
+                    src={resolvePayoutQrSrc({ accountType: "digital_rupee", label: newLabel, digitalRupeeId: newDigitalRupeeId })}
+                    alt="Digital Rupee QR preview"
                     className="mx-auto max-h-32 rounded border border-border dark:border-white/10 bg-white p-1"
                   />
                 )}

@@ -4,6 +4,7 @@ import { eq, desc, and } from "@workspace/db/orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { generateAgreement, signAgreement, getAgreementPDF, previewTemplateContent } from "../helpers/agreementEngine";
 import { DEFAULT_TEMPLATES, getDefaultTemplate, templateContentToMarkdown, AGREEMENT_PLACEHOLDERS } from "../helpers/agreementTemplates";
+import { getAgreementSettings, updateAgreementSettings } from "../helpers/agreementSettings";
 
 const router = Router();
 
@@ -85,10 +86,33 @@ router.post("/my/:id/sign", requireAuth, async (req, res) => {
   res.json({ success: true, pdfHash });
 });
 
-// Download agreement PDF
+// Public agreement settings (whether users can download)
+router.get("/settings/public", requireAuth, async (_req, res) => {
+  const settings = await getAgreementSettings();
+  res.json({ userDownloadEnabled: settings.userDownloadEnabled });
+});
+
+// View agreement PDF inline (always allowed for the owner)
+router.get("/my/:id/view", requireAuth, async (req, res) => {
+  const userId = (req as any).user.userId;
+  const id = toInt(req.params.id);
+  const buffer = await getAgreementPDF(id, userId, false);
+  const [agr] = await db.select({ uid: agreementsTable.agreementUid }).from(agreementsTable).where(eq(agreementsTable.id, id)).limit(1);
+  const filename = `${agr?.uid || "agreement"}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+  res.send(buffer);
+});
+
+// Download agreement PDF (can be disabled by admin)
 router.get("/my/:id/download", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const id = toInt(req.params.id);
+  const settings = await getAgreementSettings();
+  if (!settings.userDownloadEnabled) {
+    res.status(403).json({ error: "Agreement downloads are currently disabled by the platform." });
+    return;
+  }
   const buffer = await getAgreementPDF(id, userId, false);
   const [agr] = await db.select({ uid: agreementsTable.agreementUid }).from(agreementsTable).where(eq(agreementsTable.id, id)).limit(1);
   const filename = `${agr?.uid || "agreement"}.pdf`;
@@ -165,6 +189,19 @@ router.patch("/admin/:id/revoke", requireAuth, requireAdmin, async (req, res) =>
   const id = toInt(req.params.id);
   await db.update(agreementsTable).set({ status: "revoked", updatedAt: new Date() }).where(eq(agreementsTable.id, id));
   res.json({ success: true });
+});
+
+// Agreement settings (admin) — controls whether users can download their agreements
+router.get("/admin/settings", requireAuth, requireAdmin, async (_req, res) => {
+  res.json(await getAgreementSettings());
+});
+
+router.patch("/admin/settings", requireAuth, requireAdmin, async (req, res) => {
+  const { userDownloadEnabled } = req.body || {};
+  const updated = await updateAgreementSettings(
+    typeof userDownloadEnabled === "boolean" ? { userDownloadEnabled } : {},
+  );
+  res.json(updated);
 });
 
 // ── Templates ─────────────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
 import { creditWallet, WalletError } from "../helpers/walletService";
 import { notifyUser } from "../helpers/notificationService";
 import { sendTransactionalEmail, buildTransactionEmail, buildKycEmail } from "../helpers/mailer";
-import { assertUpiDepositWithinLimit } from "../helpers/paymentLimits";
+import { assertUpiDepositWithinLimit, assertDigitalRupeeDepositWithinLimit } from "../helpers/paymentLimits";
 import { emitN8nEvent } from "../helpers/n8nWebhookService";
 import { validateDepositProofAsync } from "../helpers/documentOcrService";
 import { assertKycVerified } from "../helpers/kycGateService";
@@ -189,6 +189,9 @@ router.post("/manual-deposit", requireAuth, upload.single("proof"), validateBody
     const numAmount = amount;
     if (String(depositMethodType || "").toLowerCase() === "upi") {
       await assertUpiDepositWithinLimit(numAmount, currency);
+    }
+    if (String(depositMethodType || "").toLowerCase() === "digital_rupee") {
+      await assertDigitalRupeeDepositWithinLimit(numAmount, currency);
     }
     let depositNotes = notes || "";
     let promoId: number | null = null;

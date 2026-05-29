@@ -12,6 +12,11 @@ export function normalizeUpiId(v: unknown): string | null {
   return s ? s.toLowerCase() : null;
 }
 
+export function normalizeDigitalRupeeId(v: unknown): string | null {
+  const s = trimCred(v);
+  return s ? s.toLowerCase() : null;
+}
+
 export function normalizeIfsc(v: unknown): string | null {
   const s = trimCred(v);
   return s ? s.toUpperCase() : null;
@@ -79,13 +84,16 @@ export function mergeGatewayExtraConfig(
 
 export function typeFieldCleanup(type: string): Record<string, null> {
   if (type === "upi") {
-    return { symbol: null, network: null, walletAddress: null };
+    return { symbol: null, network: null, walletAddress: null, digitalRupeeId: null };
   }
-  if (type === "bank" || type === "fiat") {
+  if (type === "digital_rupee") {
     return { symbol: null, network: null, walletAddress: null, upiId: null };
   }
+  if (type === "bank" || type === "fiat") {
+    return { symbol: null, network: null, walletAddress: null, upiId: null, digitalRupeeId: null };
+  }
   if (type === "crypto") {
-    return { upiId: null };
+    return { upiId: null, digitalRupeeId: null };
   }
   return {};
 }
@@ -105,12 +113,16 @@ export function normalizeGatewayWrite(
     : sanitizeExtraConfig(existing?.extraConfig || undefined);
 
   const upiId = body.upiId !== undefined ? normalizeUpiId(body.upiId) : normalizeUpiId(existing?.upiId);
+  const digitalRupeeId = body.digitalRupeeId !== undefined
+    ? normalizeDigitalRupeeId(body.digitalRupeeId)
+    : normalizeDigitalRupeeId(existing?.digitalRupeeId);
   const walletAddress = body.walletAddress !== undefined ? trimCred(body.walletAddress) : trimCred(existing?.walletAddress);
   const symbol = body.symbol !== undefined ? normalizeCryptoSymbol(body.symbol) : normalizeCryptoSymbol(existing?.symbol);
   const network = body.network !== undefined ? trimCred(body.network) : trimCred(existing?.network);
   const description = body.description !== undefined ? trimCred(body.description) : trimCred(existing?.description);
 
   const identifierChanged = (body.upiId !== undefined && upiId !== normalizeUpiId(existing?.upiId))
+    || (body.digitalRupeeId !== undefined && digitalRupeeId !== normalizeDigitalRupeeId(existing?.digitalRupeeId))
     || (body.walletAddress !== undefined && walletAddress !== trimCred(existing?.walletAddress));
 
   const values: Record<string, unknown> = {
@@ -118,6 +130,7 @@ export function normalizeGatewayWrite(
     type,
     description,
     upiId,
+    digitalRupeeId,
     walletAddress,
     symbol,
     network,
@@ -151,6 +164,7 @@ export function mapEnrichedDepositGateway(g: typeof paymentGatewaysTable.$inferS
     description: trimCred(g.description),
     walletAddress: trimCred(g.walletAddress),
     upiId: normalizeUpiId(g.upiId),
+    digitalRupeeId: normalizeDigitalRupeeId(g.digitalRupeeId),
     qrCodeUrl,
     minAmount: Number(g.minAmount || 0),
     maxAmount: g.maxAmount ? Number(g.maxAmount) : null,
@@ -205,6 +219,7 @@ export function normalizeUserAccountWrite(
   setIfDefined("ifscCode", body.ifscCode !== undefined ? normalizeIfsc(body.ifscCode) : undefined);
   setIfDefined("branchName", trimCred(body.branchName));
   setIfDefined("upiId", body.upiId !== undefined ? normalizeUpiId(body.upiId) : undefined);
+  setIfDefined("digitalRupeeId", body.digitalRupeeId !== undefined ? normalizeDigitalRupeeId(body.digitalRupeeId) : undefined);
   setIfDefined("walletAddress", trimCred(body.walletAddress));
   setIfDefined("cryptoSymbol", body.cryptoSymbol !== undefined ? normalizeCryptoSymbol(body.cryptoSymbol) : undefined);
   setIfDefined("cryptoNetwork", trimCred(body.cryptoNetwork));
@@ -226,11 +241,25 @@ export function normalizeUserAccountWrite(
         cryptoSymbol: null,
         cryptoNetwork: null,
         walletQrUrl: null,
+        digitalRupeeId: null,
+      });
+    } else if (accountType === "digital_rupee") {
+      Object.assign(updates, {
+        bankName: null,
+        accountNumber: null,
+        ifscCode: null,
+        branchName: null,
+        walletAddress: null,
+        cryptoSymbol: null,
+        cryptoNetwork: null,
+        walletQrUrl: null,
+        upiId: null,
       });
     } else if (accountType === "bank") {
       Object.assign(updates, {
         upiId: null,
         upiQrUrl: null,
+        digitalRupeeId: null,
         walletAddress: null,
         cryptoSymbol: null,
         cryptoNetwork: null,
@@ -240,6 +269,7 @@ export function normalizeUserAccountWrite(
       Object.assign(updates, {
         upiId: null,
         upiQrUrl: null,
+        digitalRupeeId: null,
         bankName: null,
         accountNumber: null,
         ifscCode: null,
@@ -249,8 +279,10 @@ export function normalizeUserAccountWrite(
   }
 
   const mergedUpi = updates.upiId !== undefined ? updates.upiId : existing?.upiId;
+  const mergedDigitalRupee = updates.digitalRupeeId !== undefined ? updates.digitalRupeeId : existing?.digitalRupeeId;
   const mergedWallet = updates.walletAddress !== undefined ? updates.walletAddress : existing?.walletAddress;
   const identifierChanged = (updates.upiId !== undefined && mergedUpi !== existing?.upiId)
+    || (updates.digitalRupeeId !== undefined && mergedDigitalRupee !== existing?.digitalRupeeId)
     || (updates.walletAddress !== undefined && mergedWallet !== existing?.walletAddress);
 
   return { updates, accountType, identifierChanged };
@@ -268,6 +300,7 @@ export function mapUserPaymentAccountResponse(a: typeof userPaymentAccountsTable
     ifscCode: normalizeIfsc(a.ifscCode),
     branchName: trimCred(a.branchName),
     upiId: normalizeUpiId(a.upiId),
+    digitalRupeeId: normalizeDigitalRupeeId(a.digitalRupeeId),
     upiQrUrl: resolvePublicAssetUrl(a.upiQrUrl),
     cryptoSymbol: normalizeCryptoSymbol(a.cryptoSymbol),
     cryptoNetwork: trimCred(a.cryptoNetwork),
@@ -295,6 +328,7 @@ export function buildUserAccountInsertValues(
     ifscCode: normalizeIfsc(body.ifscCode),
     branchName: trimCred(body.branchName),
     upiId: normalizeUpiId(body.upiId),
+    digitalRupeeId: normalizeDigitalRupeeId(body.digitalRupeeId),
     upiQrUrl: trimCred(body.upiQrUrl),
     cryptoSymbol: normalizeCryptoSymbol(body.cryptoSymbol),
     cryptoNetwork: trimCred(body.cryptoNetwork),

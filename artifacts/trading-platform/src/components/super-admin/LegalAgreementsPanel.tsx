@@ -85,6 +85,50 @@ interface LegalAgreementsPanelProps {
   onRevoke: (id: number) => Promise<void>;
 }
 
+function AgreementDownloadToggleCard() {
+  const { toast } = useToast();
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    authFetchJson<{ userDownloadEnabled: boolean }>("/agreements/admin/settings")
+      .then(s => setEnabled(s.userDownloadEnabled))
+      .catch(() => setEnabled(true));
+  }, []);
+
+  const toggle = async (value: boolean) => {
+    setEnabled(value);
+    setSaving(true);
+    try {
+      const saved = await authFetchJson<{ userDownloadEnabled: boolean }>("/agreements/admin/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ userDownloadEnabled: value }),
+      });
+      setEnabled(saved.userDownloadEnabled);
+    } catch (e: any) {
+      toast({ title: "Update failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (enabled === null) return null;
+
+  return (
+    <Card className={STAFF_CARD}>
+      <CardContent className="p-4 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Allow users to download agreements</p>
+          <p className="text-xs text-muted-foreground">
+            When off, users can still view their agreements but the download buttons are hidden.
+          </p>
+        </div>
+        <Switch checked={enabled} onCheckedChange={toggle} disabled={saving} />
+      </CardContent>
+    </Card>
+  );
+}
+
 export function LegalAgreementsPanel({
   agreements, agrFilter, setAgrFilter, agrGenerating, agrGenForm, setAgrGenForm,
   onGenerate, onRefreshAgreements, onRevoke,
@@ -453,6 +497,8 @@ export function LegalAgreementsPanel({
         </TabsContent>
 
         <TabsContent value="generated" className="space-y-4 mt-4">
+          <AgreementDownloadToggleCard />
+
           <Card className={STAFF_CARD}>
             <CardHeader>
               <CardTitle className="text-base">Generate Agreement for User</CardTitle>

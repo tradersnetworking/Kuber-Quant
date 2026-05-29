@@ -28,6 +28,11 @@ import ManagerTransactions from "@/pages/manager/transactions";
 import ManagerUpcomingTransactions from "@/pages/manager/upcoming-transactions";
 import ManagerTickets from "@/pages/manager/tickets";
 import ManagerMail from "@/pages/manager/mail";
+import ManagerPlansPage from "@/pages/manager/plans";
+import ManagerStakingPlansPage from "@/pages/manager/staking-plans";
+import ManagerCopyTradingPage from "@/pages/manager/copy-trading";
+import ManagerAlgoStrategiesPage from "@/pages/manager/algo-strategies";
+import ManagerEaStrategiesPage from "@/pages/manager/ea-strategies";
 
 import SuperAdminDashboard from "@/pages/super-admin/index";
 import SupportTeamDashboard from "@/pages/support-team/index";
@@ -42,6 +47,10 @@ import SupportTransactionsPage from "@/pages/support-team/transactions";
 import SupportUpcomingTransactionsPage from "@/pages/support-team/upcoming-transactions";
 import SupportInvestmentsPage from "@/pages/support-team/investments";
 import SupportPlansPage from "@/pages/support-team/plans";
+import SupportStakingPlansPage from "@/pages/support-team/staking-plans";
+import SupportCopyTradingPage from "@/pages/support-team/copy-trading";
+import SupportAlgoStrategiesPage from "@/pages/support-team/algo-strategies";
+import SupportEaStrategiesPage from "@/pages/support-team/ea-strategies";
 import SupportSubscriptionsPage from "@/pages/support-team/subscriptions";
 import SupportProfitSharingPage from "@/pages/support-team/profit-sharing";
 import SupportExchangePage from "@/pages/support-team/exchange";
@@ -165,6 +174,21 @@ function managerRouteElements() {
     <Route key="manager-mail" path="/manager/mail">
       <ProtectedRoute component={ManagerMail} managerOnly />
     </Route>,
+    <Route key="manager-plans" path="/manager/plans">
+      <ProtectedRoute component={ManagerPlansPage} managerOnly />
+    </Route>,
+    <Route key="manager-staking-plans" path="/manager/staking-plans">
+      <ProtectedRoute component={ManagerStakingPlansPage} managerOnly />
+    </Route>,
+    <Route key="manager-copy-trading" path="/manager/copy-trading">
+      <ProtectedRoute component={ManagerCopyTradingPage} managerOnly />
+    </Route>,
+    <Route key="manager-algo-strategies" path="/manager/algo-strategies">
+      <ProtectedRoute component={ManagerAlgoStrategiesPage} managerOnly />
+    </Route>,
+    <Route key="manager-ea-strategies" path="/manager/ea-strategies">
+      <ProtectedRoute component={ManagerEaStrategiesPage} managerOnly />
+    </Route>,
     <Route key="manager" path="/manager">
       <ProtectedRoute component={ManagerDashboard} managerOnly />
     </Route>,
@@ -205,6 +229,18 @@ function supportRouteElements() {
     </Route>,
     <Route key="support-plans" path="/support-team/plans">
       <ProtectedRoute component={SupportPlansPage} supportOnly />
+    </Route>,
+    <Route key="support-staking-plans" path="/support-team/staking-plans">
+      <ProtectedRoute component={SupportStakingPlansPage} supportOnly />
+    </Route>,
+    <Route key="support-copy-trading" path="/support-team/copy-trading">
+      <ProtectedRoute component={SupportCopyTradingPage} supportOnly />
+    </Route>,
+    <Route key="support-algo-strategies" path="/support-team/algo-strategies">
+      <ProtectedRoute component={SupportAlgoStrategiesPage} supportOnly />
+    </Route>,
+    <Route key="support-ea-strategies" path="/support-team/ea-strategies">
+      <ProtectedRoute component={SupportEaStrategiesPage} supportOnly />
     </Route>,
     <Route key="support-subscriptions" path="/support-team/subscriptions">
       <ProtectedRoute component={SupportSubscriptionsPage} supportOnly />

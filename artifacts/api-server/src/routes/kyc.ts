@@ -1,12 +1,19 @@
 import { Router } from "express";
-import { db, kycRecordsTable, usersTable } from "@workspace/db";
-import { eq } from "@workspace/db/orm";
+import { db, kycRecordsTable, usersTable, kycDocumentsTable } from "@workspace/db";
+import { eq, and, desc } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
 import { sendTransactionalEmail, buildKycEmail } from "../helpers/mailer";
 import { emitN8nEvent } from "../helpers/n8nWebhookService";
 import { validateKycDocumentsAsync } from "../helpers/documentOcrService";
 import { syncPassportPhotoUrl } from "../helpers/passportPhotoService";
+import {
+  KYC_DOC_TYPES,
+  deleteKycDocumentFile,
+  isValidKycDocType,
+  labelForKycDocType,
+  mapKycDocument,
+} from "../helpers/kycDocumentService";
 
 async function notifyKycSubmitted(userId: number) {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -168,6 +175,113 @@ router.post("/passport-photo", requireAuth, upload.single("passportPhoto"), asyn
     return;
   }
   res.json(mapKyc(kyc));
+});
+
+// ── Per-document KYC management ──────────────────────────────────────────────
+// Each document has its own approval lifecycle. Approved documents are locked
+// from edit/delete until a super admin approves an uploaded replacement.
+
+router.get("/documents", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const docs = await db.select().from(kycDocumentsTable)
+    .where(eq(kycDocumentsTable.userId, userId))
+    .orderBy(desc(kycDocumentsTable.createdAt));
+  res.json({ documents: docs.map(mapKycDocument), catalog: KYC_DOC_TYPES });
+});
+
+router.post("/documents", requireAuth, upload.single("file"), async (req, res) => {
+  const { userId } = (req as any).user;
+  const docType = String(req.body.docType || "");
+  if (!isValidKycDocType(docType)) {
+    res.status(400).json({ error: "Invalid or missing document type" });
+    return;
+  }
+  if (!req.file) {
+    res.status(400).json({ error: "A document file is required" });
+    return;
+  }
+
+  const fileUrl = getUploadUrl("kyc_documents", req.file.filename);
+  const originalFilename = req.file.originalname || null;
+  const mimeType = req.file.mimetype || null;
+
+  const [record] = await db.select().from(kycRecordsTable).where(eq(kycRecordsTable.userId, userId)).limit(1);
+  const existing = await db.select().from(kycDocumentsTable)
+    .where(and(eq(kycDocumentsTable.userId, userId), eq(kycDocumentsTable.docType, docType)));
+
+  const pending = existing.find(d => d.status === "pending");
+  if (pending) {
+    // Replace the in-flight pending upload instead of creating duplicates.
+    await deleteKycDocumentFile(pending.fileUrl);
+    const [updated] = await db.update(kycDocumentsTable)
+      .set({ fileUrl, originalFilename, mimeType, status: "pending", rejectionReason: null, reviewedBy: null, reviewedAt: null })
+      .where(eq(kycDocumentsTable.id, pending.id))
+      .returning();
+    res.json(mapKycDocument(updated));
+    return;
+  }
+
+  const approved = existing.find(d => d.status === "approved");
+  const [created] = await db.insert(kycDocumentsTable).values({
+    userId,
+    kycRecordId: record?.id ?? null,
+    docType,
+    label: labelForKycDocType(docType),
+    fileUrl,
+    originalFilename,
+    mimeType,
+    status: "pending",
+    supersedesId: approved ? approved.id : null,
+  }).returning();
+  emitN8nEvent("kyc.document.uploaded", { userId, documentId: created.id, docType });
+  res.status(201).json(mapKycDocument(created));
+});
+
+router.patch("/documents/:id", requireAuth, upload.single("file"), async (req, res) => {
+  const { userId } = (req as any).user;
+  const id = parseInt(String(req.params.id), 10);
+  const [doc] = await db.select().from(kycDocumentsTable)
+    .where(and(eq(kycDocumentsTable.id, id), eq(kycDocumentsTable.userId, userId))).limit(1);
+  if (!doc) { res.status(404).json({ error: "Document not found" }); return; }
+  if (doc.status === "approved") {
+    res.status(403).json({ error: "Approved documents are locked. Upload a replacement for super-admin approval.", code: "DOC_LOCKED" });
+    return;
+  }
+  if (doc.status === "superseded") {
+    res.status(400).json({ error: "This document has already been replaced." });
+    return;
+  }
+  if (!req.file) { res.status(400).json({ error: "A document file is required" }); return; }
+
+  await deleteKycDocumentFile(doc.fileUrl);
+  const [updated] = await db.update(kycDocumentsTable)
+    .set({
+      fileUrl: getUploadUrl("kyc_documents", req.file.filename),
+      originalFilename: req.file.originalname || null,
+      mimeType: req.file.mimetype || null,
+      status: "pending",
+      rejectionReason: null,
+      reviewedBy: null,
+      reviewedAt: null,
+    })
+    .where(eq(kycDocumentsTable.id, id))
+    .returning();
+  res.json(mapKycDocument(updated));
+});
+
+router.delete("/documents/:id", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const id = parseInt(String(req.params.id), 10);
+  const [doc] = await db.select().from(kycDocumentsTable)
+    .where(and(eq(kycDocumentsTable.id, id), eq(kycDocumentsTable.userId, userId))).limit(1);
+  if (!doc) { res.status(404).json({ error: "Document not found" }); return; }
+  if (doc.status === "approved") {
+    res.status(403).json({ error: "Approved documents can't be deleted until a super admin approves a replacement.", code: "DOC_LOCKED" });
+    return;
+  }
+  await db.delete(kycDocumentsTable).where(eq(kycDocumentsTable.id, id));
+  await deleteKycDocumentFile(doc.fileUrl);
+  res.json({ ok: true });
 });
 
 export default router;

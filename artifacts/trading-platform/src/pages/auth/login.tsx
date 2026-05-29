@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { GoogleLogin } from "@react-oauth/google";
 import { getPostLoginPath } from "@/lib/nav-config";
 import { AuthPageLayout } from "@/components/auth/AuthPageLayout";
@@ -218,6 +218,9 @@ export default function LoginPage() {
       {!tempToken ? (
         <Card className={AUTH_CARD}>
           <CardHeader className="space-y-1">
+            <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors mb-2">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to home
+            </Link>
             <div className="flex justify-center mb-4 md:hidden">
               <BrandLogo className="h-16 w-auto max-w-[200px]" />
             </div>
@@ -298,8 +301,8 @@ export default function LoginPage() {
               <Link href="/register" className="text-amber-500 hover:text-amber-600 dark:text-amber-400 hover:underline font-semibold">Create account</Link>
             </p>
             <p className="text-xs text-muted-foreground/80 text-center">
-              Admin or Manager?{" "}
-              <Link href="/staff-login" className="text-muted-foreground hover:text-amber-500 hover:underline">Use staff portal →</Link>
+              Service team member?{" "}
+              <Link href="/staff-login" className="text-muted-foreground hover:text-amber-500 hover:underline">Use service team portal →</Link>
             </p>
           </CardFooter>
         </Card>

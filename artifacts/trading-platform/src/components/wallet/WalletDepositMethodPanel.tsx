@@ -1,5 +1,7 @@
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { fetchPaymentMethodVisibility, ALL_ENABLED } from "@/lib/payment-method-visibility";
 import { CredentialRow } from "@/components/wallet/CredentialRow";
 import { OnlineGatewayCheckoutPanel } from "@/components/wallet/OnlineGatewayCheckoutPanel";
 import { CryptoAssetIcon } from "@/components/wallet/CryptoAssetIcon";
@@ -7,24 +9,24 @@ import {
   enrichDepositAccount,
   resolveDepositQrSrc,
   buildUpiPayUri,
+  buildDigitalRupeePayUri,
   getOnlineGatewayLabel,
   isLiveCheckoutGateway,
   type DepositAccountsResponse,
 } from "@/components/wallet/deposit-account-utils";
 import { QrImage } from "@/components/wallet/QrImage";
 import { resolveCryptoDepositTabs, findCryptoDepositAccount } from "@/components/wallet/crypto-networks";
-import { Building2, CreditCard, Smartphone, Coins } from "lucide-react";
+import { Building2, CreditCard, Smartphone, Coins, IndianRupee } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatUpiLimitInr } from "@/lib/payment-limits";
+import { formatUpiLimitInr, formatDigitalRupeeLimitInr } from "@/lib/payment-limits";
 import { DEPOSIT_BUTTON_CLASS } from "@/lib/wallet-action-styles";
 import {
+  PaymentMethodCategorySelect,
   PaymentMethodSelect,
-  PaymentMethodTabsList,
-  PaymentMethodTabsTrigger,
 } from "@/components/wallet/PaymentMethodField";
 import { DepositWithdrawalMethodsBanner } from "@/components/finance/DepositWithdrawalMethodsBanner";
 
-export type WalletDepositMethod = "upi" | "bank" | "gateway" | "crypto";
+export type WalletDepositMethod = "upi" | "digital_rupee" | "bank" | "gateway" | "crypto";
 
 type Props = {
   depositAccounts?: DepositAccountsResponse;
@@ -38,6 +40,7 @@ type Props = {
 
 const TAB_META: { value: WalletDepositMethod; label: string; icon: typeof Smartphone }[] = [
   { value: "upi", label: "UPI", icon: Smartphone },
+  { value: "digital_rupee", label: "Digital Rupee", icon: IndianRupee },
   { value: "bank", label: "Bank", icon: Building2 },
   { value: "gateway", label: "Gateway", icon: CreditCard },
   { value: "crypto", label: "Crypto", icon: Coins },
@@ -53,6 +56,7 @@ export function WalletDepositMethodPanel({
   onGatewaySuccess,
 }: Props) {
   const upi = (depositAccounts?.upi || []).map(enrichDepositAccount);
+  const digitalRupee = (depositAccounts?.digitalRupee || []).map(enrichDepositAccount);
   const bank = (depositAccounts?.bank || []).map(enrichDepositAccount);
   const online = (depositAccounts?.online || [])
     .map(enrichDepositAccount)
@@ -61,26 +65,37 @@ export function WalletDepositMethodPanel({
   const cryptoTabs = resolveCryptoDepositTabs(crypto);
   const configuredCryptoTabs = cryptoTabs.filter(t => findCryptoDepositAccount(crypto, t));
 
+  const { data: visibility } = useQuery({
+    queryKey: ["/api/payments/method-visibility"],
+    queryFn: fetchPaymentMethodVisibility,
+    staleTime: 60_000,
+  });
+  const enabled = visibility?.deposit ?? ALL_ENABLED;
+  const visibleTabs = TAB_META.filter(t => enabled[t.value] !== false);
+
   const amount = amountHint ? Number(amountHint) : undefined;
-  const tab = method || "upi";
+  const firstEnabled = (visibleTabs[0]?.value ?? "upi") as WalletDepositMethod;
+  const tab = method || firstEnabled;
 
   const activeUpi = upi.find(a => String(a.id) === accountId);
+  const activeDigitalRupee = digitalRupee.find(a => String(a.id) === accountId);
   const activeBank = bank.find(a => String(a.id) === accountId);
   const activeCryptoTab = configuredCryptoTabs.find(t => t.key === accountId);
   const activeCrypto = activeCryptoTab ? findCryptoDepositAccount(crypto, activeCryptoTab) : undefined;
 
   useEffect(() => {
     if (method) return;
-    onMethodChange("upi");
-  }, [method, onMethodChange]);
+    onMethodChange(firstEnabled);
+  }, [method, firstEnabled, onMethodChange]);
 
   useEffect(() => {
     if (!method || accountId) return;
     if (method === "upi" && upi.length) onAccountIdChange(String(upi[0].id));
+    if (method === "digital_rupee" && digitalRupee.length) onAccountIdChange(String(digitalRupee[0].id));
     if (method === "bank" && bank.length) onAccountIdChange(String(bank[0].id));
     if (method === "gateway" && online.length) onAccountIdChange(String(online[0].id));
     if (method === "crypto" && configuredCryptoTabs.length) onAccountIdChange(configuredCryptoTabs[0].key);
-  }, [method, upi, bank, online, configuredCryptoTabs, accountId, onAccountIdChange]);
+  }, [method, upi, digitalRupee, bank, online, configuredCryptoTabs, accountId, onAccountIdChange]);
 
   return (
     <div className="space-y-4">
@@ -89,7 +104,7 @@ export function WalletDepositMethodPanel({
       <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent p-4">
         <p className="text-sm font-medium text-emerald-300/90">Step 1 — Choose deposit method</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Pay via UPI, bank transfer, payment gateway, or send crypto — same options as Buy Crypto on the exchange.
+          Pay via UPI, Digital Rupee (e-Rupee), bank transfer, payment gateway, or send crypto — same options as Buy Crypto on the exchange.
         </p>
       </div>
 
@@ -100,14 +115,15 @@ export function WalletDepositMethodPanel({
           onAccountIdChange("");
         }}
       >
-        <PaymentMethodTabsList>
-          {TAB_META.map(({ value, label, icon: Icon }) => (
-            <PaymentMethodTabsTrigger key={value} value={value} tone={value}>
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{label}</span>
-            </PaymentMethodTabsTrigger>
-          ))}
-        </PaymentMethodTabsList>
+        <PaymentMethodCategorySelect
+          label="Step 1 — Choose deposit method"
+          value={tab}
+          onValueChange={v => {
+            onMethodChange(v as WalletDepositMethod);
+            onAccountIdChange("");
+          }}
+          options={visibleTabs.map(({ value, label, icon }) => ({ value, label, icon }))}
+        />
 
         <TabsContent value="upi" className="space-y-3 mt-3 min-w-0">
           {upi.length === 0 ? (
@@ -147,6 +163,65 @@ export function WalletDepositMethodPanel({
                         )}
                       >
                         Open GPay / PhonePe / Paytm / BHIM
+                      </a>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="digital_rupee" className="space-y-3 mt-3 min-w-0">
+          {digitalRupee.length === 0 ? (
+            <EmptyMethod message="No Digital Rupee accounts configured. Contact support or try another method." />
+          ) : (
+            <>
+              <PaymentMethodSelect
+                tone="digital_rupee"
+                label="Select Digital Rupee account"
+                value={accountId}
+                onValueChange={onAccountIdChange}
+                placeholder="Choose e-Rupee wallet"
+                options={digitalRupee.map(a => ({ value: String(a.id), label: a.name }))}
+              />
+              <p className="text-[11px] text-teal-700 dark:text-teal-400/90">
+                Digital Rupee deposits are limited to ₹{formatDigitalRupeeLimitInr()} per transaction.
+              </p>
+              {activeDigitalRupee && (
+                <div className="rounded-xl border border-border dark:border-white/10 bg-muted dark:bg-black/25 p-4 space-y-3">
+                  <p className="text-sm font-medium text-center">{activeDigitalRupee.name}</p>
+                  {resolveDepositQrSrc({
+                    qrCodeUrl: activeDigitalRupee.qrCodeUrl,
+                    digitalRupeeId: activeDigitalRupee.digitalRupeeId,
+                    payeeName: activeDigitalRupee.name,
+                    amount,
+                  }) && (
+                    <QrImage
+                      src={resolveDepositQrSrc({
+                        qrCodeUrl: activeDigitalRupee.qrCodeUrl,
+                        digitalRupeeId: activeDigitalRupee.digitalRupeeId,
+                        payeeName: activeDigitalRupee.name,
+                        amount,
+                      })}
+                      fallbackSrc={activeDigitalRupee.digitalRupeeId
+                        ? resolveDepositQrSrc({ digitalRupeeId: activeDigitalRupee.digitalRupeeId, payeeName: activeDigitalRupee.name, amount })
+                        : undefined}
+                      alt="Digital Rupee QR code"
+                      className="mx-auto max-h-44 rounded-lg border border-border dark:border-white/10 shadow-lg"
+                    />
+                  )}
+                  {activeDigitalRupee.digitalRupeeId && (
+                    <>
+                      <CredentialRow label="Digital Rupee ID" value={activeDigitalRupee.digitalRupeeId} mono />
+                      <a
+                        href={buildDigitalRupeePayUri(activeDigitalRupee.digitalRupeeId, activeDigitalRupee.name, amount)}
+                        className={cn(
+                          "flex w-full items-center justify-center rounded-lg px-3 py-2.5 text-xs sm:text-sm text-center leading-tight whitespace-normal min-h-10",
+                          DEPOSIT_BUTTON_CLASS,
+                        )}
+                      >
+                        Open e-Rupee / CBDC wallet app
                       </a>
                     </>
                   )}

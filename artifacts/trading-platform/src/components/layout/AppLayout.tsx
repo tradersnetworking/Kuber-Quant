@@ -5,7 +5,7 @@ import { MobileTopBrandBar } from "@/components/layout/MobileTopBrandBar";
 import { useAuth } from "@/hooks/use-auth";
 import { useStaffPermissions } from "@/hooks/use-staff-permissions";
 import { filterNavByStaffPermissions } from "@/lib/staff-permissions";
-import { LogOut, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { LogOut, Menu, X, ChevronLeft, ChevronRight, Bell } from "lucide-react";
 import { SupportWidget } from "@/components/SupportWidget";
 import { RegisterPasskeyPrompt } from "@/components/auth/biometric/RegisterPasskeyPrompt";
 import { InvestmentMaturityPayoutDialog } from "@/components/investments/InvestmentMaturityPayoutDialog";
@@ -17,6 +17,7 @@ import { useScrollHideHeader } from "@/hooks/use-scroll-hide-header";
 import { useListNotifications, useGetWallet } from "@workspace/api-client-react";
 import type { Notification } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   getNavForRole,
   getMobileNavForRole,
@@ -31,7 +32,10 @@ import {
 } from "@/lib/nav-config";
 import { HeaderTradingNav, useHeaderTradingNavItems } from "@/components/layout/HeaderTradingNav";
 import { AppShellToolbar } from "@/components/layout/AppShellToolbar";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useSiteBranding } from "@/hooks/use-site-branding";
+import { useServiceVisibility } from "@/hooks/use-service-visibility";
+import { hiddenNavHrefs } from "@/lib/service-catalog";
 import { usePlatformStats } from "@/lib/staff-api";
 import { SafeBoundary } from "@/components/SafeBoundary";
 import { LiveInrRateNote } from "@/components/finance/LiveInrRateNote";
@@ -126,6 +130,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const { data: platformStats } = usePlatformStats(showPlatformFunds);
   const branding = useSiteBranding();
+  const { services: serviceVisibility } = useServiceVisibility();
 
   const unreadCount = Array.isArray(notifications)
     ? notifications.filter((n: Notification) => !n.isRead).length
@@ -133,18 +138,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = useMemo(() => {
     const base = getNavForRole(role, { isPromoter });
     const filtered = filterNavByStaffPermissions(role, staffPermissions, base);
-    return filtered.map(item => ({
-      ...item,
-      ...translateNavLabel(item, (key, fallback) => t(key, { defaultValue: fallback ?? key })),
-    }));
-  }, [role, isPromoter, staffPermissions, i18n.language, t]);
+    const isInvestor = !["superadmin", "admin", "manager", "support"].includes(role);
+    const hidden = isInvestor ? hiddenNavHrefs(serviceVisibility) : new Set<string>();
+    return filtered
+      .filter(item => !hidden.has(item.href))
+      .map(item => ({
+        ...item,
+        ...translateNavLabel(item, (key, fallback) => t(key, { defaultValue: fallback ?? key })),
+      }));
+  }, [role, isPromoter, staffPermissions, i18n.language, t, serviceVisibility]);
 
   const primaryMobileNav = useMemo(() => {
-    return getMobileNavForRole(role).map(item => ({
-      ...item,
-      ...translateNavLabel(item, (key, fallback) => t(key, { defaultValue: fallback ?? key })),
-    }));
-  }, [role, i18n.language, t]);
+    const isInvestor = !["superadmin", "admin", "manager", "support"].includes(role);
+    const hidden = isInvestor ? hiddenNavHrefs(serviceVisibility) : new Set<string>();
+    return getMobileNavForRole(role)
+      .filter(item => !hidden.has(item.href))
+      .map(item => ({
+        ...item,
+        ...translateNavLabel(item, (key, fallback) => t(key, { defaultValue: fallback ?? key })),
+      }));
+  }, [role, i18n.language, t, serviceVisibility]);
   const primaryMobileHrefs = new Set(primaryMobileNav.map(item => item.href));
   const moreNavItems = navItems.filter(item => item.href !== "#" && !primaryMobileHrefs.has(item.href));
   const mobileNavItems: NavItem[] = [
@@ -267,6 +280,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               href={getRoleAwareHref(role, "/dashboard")}
               branding={branding}
               className="min-h-[2.75rem] py-1.5"
+              trailing={
+                <>
+                  <div className="shrink-0">
+                    <ThemeToggle className="h-8 w-8 min-h-8 min-w-8 shrink-0 rounded-md" />
+                  </div>
+                  <Link href={getRoleAwareHref(role, "/notifications")} className="shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative h-8 w-8 min-h-8 min-w-8 shrink-0"
+                      aria-label={t("layout.notifications", { defaultValue: "Notifications" })}
+                    >
+                      <Bell className="h-4 w-4 shrink-0" />
+                      {unreadCount > 0 && (
+                        <Badge className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center p-0 bg-primary text-[8px] text-primary-foreground border border-background pointer-events-none">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </Link>
+                </>
+              }
             />
           </div>
 

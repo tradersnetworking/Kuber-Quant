@@ -13,7 +13,7 @@ export async function generateStakingAgreementPdf(opts: {
   ipAddress?: string;
 }) {
   const { user, plan, stake, amount, ipAddress } = opts;
-  const placeholders = await buildUserCollectedPlaceholders(user.id);
+  const placeholders = buildUserCollectedPlaceholders({ user });
   const agreementUid = `KQ-STK-${stake.id}-${new Date().getFullYear()}`;
   const agreementDate = new Date().toLocaleDateString("en-GB");
 

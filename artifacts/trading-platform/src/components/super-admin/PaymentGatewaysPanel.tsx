@@ -12,14 +12,14 @@ import { PaymentMethodTabsList, PaymentMethodTabsTrigger } from "@/components/wa
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Plus, Edit2, Trash2, RefreshCw, QrCode, Building2, Wallet, Globe, Loader2 } from "lucide-react";
+import { CreditCard, Plus, Edit2, Trash2, RefreshCw, QrCode, Building2, Wallet, Globe, Loader2, IndianRupee } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
 import { CredentialRow } from "@/components/wallet/CredentialRow";
 import { enrichDepositAccount, ONLINE_GATEWAY_CATALOG, getOnlineGatewayMeta, isOnlineGatewayType, type DepositAccount, minAmountLabelForGatewayType, formatGatewayMinAmount } from "@/components/wallet/deposit-account-utils";
 import { formatCryptoAssetLabel } from "@/components/wallet/crypto-asset-catalog";
 import { CryptoAssetPicker } from "@/components/wallet/CryptoAssetPicker";
 import { CryptoAssetIcon } from "@/components/wallet/CryptoAssetIcon";
-import { upiQrImageUrl, cryptoQrImageUrl, resolveDepositQrSrc, publicAssetUrl } from "@/components/wallet/deposit-account-utils";
+import { upiQrImageUrl, cryptoQrImageUrl, digitalRupeeQrImageUrl, resolveDepositQrSrc, publicAssetUrl } from "@/components/wallet/deposit-account-utils";
 import { QrImage } from "@/components/wallet/QrImage";
 import { DepositQrUploadField } from "@/components/super-admin/DepositQrUploadField";
 import { CryptoWalletsOverviewTable } from "@/components/super-admin/CryptoWalletsOverviewTable";
@@ -27,6 +27,86 @@ import { STAFF_PAGE_STACK, STAFF_HEADER_ROW, STAFF_CARD, STAFF_FORM_GRID, STAFF_
 import { cn } from "@/lib/utils";
 
 const DEPOSIT_WITHDRAWAL_TITLE = "Deposit & Withdrawal Payment Accounts";
+
+type MethodKey = "upi" | "digital_rupee" | "bank" | "gateway" | "crypto";
+type MethodVisibility = { deposit: Record<MethodKey, boolean>; withdrawal: Record<MethodKey, boolean> };
+const METHOD_LABELS: { key: MethodKey; label: string }[] = [
+  { key: "upi", label: "UPI" },
+  { key: "digital_rupee", label: "Digital Rupee" },
+  { key: "bank", label: "Bank Transfer" },
+  { key: "gateway", label: "Gateway" },
+  { key: "crypto", label: "Crypto" },
+];
+
+function MethodVisibilityCard() {
+  const { toast } = useToast();
+  const [vis, setVis] = useState<MethodVisibility | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    try {
+      setVis(await staffFetch<MethodVisibility>("/admin/payment-method-visibility"));
+    } catch {
+      /* ignore — defaults remain all enabled on the user side */
+    }
+  };
+  useEffect(() => { load(); }, []);
+
+  const setFlag = async (scope: "deposit" | "withdrawal", key: MethodKey, value: boolean) => {
+    if (!vis || saving) return;
+    const next: MethodVisibility = {
+      deposit: { ...vis.deposit },
+      withdrawal: { ...vis.withdrawal },
+    };
+    next[scope][key] = value;
+    setVis(next);
+    setSaving(true);
+    try {
+      const saved = await staffFetch<MethodVisibility>("/admin/payment-method-visibility", {
+        method: "PATCH",
+        body: JSON.stringify({ [scope]: next[scope] }),
+      });
+      setVis(saved);
+    } catch (e: any) {
+      toast({ title: "Update failed", description: e.message, variant: "destructive" });
+      load();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!vis) return null;
+
+  return (
+    <Card className={cn(STAFF_CARD, "min-w-0")}>
+      <CardContent className="p-4 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold">Method visibility for users</h3>
+          <p className="text-xs text-muted-foreground">Turn methods on or off for deposits and withdrawals. Disabled methods are hidden from users.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {(["deposit", "withdrawal"] as const).map(scope => (
+            <div key={scope} className="rounded-xl border border-border dark:border-white/10 p-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground capitalize">{scope}</p>
+              {METHOD_LABELS
+                .filter(m => !(scope === "withdrawal" && m.key === "gateway"))
+                .map(m => (
+                  <div key={m.key} className="flex items-center justify-between gap-2 py-1">
+                    <span className="text-sm">{m.label}</span>
+                    <Switch
+                      checked={vis[scope][m.key] !== false}
+                      onCheckedChange={v => setFlag(scope, m.key, v)}
+                      disabled={saving}
+                    />
+                  </div>
+                ))}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 type GwForm = {
   name: string;
@@ -37,6 +117,7 @@ type GwForm = {
   description: string;
   walletAddress: string;
   upiId: string;
+  digitalRupeeId: string;
   qrCodeUrl: string;
   minAmount: number;
   isEnabled: boolean;
@@ -58,7 +139,7 @@ type GwForm = {
 
 const emptyForm = (type: string): GwForm => ({
   name: "", type, symbol: type === "crypto" ? "USDT" : "", network: type === "crypto" ? "TRC20" : "", coinName: type === "crypto" ? "Tether USD" : "",
-  description: "", walletAddress: "", upiId: "", qrCodeUrl: "", minAmount: 10, isEnabled: true, sortOrder: 0,
+  description: "", walletAddress: "", upiId: "", digitalRupeeId: "", qrCodeUrl: "", minAmount: 10, isEnabled: true, sortOrder: 0,
   accountHolderName: "", bankName: "", accountNumber: "", ifscCode: "", branchName: "",
   accountType: "Current", swiftCode: "", micrCode: "", badge: "", note: "", logoUrl: "",
   merchantId: "", publicKey: "",
@@ -77,6 +158,7 @@ function formFromGateway(gw: DepositAccount, type: string): GwForm {
     description: gw.description || "",
     walletAddress: gw.walletAddress || "",
     upiId: gw.upiId || "",
+    digitalRupeeId: gw.digitalRupeeId || "",
     qrCodeUrl: gw.qrCodeUrl || "",
     minAmount: gw.minAmount,
     isEnabled: gw.isEnabled ?? true,
@@ -133,6 +215,9 @@ function buildPayload(form: GwForm) {
 
   if (form.type === "upi") {
     payload.upiId = trim(form.upiId).toLowerCase();
+    payload.qrCodeUrl = trim(form.qrCodeUrl) || null;
+  } else if (form.type === "digital_rupee") {
+    payload.digitalRupeeId = trim(form.digitalRupeeId);
     payload.qrCodeUrl = trim(form.qrCodeUrl) || null;
   } else if (form.type === "bank") {
     payload.qrCodeUrl = trim(form.qrCodeUrl) || null;
@@ -191,6 +276,22 @@ function AdminAccountCard({
                 </div>
               )}
               <CredentialRow label="UPI ID" value={a.upiId} mono />
+              {a.description && <CredentialRow label="Note" value={a.description} copyable={false} />}
+            </>
+          )}
+          {a.type === "digital_rupee" && (
+            <>
+              {(a.qrCodeUrl || a.digitalRupeeId) && (
+                <div className="flex justify-center pb-2">
+                  <QrImage
+                    src={resolveDepositQrSrc({ qrCodeUrl: a.qrCodeUrl, digitalRupeeId: a.digitalRupeeId, payeeName: a.name })}
+                    fallbackSrc={a.digitalRupeeId ? resolveDepositQrSrc({ digitalRupeeId: a.digitalRupeeId, payeeName: a.name }) : undefined}
+                    alt="Digital Rupee QR"
+                    className="h-24 w-24 object-contain rounded border border-border dark:border-white/10 bg-white p-1"
+                  />
+                </div>
+              )}
+              <CredentialRow label="Digital Rupee ID" value={a.digitalRupeeId} mono />
               {a.description && <CredentialRow label="Note" value={a.description} copyable={false} />}
             </>
           )}
@@ -403,7 +504,7 @@ export function PaymentGatewaysPanel() {
             <span className="min-w-0">{DEPOSIT_WITHDRAWAL_TITLE}</span>
           </h2>
           <p className="text-sm text-muted-foreground break-words">
-            Configure UPI, bank, crypto, and online gateways for user deposits and withdrawal payouts. Crypto supports Trust Wallet–style coin/chain selection or custom tokens.
+            Configure UPI, Digital Rupee (e-Rupee/CBDC), bank, crypto, and online gateways for user deposits and withdrawal payouts. Crypto supports Trust Wallet–style coin/chain selection or custom tokens.
           </p>
         </div>
         <Button variant="outline" size="sm" className="shrink-0 w-full md:w-auto" onClick={load}>
@@ -411,11 +512,17 @@ export function PaymentGatewaysPanel() {
         </Button>
       </div>
 
+      <MethodVisibilityCard />
+
       <Tabs value={tab} onValueChange={setTab} className="min-w-0">
         <PaymentMethodTabsList className="mb-4">
           <PaymentMethodTabsTrigger value="upi" tone="upi" className="gap-1.5">
             <QrCode className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">UPI ({gateways.filter(g => g.type === "upi").length})</span>
+          </PaymentMethodTabsTrigger>
+          <PaymentMethodTabsTrigger value="digital_rupee" tone="digital_rupee" className="gap-1.5">
+            <IndianRupee className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Digital Rupee ({gateways.filter(g => g.type === "digital_rupee").length})</span>
           </PaymentMethodTabsTrigger>
           <PaymentMethodTabsTrigger value="bank" tone="bank" className="gap-1.5">
             <Building2 className="h-3.5 w-3.5 shrink-0" />
@@ -439,6 +546,20 @@ export function PaymentGatewaysPanel() {
             gateways={gateways}
             icon={QrCode}
             onAdd={() => openNew("upi")}
+            onEdit={openEditGw}
+            onDelete={remove}
+            onToggle={toggle}
+          />
+        </TabsContent>
+
+        <TabsContent value="digital_rupee" className="mt-4">
+          <AccountSection
+            title="Digital Rupee / e-Rupee Accounts"
+            description="Add multiple CBDC wallet IDs with optional QR images. Users scan the QR or copy the Digital Rupee ID to deposit."
+            typeFilter={t => t === "digital_rupee"}
+            gateways={gateways}
+            icon={IndianRupee}
+            onAdd={() => openNew("digital_rupee")}
             onEdit={openEditGw}
             onDelete={remove}
             onToggle={toggle}
@@ -520,6 +641,20 @@ export function PaymentGatewaysPanel() {
                   value={form.qrCodeUrl}
                   onChange={url => setForm(f => ({ ...f, qrCodeUrl: url }))}
                   fallbackPreview={form.upiId.trim() ? upiQrImageUrl(form.upiId.trim(), form.name || "UPI") : undefined}
+                />
+              </>
+            )}
+
+            {form.type === "digital_rupee" && (
+              <>
+                <div className="space-y-1"><Label>Digital Rupee wallet ID *</Label><Input required value={form.digitalRupeeId} onChange={e => setForm(f => ({ ...f, digitalRupeeId: e.target.value }))} placeholder="CBDC wallet ID" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" /></div>
+                <DepositQrUploadField
+                  inputId="digital-rupee-qr-upload"
+                  label="Digital Rupee QR code image"
+                  hint="QR is auto-generated when you save. Upload only if you want a custom static QR image."
+                  value={form.qrCodeUrl}
+                  onChange={url => setForm(f => ({ ...f, qrCodeUrl: url }))}
+                  fallbackPreview={form.digitalRupeeId.trim() ? digitalRupeeQrImageUrl(form.digitalRupeeId.trim(), form.name || "Digital Rupee") : undefined}
                 />
               </>
             )}

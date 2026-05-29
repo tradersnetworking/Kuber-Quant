@@ -11,6 +11,7 @@ export type DepositAccount = {
   description?: string | null;
   walletAddress?: string | null;
   upiId?: string | null;
+  digitalRupeeId?: string | null;
   qrCodeUrl?: string | null;
   minAmount: number;
   maxAmount?: number | null;
@@ -86,6 +87,7 @@ export function enrichDepositAccount(g: DepositAccount): DepositAccount {
     description: trimCredential(g.description),
     walletAddress: trimCredential(g.walletAddress),
     upiId: trimCredential(g.upiId)?.toLowerCase() || null,
+    digitalRupeeId: trimCredential(g.digitalRupeeId) || null,
     qrCodeUrl: publicAssetUrl(g.qrCodeUrl) || null,
     accountHolderName: trimCredential(ec.accountHolderName || g.accountHolderName),
     bankName: trimCredential(ec.bankName || g.bankName || g.name),
@@ -127,6 +129,31 @@ export function upiQrImageUrl(upiId: string, payeeName: string, amount?: number)
   return path;
 }
 
+export function buildDigitalRupeePayUri(digitalRupeeId: string, payeeName: string, amount?: number, currency = "INR") {
+  const pa = digitalRupeeId.trim();
+  if (!pa) return "";
+  const params = new URLSearchParams({
+    pa,
+    pn: (payeeName || "Digital Rupee").trim().slice(0, 50),
+    cu: currency,
+    tn: "Kuber Quant Deposit",
+    mode: "CBDC",
+  });
+  if (amount && amount > 0) params.set("am", String(amount));
+  return `cbdc://pay?${params.toString()}`;
+}
+
+export function digitalRupeeQrImageUrl(walletId: string, payeeName: string, amount?: number) {
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+  const params = new URLSearchParams({ walletId, name: payeeName });
+  if (amount && amount > 0) params.set("amount", String(amount));
+  const path = `${base}/api/payments/qr/digital-rupee?${params.toString()}`;
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`;
+  }
+  return path;
+}
+
 export function cryptoQrImageUrl(address: string) {
   const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
   const path = `${base}/api/payments/qr/wallet?${new URLSearchParams({ address }).toString()}`;
@@ -137,11 +164,12 @@ export function cryptoQrImageUrl(address: string) {
 }
 
 export function isManualDepositType(type: string) {
-  return ["upi", "bank", "fiat", "crypto"].includes(type);
+  return ["upi", "digital_rupee", "bank", "fiat", "crypto"].includes(type);
 }
 
 export type DepositAccountsResponse = {
   upi: DepositAccount[];
+  digitalRupee: DepositAccount[];
   bank: DepositAccount[];
   crypto: DepositAccount[];
   online: DepositAccount[];
@@ -160,6 +188,7 @@ export function formatGatewayMinAmount(type: string, amount: number): string {
 export function resolveDepositQrSrc(opts: {
   qrCodeUrl?: string | null;
   upiId?: string | null;
+  digitalRupeeId?: string | null;
   walletAddress?: string | null;
   payeeName?: string;
   amount?: number;
@@ -168,12 +197,18 @@ export function resolveDepositQrSrc(opts: {
   if (opts.upiId?.trim() && opts.amount && opts.amount > 0) {
     return upiQrImageUrl(opts.upiId.trim(), opts.payeeName || "UPI", opts.amount);
   }
+  if (opts.digitalRupeeId?.trim() && opts.amount && opts.amount > 0) {
+    return digitalRupeeQrImageUrl(opts.digitalRupeeId.trim(), opts.payeeName || "Digital Rupee", opts.amount);
+  }
 
   const stored = publicAssetUrl(opts.qrCodeUrl);
   if (stored) return stored;
 
   if (opts.upiId?.trim()) {
     return upiQrImageUrl(opts.upiId.trim(), opts.payeeName || "UPI", opts.amount);
+  }
+  if (opts.digitalRupeeId?.trim()) {
+    return digitalRupeeQrImageUrl(opts.digitalRupeeId.trim(), opts.payeeName || "Digital Rupee", opts.amount);
   }
   if (opts.walletAddress?.trim()) {
     return cryptoQrImageUrl(opts.walletAddress.trim());
@@ -186,6 +221,7 @@ export function resolvePayoutQrSrc(opts: {
   accountType?: string;
   label?: string;
   upiId?: string | null;
+  digitalRupeeId?: string | null;
   upiQrUrl?: string | null;
   walletAddress?: string | null;
   walletQrUrl?: string | null;
@@ -194,6 +230,14 @@ export function resolvePayoutQrSrc(opts: {
     const stored = publicAssetUrl(opts.upiQrUrl);
     if (stored) return stored;
     if (opts.upiId?.trim()) return upiQrImageUrl(opts.upiId.trim(), opts.label || "UPI");
+    return undefined;
+  }
+  if (opts.accountType === "digital_rupee") {
+    const stored = publicAssetUrl(opts.upiQrUrl);
+    if (stored) return stored;
+    if (opts.digitalRupeeId?.trim()) {
+      return digitalRupeeQrImageUrl(opts.digitalRupeeId.trim(), opts.label || "Digital Rupee");
+    }
     return undefined;
   }
   if (opts.accountType === "crypto") {

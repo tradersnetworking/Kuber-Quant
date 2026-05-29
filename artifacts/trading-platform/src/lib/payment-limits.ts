@@ -34,3 +34,26 @@ export function upiDepositExceedsLimit(
 ): boolean {
   return depositAmountInInr(amount, currency, usdInrRate) > UPI_MAX_INR_PER_TRANSACTION;
 }
+
+/** Max INR per single Digital Rupee (e-Rupee/CBDC) deposit / buy order — must match API. */
+export const DIGITAL_RUPEE_MAX_INR_PER_TRANSACTION = 100_000;
+
+export function formatDigitalRupeeLimitInr(): string {
+  return DIGITAL_RUPEE_MAX_INR_PER_TRANSACTION.toLocaleString("en-IN");
+}
+
+export function digitalRupeeLimitErrorMessage(): string {
+  return `Digital Rupee limit is ₹${formatDigitalRupeeLimitInr()} per transaction. Use bank transfer or payment gateway for larger amounts.`;
+}
+
+export function digitalRupeeInrAmountExceedsLimit(amountInr: number): boolean {
+  return Number.isFinite(amountInr) && amountInr > DIGITAL_RUPEE_MAX_INR_PER_TRANSACTION;
+}
+
+export function digitalRupeeDepositExceedsLimit(
+  amount: number,
+  currency = "INR",
+  usdInrRate?: number,
+): boolean {
+  return depositAmountInInr(amount, currency, usdInrRate) > DIGITAL_RUPEE_MAX_INR_PER_TRANSACTION;
+}

@@ -34,3 +34,16 @@ export async function assertUpiDepositWithinLimit(
     );
   }
 }
+
+export async function assertDigitalRupeeDepositWithinLimit(
+  amount: number,
+  currency?: string,
+): Promise<void> {
+  const inr = await depositAmountInInr(amount, currency);
+  if (inr > UPI_MAX_INR_PER_TRANSACTION) {
+    throw new WalletError(
+      `Digital Rupee payments are limited to ₹${formatUpiLimitInr()} per transaction. Use bank transfer or payment gateway for larger amounts.`,
+      "DIGITAL_RUPEE_LIMIT_EXCEEDED",
+    );
+  }
+}

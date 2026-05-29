@@ -21,6 +21,32 @@ const SCHEMA_PATCHES: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_login_history_created_at ON login_history (created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications (user_id, is_read)`,
+  `ALTER TABLE payment_gateways ADD COLUMN IF NOT EXISTS digital_rupee_id text`,
+  `ALTER TABLE user_payment_accounts ADD COLUMN IF NOT EXISTS digital_rupee_id text`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'kyc_document_status') THEN
+       CREATE TYPE kyc_document_status AS ENUM ('pending', 'approved', 'rejected', 'superseded');
+     END IF;
+   END $$`,
+  `CREATE TABLE IF NOT EXISTS kyc_documents (
+     id serial PRIMARY KEY,
+     user_id integer NOT NULL,
+     kyc_record_id integer,
+     doc_type text NOT NULL,
+     label text NOT NULL,
+     file_url text NOT NULL,
+     original_filename text,
+     mime_type text,
+     status kyc_document_status NOT NULL DEFAULT 'pending',
+     supersedes_id integer,
+     rejection_reason text,
+     reviewed_by integer,
+     reviewed_at timestamptz,
+     created_at timestamptz NOT NULL DEFAULT now(),
+     updated_at timestamptz NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_kyc_documents_user_id ON kyc_documents (user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_kyc_documents_status ON kyc_documents (status)`,
 ];
 
 let patchesApplied = false;

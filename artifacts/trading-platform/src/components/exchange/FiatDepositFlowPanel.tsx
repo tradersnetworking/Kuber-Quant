@@ -6,13 +6,14 @@ import {
   enrichDepositAccount,
   resolveDepositQrSrc,
   buildUpiPayUri,
+  buildDigitalRupeePayUri,
   getOnlineGatewayLabel,
   type DepositAccountsResponse,
 } from "@/components/wallet/deposit-account-utils";
 import { QrImage } from "@/components/wallet/QrImage";
-import { Building2, CreditCard, Smartphone } from "lucide-react";
+import { Building2, CreditCard, Smartphone, IndianRupee } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatUpiLimitInr } from "@/lib/payment-limits";
+import { formatUpiLimitInr, formatDigitalRupeeLimitInr } from "@/lib/payment-limits";
 import { DEPOSIT_BUTTON_CLASS } from "@/lib/wallet-action-styles";
 import {
   PaymentMethodSelect,
@@ -20,7 +21,7 @@ import {
   PaymentMethodTabsTrigger,
 } from "@/components/wallet/PaymentMethodField";
 
-export type FiatPaymentOption = "upi" | "bank" | "gateway";
+export type FiatPaymentOption = "upi" | "digital_rupee" | "bank" | "gateway";
 
 type Props = {
   depositAccounts?: DepositAccountsResponse;
@@ -28,7 +29,7 @@ type Props = {
   onPaymentOptionChange: (v: FiatPaymentOption) => void;
   accountId: string;
   onAccountIdChange: (id: string) => void;
-  /** Optional amount for dynamic UPI QR */
+  /** Optional amount for dynamic UPI / Digital Rupee QR */
   amountHint?: string;
 };
 
@@ -41,6 +42,7 @@ export function FiatDepositFlowPanel({
   amountHint,
 }: Props) {
   const upi = (depositAccounts?.upi || []).map(enrichDepositAccount);
+  const digitalRupee = (depositAccounts?.digitalRupee || []).map(enrichDepositAccount);
   const bank = (depositAccounts?.bank || []).map(enrichDepositAccount);
   const online = (depositAccounts?.online || []).map(enrichDepositAccount);
 
@@ -49,15 +51,17 @@ export function FiatDepositFlowPanel({
   useEffect(() => {
     if (!paymentOption || accountId) return;
     if (paymentOption === "upi" && upi.length) onAccountIdChange(String(upi[0].id));
+    if (paymentOption === "digital_rupee" && digitalRupee.length) onAccountIdChange(String(digitalRupee[0].id));
     if (paymentOption === "bank" && bank.length) onAccountIdChange(String(bank[0].id));
     if (paymentOption === "gateway" && online.length) onAccountIdChange(String(online[0].id));
-  }, [paymentOption, upi, bank, online, accountId, onAccountIdChange]);
+  }, [paymentOption, upi, digitalRupee, bank, online, accountId, onAccountIdChange]);
 
   const activeUpi = upi.find(a => String(a.id) === accountId);
+  const activeDigitalRupee = digitalRupee.find(a => String(a.id) === accountId);
   const activeBank = bank.find(a => String(a.id) === accountId);
   const activeGateway = online.find(g => String(g.id) === accountId);
 
-  const hasAny = upi.length > 0 || bank.length > 0 || online.length > 0;
+  const hasAny = upi.length > 0 || digitalRupee.length > 0 || bank.length > 0 || online.length > 0;
 
   if (!hasAny) {
     return (
@@ -68,7 +72,7 @@ export function FiatDepositFlowPanel({
   }
 
   const defaultTab: FiatPaymentOption =
-    upi.length ? "upi" : bank.length ? "bank" : "gateway";
+    upi.length ? "upi" : digitalRupee.length ? "digital_rupee" : bank.length ? "bank" : "gateway";
 
   const tab = paymentOption || defaultTab;
 
@@ -83,7 +87,7 @@ export function FiatDepositFlowPanel({
       <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent p-4">
         <p className="text-sm font-medium text-emerald-300/90">Deposit fiat to buy crypto</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Choose UPI, bank transfer, or payment gateway — same options as wallet deposit for investments.
+          Choose UPI, Digital Rupee, bank transfer, or payment gateway — same options as wallet deposit for investments.
         </p>
       </div>
 
@@ -99,6 +103,12 @@ export function FiatDepositFlowPanel({
             <PaymentMethodTabsTrigger value="upi" tone="upi">
               <Smartphone className="h-3.5 w-3.5 shrink-0" />
               UPI
+            </PaymentMethodTabsTrigger>
+          )}
+          {digitalRupee.length > 0 && (
+            <PaymentMethodTabsTrigger value="digital_rupee" tone="digital_rupee">
+              <IndianRupee className="h-3.5 w-3.5 shrink-0" />
+              Digital Rupee
             </PaymentMethodTabsTrigger>
           )}
           {bank.length > 0 && (
@@ -152,6 +162,53 @@ export function FiatDepositFlowPanel({
                       className={cn("flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm transition-colors", DEPOSIT_BUTTON_CLASS)}
                     >
                       Open UPI app
+                    </a>
+                  </>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        )}
+
+        {digitalRupee.length > 0 && (
+          <TabsContent value="digital_rupee" className="space-y-3 mt-3">
+            <PaymentMethodSelect
+              tone="digital_rupee"
+              label="Select Digital Rupee account"
+              value={accountId}
+              onValueChange={onAccountIdChange}
+              placeholder="Choose e-Rupee wallet"
+              options={digitalRupee.map(a => ({ value: String(a.id), label: a.name }))}
+            />
+            <p className="text-[11px] text-teal-700 dark:text-teal-400/90">
+              Digital Rupee payments are limited to ₹{formatDigitalRupeeLimitInr()} per transaction.
+            </p>
+            {activeDigitalRupee && (
+              <div className="rounded-xl border border-border dark:border-white/10 bg-muted dark:bg-black/25 p-4 space-y-3">
+                <p className="text-sm font-medium text-center">{activeDigitalRupee.name}</p>
+                {(activeDigitalRupee.qrCodeUrl || activeDigitalRupee.digitalRupeeId) && (
+                  <QrImage
+                    src={resolveDepositQrSrc({
+                      qrCodeUrl: activeDigitalRupee.qrCodeUrl,
+                      digitalRupeeId: activeDigitalRupee.digitalRupeeId,
+                      payeeName: activeDigitalRupee.name,
+                      amount,
+                    })}
+                    fallbackSrc={activeDigitalRupee.digitalRupeeId
+                      ? resolveDepositQrSrc({ digitalRupeeId: activeDigitalRupee.digitalRupeeId, payeeName: activeDigitalRupee.name, amount })
+                      : undefined}
+                    alt="Digital Rupee QR code"
+                    className="mx-auto max-h-44 rounded-lg border border-border dark:border-white/10 shadow-lg"
+                  />
+                )}
+                {activeDigitalRupee.digitalRupeeId && (
+                  <>
+                    <CredentialRow label="Digital Rupee ID" value={activeDigitalRupee.digitalRupeeId} mono />
+                    <a
+                      href={buildDigitalRupeePayUri(activeDigitalRupee.digitalRupeeId, activeDigitalRupee.name, amount)}
+                      className={cn("flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm transition-colors", DEPOSIT_BUTTON_CLASS)}
+                    >
+                      Open e-Rupee / CBDC wallet
                     </a>
                   </>
                 )}

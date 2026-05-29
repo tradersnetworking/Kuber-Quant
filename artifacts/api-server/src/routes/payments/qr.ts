@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buildUpiPayUri, generateQrPngBuffer } from "../../helpers/qrCodeService";
+import { buildUpiPayUri, buildDigitalRupeePayUri, generateQrPngBuffer } from "../../helpers/qrCodeService";
 
 const router = Router();
 
@@ -23,6 +23,29 @@ router.get("/upi", async (req, res) => {
     res.send(png);
   } catch {
     res.status(500).json({ error: "Failed to generate UPI QR code" });
+  }
+});
+
+/** Public PNG QR for Digital Rupee (e-Rupee / CBDC) payments (supports optional amount). */
+router.get("/digital-rupee", async (req, res) => {
+  const walletId = String(req.query.walletId || req.query.digitalRupeeId || "").trim();
+  const name = String(req.query.name || "Payee").trim();
+  const amountRaw = req.query.amount;
+  const amount = amountRaw != null && amountRaw !== "" ? Number(amountRaw) : undefined;
+
+  if (!walletId) {
+    res.status(400).json({ error: "walletId is required" });
+    return;
+  }
+
+  try {
+    const uri = buildDigitalRupeePayUri(walletId, name, Number.isFinite(amount) ? amount : undefined);
+    const png = await generateQrPngBuffer(uri);
+    res.set("Content-Type", "image/png");
+    res.set("Cache-Control", "public, max-age=300");
+    res.send(png);
+  } catch {
+    res.status(500).json({ error: "Failed to generate Digital Rupee QR code" });
   }
 });
 

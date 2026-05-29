@@ -15,7 +15,12 @@ import {
   Twitter, Send, Youtube, Instagram, Star, ArrowRight, Mail, Globe,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import { useListPlans, type InvestmentPlan } from "@workspace/api-client-react";
+import { useServiceVisibility } from "@/hooks/use-service-visibility";
+import { fetchStakingPlans, type StakingPlan } from "@/lib/staking-api";
+import type { ServiceKey } from "@/lib/service-catalog";
+import { Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -272,6 +277,12 @@ const itemVariants = {
 export default function LandingPage() {
   const { t } = useTranslation();
   const { data: plans } = useListPlans();
+  const { services, isEnabled } = useServiceVisibility();
+  const { data: stakingPlans } = useQuery({
+    queryKey: ["public-staking-plans"],
+    queryFn: fetchStakingPlans,
+    staleTime: 60_000,
+  });
   const { user } = useAuth();
   const branding = useSiteBranding();
   const partnersSection = usePartnersSection();
@@ -280,18 +291,23 @@ export default function LandingPage() {
   const role = (user?.role as string) || "user";
   const dashboardHref = isLoggedIn ? getPostLoginPath(role) : "/register";
   const appHref = (path: string) => (isLoggedIn ? getRoleAwareHref(role, path) : "/register");
+  const orderOf = (key: ServiceKey) => {
+    const i = services.findIndex(s => s.key === key);
+    return i < 0 ? 99 : i;
+  };
 
   const landingNavLinks = useMemo(
     () => [
       { href: "#features", label: "Features" },
-      { href: "#copy-trading", label: "Copy Trading" },
-      { href: "#algo", label: "Algo Trading" },
-      { href: "#ea", label: "EA Strategies" },
-      { href: "#investments", label: "Investments" },
+      { href: "#copy-trading", label: "Copy Trading", show: isEnabled("copy_trading") },
+      { href: "#algo", label: "Algo Trading", show: isEnabled("algo_trading") },
+      { href: "#ea", label: "EA Strategies", show: isEnabled("ea_strategies") },
+      { href: "#investments", label: "Investments", show: isEnabled("investment_plans") },
+      { href: "#staking", label: "Staking", show: isEnabled("staking") },
       { href: "#payments", label: "Payments" },
       { href: "#about", label: "About", show: companyAbout.items.length > 0 },
-    ],
-    [companyAbout.items.length],
+    ].filter(l => l.show !== false),
+    [companyAbout.items.length, services],
   );
 
   return (
@@ -343,15 +359,11 @@ export default function LandingPage() {
               branding={branding}
             />
             <nav className="flex flex-wrap justify-center items-center gap-x-5 lg:gap-x-7 xl:gap-x-8 gap-y-2 min-w-0 px-4 lg:px-8 xl:px-10">
-              <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">Features</a>
-              <a href="#copy-trading" className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">Copy Trading</a>
-              <a href="#algo" className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">Algo Trading</a>
-              <a href="#ea" className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">EA Strategies</a>
-              <a href="#investments" className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">Investments</a>
-              <a href="#payments" className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">Payments</a>
-              {companyAbout.items.length > 0 && (
-                <a href="#about" className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">About</a>
-              )}
+              {landingNavLinks.map(link => (
+                <a key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">
+                  {link.label}
+                </a>
+              ))}
             </nav>
             <div className="flex items-center gap-3 shrink-0 justify-end pl-4 lg:pl-6">
               <ThemeToggle />
@@ -473,8 +485,11 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Configurable service sections (visibility + order controlled by admin) */}
+        <div className="flex flex-col">
         {/* Copy Trading */}
-        <section id="copy-trading" className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 bg-muted/40 dark:bg-white/[0.02] relative overflow-hidden">
+        {isEnabled("copy_trading") && (
+        <section id="copy-trading" style={{ order: orderOf("copy_trading") }} className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 bg-muted/40 dark:bg-white/[0.02] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-[120px] -z-10" />
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-teal-500/10 dark:bg-teal-500/5 rounded-full blur-[100px] -z-10" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-cyan-500/5 rounded-full blur-[140px] -z-10" />
@@ -551,9 +566,11 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+        )}
 
         {/* Algo Trading Strategies */}
-        <section id="algo" className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 bg-muted/40 dark:bg-white/[0.02] relative overflow-hidden">
+        {isEnabled("algo_trading") && (
+        <section id="algo" style={{ order: orderOf("algo_trading") }} className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 bg-muted/40 dark:bg-white/[0.02] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-[120px] -z-10" />
           <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-[100px] -z-10" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-cyan-500/5 rounded-full blur-[140px] -z-10" />
@@ -630,9 +647,11 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+        )}
 
         {/* EA Strategies */}
-        <section id="ea" className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 relative overflow-hidden">
+        {isEnabled("ea_strategies") && (
+        <section id="ea" style={{ order: orderOf("ea_strategies") }} className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -z-10" />
           <div className={LANDING_CONTENT}>
             <div className="text-center mb-16">
@@ -690,9 +709,11 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+        )}
 
         {/* Investment Plans */}
-        <section id="investments" className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 bg-muted/40 dark:bg-white/[0.02]">
+        {isEnabled("investment_plans") && (
+        <section id="investments" style={{ order: orderOf("investment_plans") }} className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6 bg-muted/40 dark:bg-white/[0.02]">
           <div className={LANDING_CONTENT}>
             <div className="text-center mb-16">
               <Badge variant="outline" className="border-amber-500/20 text-amber-600 dark:text-amber-500 mb-4 bg-amber-500/5">Wealth Plans</Badge>
@@ -741,6 +762,77 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+        )}
+
+        {/* Staking Plans */}
+        {isEnabled("staking") && (
+        <section id="staking" style={{ order: orderOf("staking") }} className="w-full py-16 sm:py-24 md:py-28 px-4 sm:px-6">
+          <div className={LANDING_CONTENT}>
+            <div className="text-center mb-16">
+              <Badge variant="outline" className="border-emerald-500/20 text-emerald-600 dark:text-emerald-400 mb-4 bg-emerald-500/5">Earn & Staking</Badge>
+              <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 tracking-tight text-wrap-safe">
+                Staking <span className="text-emerald-600 dark:text-emerald-400">Plans</span>
+              </h2>
+              <p className="text-muted-foreground text-sm sm:text-base md:text-lg max-w-2xl mx-auto px-1">
+                Put idle balances to work and earn passive rewards with flexible and locked staking options.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5">
+              {stakingPlans ? stakingPlans.map((plan: StakingPlan, planIdx) => {
+                const theme = PLAN_CARD_THEMES[planIdx % PLAN_CARD_THEMES.length];
+                return (
+                  <motion.div key={plan.id} whileHover={{ y: -8 }} className="relative group">
+                    <Card className="bg-card dark:bg-[#0A0F1A] border-border dark:border-white/10 overflow-hidden h-full flex flex-col hover:border-emerald-500/30 dark:hover:border-white/20 transition-all duration-300">
+                      <div className={`h-1 w-full bg-gradient-to-r ${theme.color}`} />
+                      <CardContent className="p-6 flex flex-col flex-1">
+                        <div className="mb-5">
+                          <Badge variant="secondary" className={`${theme.badge} mb-3 text-xs border`}>
+                            {plan.isFlexible ? "Flexible" : `${plan.lockDurationDays}-Day Lock`}
+                          </Badge>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-500/10`}>
+                              <Coins className={`h-4 w-4 ${theme.accent}`} />
+                            </div>
+                            <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
+                          </div>
+                          <p className="text-muted-foreground text-xs line-clamp-2">{plan.description}</p>
+                        </div>
+                        <div className="space-y-3 mb-6 flex-1">
+                          <div className="flex justify-between items-end">
+                            <span className="text-muted-foreground text-xs">APY</span>
+                            <span className={`text-2xl font-bold ${theme.accent}`}>{plan.apyPercent || plan.aprPercent}%</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-xs">Lock Period</span>
+                            <span className="text-foreground font-medium text-sm">
+                              {plan.isFlexible ? "Flexible" : `${plan.lockDurationDays} Days`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-xs">Min. Stake</span>
+                            <span className="text-foreground font-medium text-sm">{plan.minAmount} {plan.currency}</span>
+                          </div>
+                        </div>
+                        <Link href={isLoggedIn ? appHref("/earn/staking") : "/register"}>
+                          <Button size="sm" className={`w-full bg-gradient-to-r ${theme.color} text-black font-bold text-xs h-9 border-0 hover:opacity-90 transition-opacity`}>
+                            {isLoggedIn ? "Stake Now" : "Start Earning"}
+                          </Button>
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              }) : [1, 2, 3, 4].map(i => (
+                <div key={i} className="h-80 rounded-2xl bg-muted/60 dark:bg-white/5 animate-pulse border border-border dark:border-white/10" />
+              ))}
+            </div>
+            {stakingPlans && stakingPlans.length === 0 && (
+              <p className="text-center text-muted-foreground text-sm">Staking plans are coming soon.</p>
+            )}
+          </div>
+        </section>
+        )}
+        </div>
 
         {/* Partners */}
         <section className="w-full py-20 border-t border-border dark:border-white/10 overflow-hidden">

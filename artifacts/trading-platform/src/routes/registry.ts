@@ -61,6 +61,11 @@ export const MANAGER_ROUTES: RouteDefinition[] = [
   { path: "/manager/upcoming-transactions", roles: ["manager", "superadmin"], label: "Upcoming Txns", group: "Manager" },
   { path: "/manager/tickets", roles: ["manager", "superadmin"], label: "Tickets", group: "Manager" },
   { path: "/manager/mail", roles: ["manager", "superadmin"], label: "Mail", group: "Manager" },
+  { path: "/manager/plans", roles: ["manager", "superadmin"], label: "Plans (RO)", group: "Manager" },
+  { path: "/manager/staking-plans", roles: ["manager", "superadmin"], label: "Staking Plans (RO)", group: "Manager" },
+  { path: "/manager/copy-trading", roles: ["manager", "superadmin"], label: "Copy Trading (RO)", group: "Manager" },
+  { path: "/manager/algo-strategies", roles: ["manager", "superadmin"], label: "Algo Strategies (RO)", group: "Manager" },
+  { path: "/manager/ea-strategies", roles: ["manager", "superadmin"], label: "EA Strategies (RO)", group: "Manager" },
 ];
 
 export const SUPPORT_ROUTES: RouteDefinition[] = [
@@ -73,6 +78,10 @@ export const SUPPORT_ROUTES: RouteDefinition[] = [
   { path: "/support-team/kyc", roles: ["support", "superadmin"], label: "KYC", group: "Support" },
   { path: "/support-team/mail", roles: ["support", "superadmin"], label: "Mail", group: "Support" },
   { path: "/support-team/plans", roles: ["support", "superadmin"], label: "Plans (RO)", group: "Support" },
+  { path: "/support-team/staking-plans", roles: ["support", "superadmin"], label: "Staking Plans (RO)", group: "Support" },
+  { path: "/support-team/copy-trading", roles: ["support", "superadmin"], label: "Copy Trading (RO)", group: "Support" },
+  { path: "/support-team/algo-strategies", roles: ["support", "superadmin"], label: "Algo Strategies (RO)", group: "Support" },
+  { path: "/support-team/ea-strategies", roles: ["support", "superadmin"], label: "EA Strategies (RO)", group: "Support" },
   { path: "/support-team/subscriptions", roles: ["support", "superadmin"], label: "EA Subs (RO)", group: "Support" },
   { path: "/support-team/exchange", roles: ["support", "superadmin"], label: "Exchange (RO)", group: "Support" },
   { path: "/support-team/transactions", roles: ["support", "superadmin"], label: "Ledger (RO)", group: "Support" },

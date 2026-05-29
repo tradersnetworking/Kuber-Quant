@@ -39,6 +39,7 @@ function formatPaymentMethod(a: typeof userPaymentAccountsTable.$inferSelect): s
     return `Bank: ${a.bankName} | ${a.accountHolderName} | A/C ${a.accountNumber} | IFSC ${a.ifscCode || "—"}`;
   }
   if (a.accountType === "upi") return `UPI: ${a.upiId}`;
+  if (a.accountType === "digital_rupee") return `Digital Rupee: ${a.digitalRupeeId}`;
   return `Crypto ${a.cryptoSymbol} (${a.cryptoNetwork || "—"}): ${a.walletAddress}`;
 }
 
@@ -262,16 +263,17 @@ router.post("/", requireAuth, validateBody(PaymentAccountCreateBody), async (req
   const body = getValidatedBody<Record<string, unknown>>(req);
   const {
     label, accountType, accountHolderName, bankName, accountNumber,
-    ifscCode, branchName, upiId, upiQrUrl, cryptoSymbol, cryptoNetwork, walletAddress, walletQrUrl, isDefault,
+    ifscCode, branchName, upiId, digitalRupeeId, upiQrUrl, cryptoSymbol, cryptoNetwork, walletAddress, walletQrUrl, isDefault,
   } = body as {
     label: string;
-    accountType: "bank" | "upi" | "crypto";
+    accountType: "bank" | "upi" | "digital_rupee" | "crypto";
     accountHolderName?: string;
     bankName?: string;
     accountNumber?: string;
     ifscCode?: string;
     branchName?: string;
     upiId?: string;
+    digitalRupeeId?: string;
     upiQrUrl?: string;
     cryptoSymbol?: string;
     cryptoNetwork?: string;
@@ -286,6 +288,10 @@ router.post("/", requireAuth, validateBody(PaymentAccountCreateBody), async (req
   }
   if (accountType === "upi" && !upiId) {
     res.status(400).json({ error: "UPI accounts require upiId" });
+    return;
+  }
+  if (accountType === "digital_rupee" && !digitalRupeeId) {
+    res.status(400).json({ error: "Digital Rupee accounts require digitalRupeeId" });
     return;
   }
   if (accountType === "crypto" && (!walletAddress || !cryptoSymbol)) {
@@ -312,6 +318,7 @@ router.post("/", requireAuth, validateBody(PaymentAccountCreateBody), async (req
     accountType,
     label: insertValues.label || "Account",
     upiId: insertValues.upiId,
+    digitalRupeeId: insertValues.digitalRupeeId,
     walletAddress: insertValues.walletAddress,
     upiQrUrl: insertValues.upiQrUrl || null,
     walletQrUrl: insertValues.walletQrUrl || null,
@@ -358,6 +365,7 @@ router.patch("/:id", requireAuth, validateBody(PaymentAccountPatchBody), async (
 
   const mergedLabel = (updates.label as string) ?? existing.label;
   const mergedUpi = (updates.upiId as string | null | undefined) ?? existing.upiId;
+  const mergedDigitalRupee = (updates.digitalRupeeId as string | null | undefined) ?? existing.digitalRupeeId;
   const mergedWallet = (updates.walletAddress as string | null | undefined) ?? existing.walletAddress;
   const mergedUpiQr = (updates.upiQrUrl as string | null | undefined) ?? existing.upiQrUrl;
   const mergedWalletQr = (updates.walletQrUrl as string | null | undefined) ?? existing.walletQrUrl;
@@ -367,6 +375,7 @@ router.patch("/:id", requireAuth, validateBody(PaymentAccountPatchBody), async (
     accountType: mergedType,
     label: mergedLabel,
     upiId: mergedUpi,
+    digitalRupeeId: mergedDigitalRupee,
     walletAddress: mergedWallet,
     upiQrUrl: mergedUpiQr,
     walletQrUrl: mergedWalletQr,

@@ -178,13 +178,14 @@ export const TwoFactorSendLoginOtpBody = z.object({
 
 export const PaymentAccountCreateBody = z.object({
   label: z.string().min(1).max(120),
-  accountType: z.enum(["bank", "upi", "crypto"]),
+  accountType: z.enum(["bank", "upi", "digital_rupee", "crypto"]),
   accountHolderName: z.string().max(120).optional(),
   bankName: z.string().max(120).optional(),
   accountNumber: z.string().max(64).optional(),
   ifscCode: z.string().max(20).optional(),
   branchName: z.string().max(120).optional(),
   upiId: z.string().max(120).optional(),
+  digitalRupeeId: z.string().max(120).optional(),
   upiQrUrl: z.string().max(500).optional(),
   cryptoSymbol: z.string().max(16).optional(),
   cryptoNetwork: z.string().max(32).optional(),

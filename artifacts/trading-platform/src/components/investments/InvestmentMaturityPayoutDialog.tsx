@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  AlertCircle, Building2, Calendar, CheckCircle2, Loader2, TrendingUp, Wallet, Smartphone, CreditCard,
+  AlertCircle, Building2, Calendar, CheckCircle2, Loader2, TrendingUp, Wallet, Smartphone, CreditCard, IndianRupee,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -51,7 +51,7 @@ export function InvestmentMaturityPayoutDialog() {
   const qc = useQueryClient();
   const [queueIndex, setQueueIndex] = useState(0);
   const [destination, setDestination] = useState<"wallet" | "personal" | null>(null);
-  const [method, setMethod] = useState<"upi" | "bank" | "crypto" | null>(null);
+  const [method, setMethod] = useState<"upi" | "digital_rupee" | "bank" | "crypto" | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [consent, setConsent] = useState(false);
   const [step, setStep] = useState<Step>("overview");
@@ -229,9 +229,10 @@ export function InvestmentMaturityPayoutDialog() {
             {step === "personal-method" && (
               <div className="space-y-3">
                 <p className="text-sm font-medium">Select withdrawal method</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {([
                     { key: "upi" as const, label: "UPI", icon: Smartphone },
+                    { key: "digital_rupee" as const, label: "Digital Rupee", icon: IndianRupee },
                     { key: "bank" as const, label: "Bank transfer", icon: Building2 },
                     { key: "crypto" as const, label: "Crypto wallet", icon: TrendingUp },
                   ]).map(opt => (
@@ -254,7 +255,7 @@ export function InvestmentMaturityPayoutDialog() {
             {step === "personal-account" && method && (
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium capitalize">Choose your {method} account</p>
+                  <p className="text-sm font-medium">Choose your {method === "digital_rupee" ? "Digital Rupee" : method === "upi" ? "UPI" : method} account</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => setManageAccountsOpen(true)}>
                     Change / add account details
                   </Button>

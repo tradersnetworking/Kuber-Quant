@@ -29,7 +29,13 @@ const emptyStrategy = {
   priceAnnual: 799,
 };
 
-export function AlgoStrategiesManagementPanel() {
+export function AlgoStrategiesManagementPanel({
+  apiBase = "/super-admin",
+  readOnly = false,
+}: {
+  apiBase?: "/super-admin" | "/manager" | "/support-team";
+  readOnly?: boolean;
+} = {}) {
   const { toast } = useToast();
   const [strategies, setStrategies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,11 +43,12 @@ export function AlgoStrategiesManagementPanel() {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyStrategy });
   const [search, setSearch] = useState("");
+  const canWrite = !readOnly && apiBase === "/super-admin";
 
   const load = async () => {
     setLoading(true);
     try {
-      setStrategies(await staffFetch<any[]>("/super-admin/algo-strategies"));
+      setStrategies(await staffFetch<any[]>(`${apiBase}/algo-strategies`));
     } catch (e: any) {
       toast({ title: "Failed to load algo strategies", description: e.message, variant: "destructive" });
     } finally {
@@ -49,10 +56,11 @@ export function AlgoStrategiesManagementPanel() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [apiBase]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canWrite) return;
     try {
       if (editing) {
         await staffFetch(`/super-admin/algo-strategies/${editing.id}`, { method: "PATCH", body: JSON.stringify(form) });
@@ -71,6 +79,7 @@ export function AlgoStrategiesManagementPanel() {
   };
 
   const remove = async (id: number) => {
+    if (!canWrite) return;
     if (!confirm("Delete this algo strategy? Existing subscriptions may be affected.")) return;
     try {
       await staffFetch(`/super-admin/algo-strategies/${id}`, { method: "DELETE" });
@@ -108,15 +117,17 @@ export function AlgoStrategiesManagementPanel() {
       <div className={STAFF_HEADER_ROW}>
         <div className="min-w-0">
           <h2 className="text-lg font-semibold flex items-center gap-2"><Cpu className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0" />Algo Strategies</h2>
-          <p className="text-sm text-muted-foreground">Create, edit, and delete algorithmic trading strategies offered to investors.</p>
+          <p className="text-sm text-muted-foreground">{readOnly ? "Algorithmic strategy catalog for client guidance (read-only)." : "Create, edit, and delete algorithmic trading strategies offered to investors."}</p>
         </div>
         <div className={STAFF_TOOLBAR_ROW}>
           <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="w-full sm:w-40 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
           <div className="flex flex-col xs:flex-row gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /></Button>
-            <Button size="sm" className="bg-amber-500 text-black" onClick={() => { setEditing(null); setForm({ ...emptyStrategy }); setOpen(true); }}>
-              <Plus className="h-4 w-4 mr-1" />Add Strategy
-            </Button>
+            {canWrite && (
+              <Button size="sm" className="bg-amber-500 text-black" onClick={() => { setEditing(null); setForm({ ...emptyStrategy }); setOpen(true); }}>
+                <Plus className="h-4 w-4 mr-1" />Add Strategy
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -143,23 +154,26 @@ export function AlgoStrategiesManagementPanel() {
                     ROI {s.roi}% · Min ${s.minInvestment} {s.currency} · From ${s.priceMonthly ?? 99}/mo · {s.subscribers} subscribers
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => { setEditing(s); setForm({ ...s }); setOpen(true); }}>
-                    <Edit2 className="h-3.5 w-3.5 mr-1" />Edit
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => duplicate(s)} title="Duplicate">
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant="outline" className="text-red-400 border-red-500/30" onClick={() => remove(s.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                {canWrite && (
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => { setEditing(s); setForm({ ...s }); setOpen(true); }}>
+                      <Edit2 className="h-3.5 w-3.5 mr-1" />Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => duplicate(s)} title="Duplicate">
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-red-400 border-red-500/30" onClick={() => remove(s.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
+      {canWrite && (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className={cn(APP_MODAL_MD, "max-h-[90vh] overflow-y-auto")}>
           <DialogHeader><DialogTitle>{editing ? "Edit Algo Strategy" : "Add Algo Strategy"}</DialogTitle></DialogHeader>
@@ -207,6 +221,7 @@ export function AlgoStrategiesManagementPanel() {
           </form>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

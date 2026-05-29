@@ -11,6 +11,7 @@ export const userPaymentAccountsTable = pgTable("user_payment_accounts", {
   ifscCode: text("ifsc_code"),
   branchName: text("branch_name"),
   upiId: text("upi_id"),
+  digitalRupeeId: text("digital_rupee_id"),
   cryptoSymbol: text("crypto_symbol"),
   cryptoNetwork: text("crypto_network"),
   walletAddress: text("wallet_address"),

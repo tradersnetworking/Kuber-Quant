@@ -75,6 +75,18 @@ export async function fetchSecureUpload(storedUrl: string): Promise<SecureUpload
   return { blobUrl, mimeType, filename };
 }
 
+/** Force a download of a protected upload to the user's device. */
+export async function downloadSecureUpload(storedUrl: string, downloadName?: string): Promise<void> {
+  const { blobUrl, filename } = await fetchSecureUpload(storedUrl);
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = downloadName || filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
+}
+
 /** Open in a new tab (fallback). */
 export async function openSecureUploadInTab(storedUrl: string): Promise<void> {
   const { blobUrl, mimeType, filename } = await fetchSecureUpload(storedUrl);

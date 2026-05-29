@@ -518,4 +518,30 @@ router.get("/exchange/orders/:id", requireAuth, requireSupport, async (req, res)
   res.json(order);
 });
 
+// ── Read-only platform catalog (Platform Reference) ──────────────────────────
+router.get("/plans", requireAuth, requireSupport, async (_req, res) => {
+  const { listInvestmentPlansCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listInvestmentPlansCatalog());
+});
+
+router.get("/staking-plans", requireAuth, requireSupport, async (_req, res) => {
+  const { listStakingPlansCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listStakingPlansCatalog());
+});
+
+router.get("/copy-traders", requireAuth, requireSupport, async (_req, res) => {
+  const { listCopyTradersCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listCopyTradersCatalog());
+});
+
+router.get("/algo-strategies", requireAuth, requireSupport, async (_req, res) => {
+  const { listAlgoStrategiesCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listAlgoStrategiesCatalog());
+});
+
+router.get("/ea-catalog", requireAuth, requireSupport, async (_req, res) => {
+  const { listEaStrategyCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listEaStrategyCatalog());
+});
+
 export default router;

@@ -11,6 +11,7 @@ import { OnlineGatewayCheckoutPanel } from "@/components/wallet/OnlineGatewayChe
 import {
   enrichDepositAccount,
   buildUpiPayUri,
+  buildDigitalRupeePayUri,
   resolveDepositQrSrc,
   type DepositAccountsResponse,
   type DepositAccount,
@@ -22,7 +23,7 @@ import {
 } from "@/components/wallet/crypto-networks";
 import { formatCryptoAssetLabel } from "@/components/wallet/crypto-asset-catalog";
 import { CryptoAssetIcon } from "@/components/wallet/CryptoAssetIcon";
-import { Building2, QrCode, Wallet, Globe } from "lucide-react";
+import { Building2, QrCode, Wallet, Globe, IndianRupee } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mobileCardHeader, paymentMethodSubTabsList } from "@/lib/mobile-ui";
 import { DEPOSIT_BUTTON_CLASS } from "@/lib/wallet-action-styles";
@@ -59,6 +60,45 @@ function UpiAccountCard({ account }: { account: DepositAccount }) {
             <CredentialRow label="UPI ID" value={a.upiId} mono />
             <a
               href={buildUpiPayUri(a.upiId, a.name)}
+              className={cn("inline-flex text-sm px-4 py-2 rounded-md", DEPOSIT_BUTTON_CLASS)}
+            >
+              Pay Now
+            </a>
+          </>
+        )}
+        {a.note && <p className="text-xs text-muted-foreground italic">{a.note}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DigitalRupeeAccountCard({ account }: { account: DepositAccount }) {
+  const a = enrichDepositAccount(account);
+  return (
+    <Card className="bg-muted/80 dark:bg-black/20 border-border dark:border-white/10">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <CardTitle className="text-base">{a.name}</CardTitle>
+          {a.badge && <Badge variant="outline" className="border-teal-500/40 text-teal-600 dark:text-teal-400">{a.badge}</Badge>}
+        </div>
+        <CardDescription>Scan the QR code or copy the Digital Rupee ID to pay via e-Rupee / CBDC</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {(a.qrCodeUrl || a.digitalRupeeId) && (
+          <div className="text-center">
+            <QrImage
+              src={resolveDepositQrSrc({ qrCodeUrl: a.qrCodeUrl, digitalRupeeId: a.digitalRupeeId, payeeName: a.name })}
+              fallbackSrc={a.digitalRupeeId ? resolveDepositQrSrc({ digitalRupeeId: a.digitalRupeeId, payeeName: a.name }) : undefined}
+              alt="Digital Rupee QR"
+              className="mx-auto max-h-44 rounded border border-border dark:border-white/10"
+            />
+          </div>
+        )}
+        {a.digitalRupeeId && (
+          <>
+            <CredentialRow label="Digital Rupee ID" value={a.digitalRupeeId} mono />
+            <a
+              href={buildDigitalRupeePayUri(a.digitalRupeeId, a.name)}
               className={cn("inline-flex text-sm px-4 py-2 rounded-md", DEPOSIT_BUTTON_CLASS)}
             >
               Pay Now
@@ -137,11 +177,12 @@ export function PlatformDepositAccounts({
   initialSection,
   initialGatewayId,
 }: {
-  initialSection?: "upi" | "bank" | "crypto" | "online";
+  initialSection?: "upi" | "digital_rupee" | "bank" | "crypto" | "online";
   initialGatewayId?: string;
 } = {}) {
-  const [tab, setTab] = useState<"upi" | "bank" | "crypto" | "online">(initialSection || "upi");
+  const [tab, setTab] = useState<"upi" | "digital_rupee" | "bank" | "crypto" | "online">(initialSection || "upi");
   const [selectedUpi, setSelectedUpi] = useState("");
+  const [selectedDigitalRupee, setSelectedDigitalRupee] = useState("");
   const [selectedBank, setSelectedBank] = useState("");
   const [cryptoTab, setCryptoTab] = useState("");
 
@@ -151,6 +192,7 @@ export function PlatformDepositAccounts({
   });
 
   const upi = (data?.upi || []).map(enrichDepositAccount);
+  const digitalRupee = (data?.digitalRupee || []).map(enrichDepositAccount);
   const bank = (data?.bank || []).map(enrichDepositAccount);
   const crypto = (data?.crypto || []).map(enrichDepositAccount);
   const cryptoTabs = useMemo(() => resolveCryptoDepositTabs(crypto), [crypto]);
@@ -171,8 +213,9 @@ export function PlatformDepositAccounts({
 
   useEffect(() => {
     if (upi.length && !selectedUpi) setSelectedUpi(String(upi[0].id));
+    if (digitalRupee.length && !selectedDigitalRupee) setSelectedDigitalRupee(String(digitalRupee[0].id));
     if (bank.length && !selectedBank) setSelectedBank(String(bank[0].id));
-  }, [upi, bank, selectedUpi, selectedBank]);
+  }, [upi, digitalRupee, bank, selectedUpi, selectedDigitalRupee, selectedBank]);
 
   useEffect(() => {
     const first = configuredCryptoTabs[0];
@@ -182,6 +225,7 @@ export function PlatformDepositAccounts({
   if (isLoading) return <Skeleton className="h-64 w-full rounded-xl" />;
 
   const activeUpi = upi.find(a => String(a.id) === selectedUpi);
+  const activeDigitalRupee = digitalRupee.find(a => String(a.id) === selectedDigitalRupee);
   const activeBank = bank.find(a => String(a.id) === selectedBank);
 
   return (
@@ -189,7 +233,7 @@ export function PlatformDepositAccounts({
       <CardHeader className={mobileCardHeader}>
         <div className="min-w-0">
           <CardTitle>Deposit Accounts</CardTitle>
-          <CardDescription>UPI, bank, crypto, or payment gateway — copy details or pay online</CardDescription>
+          <CardDescription>UPI, Digital Rupee, bank, crypto, or payment gateway — copy details or pay online</CardDescription>
         </div>
         <DepositDialog trigger={
           <button type="button" className="text-xs text-amber-600 dark:text-amber-400 hover:underline shrink-0 self-start sm:self-auto">Quick deposit →</button>
@@ -202,6 +246,12 @@ export function PlatformDepositAccounts({
               <PaymentMethodTabsTrigger value="upi" tone="upi" className="gap-1.5">
                 <QrCode className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">UPI ({upi.length})</span>
+              </PaymentMethodTabsTrigger>
+            )}
+            {digitalRupee.length > 0 && (
+              <PaymentMethodTabsTrigger value="digital_rupee" tone="digital_rupee" className="gap-1.5">
+                <IndianRupee className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Digital Rupee ({digitalRupee.length})</span>
               </PaymentMethodTabsTrigger>
             )}
             {bank.length > 0 && (
@@ -244,6 +294,33 @@ export function PlatformDepositAccounts({
                 </>
               )}
               {activeUpi && <UpiAccountCard account={activeUpi} />}
+            </TabsContent>
+          )}
+
+          {digitalRupee.length > 0 && (
+            <TabsContent value="digital_rupee" className="space-y-3 mt-0">
+              {digitalRupee.length > 1 && (
+                <>
+                  <PaymentMethodSelect
+                    tone="digital_rupee"
+                    label="Select Digital Rupee account"
+                    value={selectedDigitalRupee}
+                    onValueChange={setSelectedDigitalRupee}
+                    placeholder="-- Select e-Rupee wallet --"
+                    options={digitalRupee.map(a => ({ value: String(a.id), label: a.name }))}
+                  />
+                  <Tabs value={selectedDigitalRupee} onValueChange={setSelectedDigitalRupee}>
+                    <PaymentMethodTabsList className={paymentMethodSubTabsList}>
+                      {digitalRupee.map(a => (
+                        <PaymentMethodTabsTrigger key={a.id} value={String(a.id)} tone="digital_rupee" className="text-xs">
+                          <span className="truncate">{a.name}</span>
+                        </PaymentMethodTabsTrigger>
+                      ))}
+                    </PaymentMethodTabsList>
+                  </Tabs>
+                </>
+              )}
+              {activeDigitalRupee && <DigitalRupeeAccountCard account={activeDigitalRupee} />}
             </TabsContent>
           )}
 
@@ -299,7 +376,7 @@ export function PlatformDepositAccounts({
         </Tabs>
 
         <p className="text-xs text-muted-foreground mt-4">
-          Manual UPI/bank/crypto: submit proof via the <span className="text-amber-600 dark:text-amber-400">Deposit</span> button. Payment gateways credit instantly after successful checkout.
+          Manual UPI/Digital Rupee/bank/crypto: submit proof via the <span className="text-amber-600 dark:text-amber-400">Deposit</span> button. Payment gateways credit instantly after successful checkout.
         </p>
       </CardContent>
     </Card>

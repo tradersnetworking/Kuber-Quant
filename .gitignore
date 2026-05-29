@@ -54,6 +54,6 @@ uploads/
 # Archives (do not commit deployment zips)
 *.zip
 
-# Replit
+# Build / runtime caches
 .cache/
 .local/

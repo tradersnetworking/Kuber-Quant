@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { IndianRupee } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PaymentBrandItem } from "@/lib/payment-method-catalog";
 import { resolvePaymentBrandLogoUrl, resolvePaymentBrandLogoFallback, PAYMENT_BRAND_CDN } from "@/lib/payment-brand-logos";
@@ -78,6 +79,19 @@ function UpiAppWithBadgeLogo({ appId }: { appId: "gpay" | "phonepe" | "paytm" })
 
 function BrandGlyph({ item, iconOnly }: { item: PaymentBrandItem; iconOnly?: boolean }) {
   const id = item.id;
+
+  if (item.category === "digital_rupee") {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 ring-1 ring-teal-500/30">
+          <IndianRupee className="h-5 w-5 sm:h-6 sm:w-6" />
+        </span>
+        <span className="text-[9px] sm:text-[10px] font-bold leading-none text-teal-700 dark:text-teal-300">
+          {item.shortLabel || "e₹"}
+        </span>
+      </div>
+    );
+  }
 
   if (item.category === "crypto") {
     const logoUrl = resolvePaymentBrandLogoUrl(id);

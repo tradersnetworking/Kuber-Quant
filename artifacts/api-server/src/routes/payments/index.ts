@@ -28,7 +28,7 @@ router.get("/gateways/manual", requireAuth, async (_req, res) => {
     ))
     .orderBy(asc(paymentGatewaysTable.sortOrder));
   await ensurePaymentGatewayQrs(gateways);
-  const manual = gateways.filter(g => ["upi", "bank", "fiat"].includes(g.type));
+  const manual = gateways.filter(g => ["upi", "digital_rupee", "bank", "fiat"].includes(g.type));
   res.json(manual.map(mapEnrichedDepositGateway));
 });
 
@@ -42,11 +42,18 @@ router.get("/deposit-accounts", requireAuth, async (_req, res) => {
 
   const onlineTypes = ["razorpay", "phonepe", "paytm", "payu", "cashfree", "stripe", "instamojo", "pinelabs", "easebuzz", "paypal"];
   const upi = gateways.filter(g => g.type === "upi").map(mapEnrichedDepositGateway);
+  const digitalRupee = gateways.filter(g => g.type === "digital_rupee").map(mapEnrichedDepositGateway);
   const bank = gateways.filter(g => g.type === "bank" || g.type === "fiat").map(mapEnrichedDepositGateway);
   const crypto = gateways.filter(g => g.type === "crypto").map(mapEnrichedDepositGateway);
   const online = gateways.filter(g => onlineTypes.includes(g.type)).map(mapEnrichedDepositGateway);
 
-  res.json({ upi, bank, crypto, online });
+  res.json({ upi, digitalRupee, bank, crypto, online });
+});
+
+/** Which deposit/withdrawal methods are enabled for users (admin-controlled) */
+router.get("/method-visibility", requireAuth, async (_req, res) => {
+  const { getPaymentMethodVisibility } = await import("../../helpers/paymentMethodVisibility");
+  res.json(await getPaymentMethodVisibility());
 });
 
 /** Which online gateways have server env credentials configured */

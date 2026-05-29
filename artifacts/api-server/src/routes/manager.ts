@@ -448,4 +448,30 @@ router.post("/tickets/:id/reply", requireAuth, requireManagerOrAdmin, async (req
   res.json({ message: "Reply sent" });
 });
 
+// ── Read-only platform catalog (for client guidance) ─────────────────────────
+router.get("/plans", requireAuth, requireManagerOrAdmin, async (_req, res) => {
+  const { listInvestmentPlansCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listInvestmentPlansCatalog());
+});
+
+router.get("/staking-plans", requireAuth, requireManagerOrAdmin, async (_req, res) => {
+  const { listStakingPlansCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listStakingPlansCatalog());
+});
+
+router.get("/copy-traders", requireAuth, requireManagerOrAdmin, async (_req, res) => {
+  const { listCopyTradersCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listCopyTradersCatalog());
+});
+
+router.get("/algo-strategies", requireAuth, requireManagerOrAdmin, async (_req, res) => {
+  const { listAlgoStrategiesCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listAlgoStrategiesCatalog());
+});
+
+router.get("/ea-catalog", requireAuth, requireManagerOrAdmin, async (_req, res) => {
+  const { listEaStrategyCatalog } = await import("../helpers/catalogReadService");
+  res.json(await listEaStrategyCatalog());
+});
+
 export default router;

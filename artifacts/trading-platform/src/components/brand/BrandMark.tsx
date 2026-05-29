@@ -11,6 +11,8 @@ type BrandMarkProps = {
   titleSize?: "sm" | "md" | "lg" | "xl";
   branding?: SiteBranding;
   onClick?: () => void;
+  /** Allow the mark to shrink in crowded headers (mobile brand bar). */
+  shrinkable?: boolean;
 };
 
 /** Logo + site title on one line — for fixed mobile/public headers. */
@@ -21,6 +23,7 @@ export function BrandMark({
   titleSize = "sm",
   branding,
   onClick,
+  shrinkable = false,
 }: BrandMarkProps) {
   const live = useSiteBranding();
   const b = branding ?? live;
@@ -51,7 +54,14 @@ export function BrandMark({
 
   if (href) {
     return (
-      <Link href={href} onClick={onClick} className="min-w-0 max-w-full block shrink-0">
+      <Link
+        href={href}
+        onClick={onClick}
+        className={cn(
+          "min-w-0 max-w-full block",
+          shrinkable ? "flex-1 min-w-0 overflow-hidden shrink" : "shrink-0",
+        )}
+      >
         {inner}
       </Link>
     );

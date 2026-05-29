@@ -149,7 +149,7 @@ export async function submitMaturityPayoutChoice(
     if (!account) throw new Error("Payout account not found");
 
     const method = opts.paymentMethod || account.accountType;
-    if (!["upi", "bank", "crypto"].includes(method)) {
+    if (!["upi", "digital_rupee", "bank", "crypto"].includes(method)) {
       throw new Error("Invalid payout method");
     }
     if (account.accountType !== method) {
@@ -288,6 +288,7 @@ export function mapPaymentAccount(a: typeof userPaymentAccountsTable.$inferSelec
     ifscCode: a.ifscCode || null,
     branchName: a.branchName || null,
     upiId: a.upiId || null,
+    digitalRupeeId: a.digitalRupeeId || null,
     upiQrUrl: a.upiQrUrl || null,
     cryptoSymbol: a.cryptoSymbol || null,
     cryptoNetwork: a.cryptoNetwork || null,

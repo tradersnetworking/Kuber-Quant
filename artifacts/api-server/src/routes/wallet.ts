@@ -200,12 +200,24 @@ router.get("/statement", requireAuth, async (req, res) => {
   const toDate = to ?? new Date();
   const fromDate = from ?? new Date(toDate.getTime() - 3650 * 24 * 60 * 60 * 1000);
 
-  const { buildInvestorStatementCsv } = await import("../helpers/investorStatementService");
-  const csv = await buildInvestorStatementCsv(userId, fromDate, toDate);
   const slug = label.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "statement";
-  res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="kuber-statement-${fromDate.toISOString().slice(0, 10)}-${slug}.csv"`);
-  res.send(csv);
+  const baseName = `kuber-statement-${fromDate.toISOString().slice(0, 10)}-${slug}`;
+  const format = String(req.query.format || "pdf").toLowerCase();
+
+  const statementService = await import("../helpers/investorStatementService");
+
+  if (format === "csv") {
+    const csv = await statementService.buildInvestorStatementCsv(userId, fromDate, toDate);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${baseName}.csv"`);
+    res.send(csv);
+    return;
+  }
+
+  const pdf = await statementService.buildInvestorStatementPdf(userId, fromDate, toDate);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${baseName}.pdf"`);
+  res.send(pdf);
 });
 
 export default router;

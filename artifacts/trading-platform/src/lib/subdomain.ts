@@ -4,11 +4,11 @@
  *   - admin.kuberquant.com  → super-admin portal (legacy subdomain)
  *   - manager.kuberquant.com → "manager"
  *   - support.kuberquant.com → "support"
- *   - kuberquant.com / localhost / *.replit.dev → null (main app)
+ *   - kuberquant.com / localhost → null (main app)
  *
- * Note: In Replit preview, no subdomain is detected — all portals are accessible
- * via /staff-login and role-based redirects. Subdomain logic activates on
- * production custom domains.
+ * Note: On localhost / preview hosts, no subdomain is detected — all portals are
+ * accessible via /staff-login and role-based redirects. Subdomain logic activates
+ * on production custom domains.
  */
 import { getPostLoginPath } from "@/lib/nav-config";
 

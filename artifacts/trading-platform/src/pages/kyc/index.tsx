@@ -14,6 +14,9 @@ import { CardFooter } from "@/components/ui/card";
 import { PhoneCountryCodeSelect } from "@/components/forms/PhoneCountryCodeSelect";
 import { DEFAULT_DIAL_CODE } from "@/lib/country-codes";
 import { KycDocumentsList } from "@/components/kyc/KycDocumentsList";
+import { KycDocumentManager } from "@/components/kyc/KycDocumentManager";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PersonalPaymentAccounts } from "@/components/wallet/PersonalPaymentAccounts";
 import { AppPage } from "@/components/layout/AppPage";
 import { APP_CARD, APP_FORM_GRID, APP_PAGE_STACK } from "@/lib/ui-system";
 import { cn } from "@/lib/utils";
@@ -97,62 +100,70 @@ export default function KycPage() {
     </AppPage>
   );
 
-  if (kyc && kyc.status !== 'rejected') {
-    return (
-      <AppPage className="max-w-2xl mx-auto w-full py-6 sm:py-12" stackClassName={APP_PAGE_STACK}>
-          <Card className={cn(APP_CARD, "text-center py-8 sm:py-12")}>
-            <CardContent className="space-y-6">
-              <div className="flex justify-center">
-                {kyc.status === 'verified' ? (
-                  <div className="h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center border-2 border-green-500/50">
-                    <ShieldCheck className="h-10 w-10 text-green-500" />
-                  </div>
-                ) : (
-                  <div className="h-20 w-20 rounded-full bg-amber-500/20 flex items-center justify-center border-2 border-amber-500/50 animate-pulse">
-                    <Clock className="h-10 w-10 text-amber-500" />
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">KYC Status: <span className="capitalize text-amber-500">{kyc.status}</span></h2>
-                <p className="text-muted-foreground max-w-sm mx-auto">
-                  {kyc.status === 'verified' 
-                    ? "Your account is fully verified. You can now enjoy all platform features with no limits." 
-                    : "We have received your KYC application and it is currently under review by our compliance team."}
-                </p>
-              </div>
-              <div className="pt-4 grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 max-w-md mx-auto keep-cols-2">
-                 <div className="p-3 bg-muted/60 dark:bg-white/5 rounded-lg border border-border dark:border-white/10 text-left">
-                    <p className="text-[10px] text-muted-foreground uppercase">Reference ID</p>
-                    <p className="text-sm font-mono truncate">{kyc.id}</p>
-                 </div>
-                 <div className="p-3 bg-muted/60 dark:bg-white/5 rounded-lg border border-border dark:border-white/10 text-left">
-                    <p className="text-[10px] text-muted-foreground uppercase">Submitted On</p>
-                    <p className="text-sm">{new Date(kyc.createdAt).toLocaleDateString()}</p>
-                 </div>
-              </div>
-              <div className="pt-6 max-w-lg mx-auto text-left">
-                <h3 className="text-sm font-semibold mb-3 text-center">Your Uploaded Documents</h3>
-                <KycDocumentsList kyc={kyc as any} />
-              </div>
-            </CardContent>
-          </Card>
-      </AppPage>
-  );
-  }
+  const verified = kyc?.status === "verified";
+  const submittedNotRejected = !!kyc && kyc.status !== "rejected";
 
-  return (
-    <AppPage
-      className="max-w-2xl mx-auto w-full"
-      stackClassName={APP_PAGE_STACK}
-      title={
-        <h1 className="page-title bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent text-center md:text-left">
-          Identity Verification
-        </h1>
-      }
-      subtitle="Complete your KYC to unlock full trading and withdrawal capabilities."
+  const verificationBadge = (
+    <Badge
+      className={cn(
+        "ml-0 md:ml-3 gap-1 align-middle",
+        verified
+          ? "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30"
+          : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+      )}
     >
+      {verified ? <ShieldCheck className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+      {verified ? "Verified" : "Not verified"}
+    </Badge>
+  );
 
+  const verifiedCard = (
+    <Card className={cn(APP_CARD, "text-center py-8 sm:py-12")}>
+      <CardContent className="space-y-6">
+        <div className="flex justify-center">
+          {verified ? (
+            <div className="h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center border-2 border-green-500/50">
+              <ShieldCheck className="h-10 w-10 text-green-500" />
+            </div>
+          ) : (
+            <div className="h-20 w-20 rounded-full bg-amber-500/20 flex items-center justify-center border-2 border-amber-500/50 animate-pulse">
+              <Clock className="h-10 w-10 text-amber-500" />
+            </div>
+          )}
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold">KYC Status: <span className="capitalize text-amber-500">{kyc?.status}</span></h2>
+          <p className="text-muted-foreground max-w-sm mx-auto">
+            {verified
+              ? "Your account is fully verified. You can now enjoy all platform features with no limits."
+              : "We have received your KYC application and it is currently under review by our compliance team."}
+          </p>
+        </div>
+        <div className="pt-4 grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 max-w-md mx-auto keep-cols-2">
+          <div className="p-3 bg-muted/60 dark:bg-white/5 rounded-lg border border-border dark:border-white/10 text-left">
+            <p className="text-[10px] text-muted-foreground uppercase">Reference ID</p>
+            <p className="text-sm font-mono truncate">{kyc?.id}</p>
+          </div>
+          <div className="p-3 bg-muted/60 dark:bg-white/5 rounded-lg border border-border dark:border-white/10 text-left">
+            <p className="text-[10px] text-muted-foreground uppercase">Submitted On</p>
+            <p className="text-sm">{kyc ? new Date(kyc.createdAt).toLocaleDateString() : "—"}</p>
+          </div>
+        </div>
+        <div className="pt-6 max-w-lg mx-auto text-left">
+          <h3 className="text-sm font-semibold mb-1 text-center">Your Uploaded Documents</h3>
+          {verified && (
+            <p className="text-[11px] text-muted-foreground text-center mb-3">
+              Approved documents are locked. To replace one, contact support — our team must approve the update before the old file is removed.
+            </p>
+          )}
+          <KycDocumentsList kyc={kyc as any} locked={verified} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const wizardContent = (
+    <>
         {kyc?.status === 'rejected' && (
           <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
              <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
@@ -337,6 +348,46 @@ export default function KycPage() {
             </CardFooter>
           </form>
         </Card>
+    </>
+  );
+
+  return (
+    <AppPage
+      className="max-w-3xl mx-auto w-full"
+      stackClassName={APP_PAGE_STACK}
+      title={
+        <h1 className="page-title bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent text-center md:text-left">
+          My KYC & Accounts {verificationBadge}
+        </h1>
+      }
+      subtitle="Manage your identity verification and your deposit & withdrawal accounts."
+    >
+      <Tabs defaultValue="kyc" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="kyc">KYC Details</TabsTrigger>
+          <TabsTrigger value="accounts">Account Details</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="kyc" className="mt-4 space-y-4">
+          {submittedNotRejected ? verifiedCard : wizardContent}
+
+          <Card className={cn(APP_CARD)}>
+            <CardHeader>
+              <CardTitle className="text-base">Manage your documents</CardTitle>
+              <CardDescription>
+                Upload, view, download, update or delete documents individually. Verified documents are locked — upload a replacement and our team will review it before the old file is removed.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <KycDocumentManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="accounts" className="mt-4">
+          <PersonalPaymentAccounts />
+        </TabsContent>
+      </Tabs>
     </AppPage>
-);
+  );
 }

@@ -71,7 +71,7 @@ const generalLimiter = rateLimit({
   skip: (req) => {
     if (isDev && process.env.RATE_LIMIT_ENABLE !== "true") return true;
     const path = (req.path || req.url?.split("?")[0] || "").replace(/\/+$/, "");
-    return path === "/api/branding" || path === "/api/maintenance" || path.startsWith("/api/payments/qr") || path === "/api/health" || path === "/api/healthz" || path === "/api/market/config" || path === "/api/public-stats" || path === "/api/notifications/stream";
+    return path === "/api/maintenance" || path.startsWith("/api/branding") || path.startsWith("/api/payments/qr") || path === "/api/health" || path === "/api/healthz" || path === "/api/market/config" || path === "/api/public-stats" || path === "/api/notifications/stream";
   },
   message: { error: "Too many requests, please try again later." },
 });

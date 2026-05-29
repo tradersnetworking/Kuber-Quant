@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FileText, Download, CheckCircle, Clock, AlertTriangle, PenTool,
-  Shield, Eraser, RefreshCw, Eye, ChevronRight, Lock, XCircle
+  Shield, Eraser, Eye, Lock, XCircle
 } from "lucide-react";
+import { AgreementPdfViewDialog } from "@/components/agreements/AgreementPdfViewDialog";
+import { fetchAgreementPdfBlob, fetchAgreementUserSettings } from "@/lib/agreements-api";
 
 const TOKEN = () => localStorage.getItem("token");
 const API = "/api";
@@ -159,12 +161,17 @@ export default function AgreementsPage() {
   const [genType, setGenType] = useState("risk_disclosure");
   const [showGenDialog, setShowGenDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"pending" | "signed" | "all">("pending");
+  const [viewing, setViewing] = useState<any>(null);
+  const [downloadEnabled, setDownloadEnabled] = useState(true);
 
   useEffect(() => {
     apiFetch("/agreements/my")
       .then(setAgreements)
       .catch(() => {})
       .finally(() => setLoading(false));
+    fetchAgreementUserSettings()
+      .then(s => setDownloadEnabled(s.userDownloadEnabled))
+      .catch(() => {});
   }, []);
 
   async function openDetail(agr: any) {
@@ -202,7 +209,10 @@ export default function AgreementsPage() {
       const r = await fetch(`${API}/agreements/my/${id}/download`, {
         headers: { Authorization: `Bearer ${TOKEN()}` },
       });
-      if (!r.ok) throw new Error("Download failed");
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || "Download failed");
+      }
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -293,43 +303,52 @@ export default function AgreementsPage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.map(agr => {
               const status = STATUS_CONFIG[agr.status] || STATUS_CONFIG.pending_signature;
               const Icon = TYPE_ICONS[agr.type] || FileText;
+              const isSigned = agr.status === "signed";
               return (
                 <Card key={agr.id}
-                  className={`bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 hover:border-amber-500/30 transition-all cursor-pointer ${
+                  className={`bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 hover:border-amber-500/30 transition-all ${
                     agr.status === "pending_signature" ? "border-amber-500/20" : ""
-                  }`}
-                  onClick={() => openDetail(agr)}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`h-10 w-10 rounded-xl shrink-0 flex items-center justify-center ${
-                          agr.status === "signed" ? "bg-green-500/10" : "bg-amber-500/10"
-                        }`}>
-                          <Icon className={`h-5 w-5 ${agr.status === "signed" ? "text-green-700 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-sm truncate">{TYPE_LABELS[agr.type] || agr.type}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{agr.agreementUid}</p>
-                          <p className="text-xs text-muted-foreground">{agr.agreementDate}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge className={`text-xs ${status.color}`}>
-                          <status.icon className="h-2.5 w-2.5 mr-1" />
-                          {status.label}
-                        </Badge>
-                        <Button size="sm" variant="ghost"
-                          onClick={e => { e.stopPropagation(); handleDownload(agr.id, agr.agreementUid); }}
+                  }`}>
+                  <CardContent className="p-4 flex flex-col items-center text-center gap-3">
+                    {/* Name */}
+                    <p className="font-semibold text-sm break-words w-full">{TYPE_LABELS[agr.type] || agr.type}</p>
+
+                    {/* Icon */}
+                    <div className={`h-14 w-14 rounded-2xl flex items-center justify-center ${
+                      isSigned ? "bg-green-500/10" : "bg-amber-500/10"
+                    }`}>
+                      <Icon className={`h-7 w-7 ${isSigned ? "text-green-700 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`} />
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground font-mono break-all">{agr.agreementUid}</p>
+
+                    {/* Status */}
+                    <Badge className={`text-xs ${status.color}`}>
+                      <status.icon className="h-2.5 w-2.5 mr-1" />
+                      {isSigned ? "Signed" : "Unsigned"}
+                    </Badge>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 w-full pt-1">
+                      <Button size="sm" variant="outline"
+                        onClick={() => (agr.status === "pending_signature" ? openDetail(agr) : setViewing(agr))}
+                        className="flex-1 border-border dark:border-white/10">
+                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        {agr.status === "pending_signature" ? "Review & Sign" : "View"}
+                      </Button>
+                      {downloadEnabled && (
+                        <Button size="sm" variant="outline"
+                          onClick={() => handleDownload(agr.id, agr.agreementUid)}
                           disabled={downloading === agr.id}
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-amber-600 dark:text-amber-400">
-                          <Download className="h-3.5 w-3.5" />
+                          className="flex-1 border-border dark:border-white/10">
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                          {downloading === agr.id ? "…" : "Download"}
                         </Button>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -343,13 +362,13 @@ export default function AgreementsPage() {
           <DialogContent className="bg-background border-border dark:border-white/10 max-w-2xl max-h-[85vh] overflow-y-auto">
             {selected && (
               <>
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                    {TYPE_LABELS[selected.type] || selected.type}
+                <DialogHeader className="text-left pr-8">
+                  <DialogTitle className="flex items-start gap-2 min-w-0 break-words">
+                    <FileText className="h-5 w-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                    <span className="min-w-0 break-words">{TYPE_LABELS[selected.type] || selected.type}</span>
                   </DialogTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="font-mono text-xs text-muted-foreground">{selected.agreementUid}</span>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="font-mono text-xs text-muted-foreground break-all">{selected.agreementUid}</span>
                     <Badge className={`text-xs ${STATUS_CONFIG[selected.status]?.color || ""}`}>
                       {STATUS_CONFIG[selected.status]?.label || selected.status}
                     </Badge>
@@ -404,12 +423,19 @@ export default function AgreementsPage() {
                         </p>
                       </div>
                     </div>
-                    <Button onClick={() => handleDownload(selected.id, selected.agreementUid)}
-                      disabled={downloading === selected.id}
-                      className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold">
-                      <Download className="h-4 w-4 mr-2" />
-                      {downloading === selected.id ? "Generating PDF..." : "Download Signed Agreement PDF"}
+                    <Button onClick={() => { setViewing(selected); setSelected(null); }}
+                      variant="outline"
+                      className="w-full border-border dark:border-white/10">
+                      <Eye className="h-4 w-4 mr-2" /> View Signed Agreement
                     </Button>
+                    {downloadEnabled && (
+                      <Button onClick={() => handleDownload(selected.id, selected.agreementUid)}
+                        disabled={downloading === selected.id}
+                        className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold">
+                        <Download className="h-4 w-4 mr-2" />
+                        {downloading === selected.id ? "Generating PDF..." : "Download Signed Agreement PDF"}
+                      </Button>
+                    )}
                   </div>
                 )}
               </>
@@ -447,6 +473,18 @@ export default function AgreementsPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* PDF view dialog */}
+        <AgreementPdfViewDialog
+          open={!!viewing}
+          onOpenChange={open => !open && setViewing(null)}
+          title={viewing ? (TYPE_LABELS[viewing.type] || viewing.type) : ""}
+          subtitle={viewing?.agreementUid}
+          documentKey={viewing?.id ?? null}
+          fetchBlob={() => fetchAgreementPdfBlob(viewing.id, "view")}
+          downloadFilename={viewing ? `${viewing.agreementUid}.pdf` : undefined}
+          allowDownload={downloadEnabled}
+        />
       </div>
 );
 }

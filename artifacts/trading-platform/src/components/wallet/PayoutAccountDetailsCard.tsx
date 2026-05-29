@@ -6,7 +6,7 @@ import {
 import { QrImage } from "@/components/wallet/QrImage";import { formatCryptoLabel } from "@/components/wallet/crypto-networks";
 import { CryptoAssetIcon } from "@/components/wallet/CryptoAssetIcon";
 import type { PaymentAccount } from "@/components/wallet/payout-account-types";
-import { Building2, Smartphone, Wallet } from "lucide-react";
+import { Building2, Smartphone, Wallet, IndianRupee } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -36,6 +36,30 @@ export function PayoutAccountDetailsCard({ account, compact, className }: Props)
           <QrImage src={qrSrc} fallbackSrc={fallbackSrc} alt="UPI QR" className="mx-auto max-h-40 rounded-lg border border-border dark:border-white/10 bg-white p-1" />
         )}
         {account.upiId && <CredentialRow label="UPI ID" value={account.upiId} mono />}
+      </div>
+    );
+  }
+
+  if (account.accountType === "digital_rupee") {
+    const qrSrc = resolvePayoutQrSrc({
+      accountType: "digital_rupee",
+      label: account.label,
+      digitalRupeeId: account.digitalRupeeId,
+      upiQrUrl: account.upiQrUrl,
+    });
+    const fallbackSrc = account.digitalRupeeId
+      ? resolvePayoutQrSrc({ accountType: "digital_rupee", label: account.label, digitalRupeeId: account.digitalRupeeId })
+      : undefined;
+    return (
+      <div className={cn("rounded-xl border border-border dark:border-white/10 bg-muted dark:bg-black/25 p-4 space-y-3", className)}>
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <IndianRupee className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+          {account.label}
+        </div>
+        {qrSrc && !compact && (
+          <QrImage src={qrSrc} fallbackSrc={fallbackSrc} alt="Digital Rupee QR" className="mx-auto max-h-40 rounded-lg border border-border dark:border-white/10 bg-white p-1" />
+        )}
+        {account.digitalRupeeId && <CredentialRow label="Digital Rupee ID" value={account.digitalRupeeId} mono />}
       </div>
     );
   }

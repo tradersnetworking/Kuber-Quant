@@ -103,12 +103,14 @@ export function AppShellToolbar({
         <div className={cn(compact && "hidden md:block")}>
           <LanguageSelector />
         </div>
-        <ThemeToggle
-          className={cn(
-            compact && "h-7 w-7 md:h-9 md:w-9 [&_svg]:h-3.5 [&_svg]:w-3.5 md:[&_svg]:h-4 md:[&_svg]:w-4",
-          )}
-        />
-        <Link href={getRoleAwareHref(role, "/notifications")}>
+        <div className={cn(compact && "hidden md:block")}>
+          <ThemeToggle
+            className={cn(
+              compact && "h-7 w-7 md:h-9 md:w-9 [&_svg]:h-3.5 [&_svg]:w-3.5 md:[&_svg]:h-4 md:[&_svg]:w-4",
+            )}
+          />
+        </div>
+        <Link href={getRoleAwareHref(role, "/notifications")} className={cn(compact && "hidden md:block")}>
           <Button
             variant="ghost"
             size="icon"

@@ -59,6 +59,10 @@ import {
   upiLimitErrorMessage,
   formatUpiLimitInr,
   UPI_MAX_INR_PER_TRANSACTION,
+  digitalRupeeInrAmountExceedsLimit,
+  digitalRupeeLimitErrorMessage,
+  formatDigitalRupeeLimitInr,
+  DIGITAL_RUPEE_MAX_INR_PER_TRANSACTION,
 } from "@/lib/payment-limits";
 import { FinanceFieldLabel, financeInputClass } from "@/components/wallet/PaymentMethodField";
 
@@ -138,7 +142,7 @@ export default function ExchangePage() {
 
   const { data: depositAccounts } = useQuery({
     queryKey: ["/api/payments/deposit-accounts"],
-    queryFn: () => authFetchJson<{ upi: DepositAccount[]; bank: DepositAccount[]; crypto: DepositAccount[]; online: DepositAccount[] }>("/payments/deposit-accounts"),
+    queryFn: () => authFetchJson<{ upi: DepositAccount[]; digitalRupee: DepositAccount[]; bank: DepositAccount[]; crypto: DepositAccount[]; online: DepositAccount[] }>("/payments/deposit-accounts"),
   });
 
   const { data: payoutAccountsRaw = [], refetch: refetchAccounts } = useQuery({
@@ -155,16 +159,19 @@ export default function ExchangePage() {
     queryFn: () => authFetchJson<ExchangeOrder[]>("/exchange/orders"),
   });
 
-  const bankUpiAccounts = payoutAccounts.filter(a => ["upi", "bank"].includes(a.accountType));
+  const fiatPayoutAccounts = payoutAccounts.filter(a => ["upi", "digital_rupee", "bank"].includes(a.accountType));
 
   useEffect(() => {
-    if (dialogMode !== "sell" || payoutAccountId || !bankUpiAccounts.length) return;
-    const first = bankUpiAccounts.find(a => a.accountType === "upi") ?? bankUpiAccounts[0];
+    if (dialogMode !== "sell" || payoutAccountId || !fiatPayoutAccounts.length) return;
+    const first = fiatPayoutAccounts.find(a => a.accountType === "upi")
+      ?? fiatPayoutAccounts.find(a => a.accountType === "digital_rupee")
+      ?? fiatPayoutAccounts[0];
     setPayoutAccountId(first?.id ?? null);
-  }, [dialogMode, bankUpiAccounts, payoutAccountId]);
+  }, [dialogMode, fiatPayoutAccounts, payoutAccountId]);
 
   const allFiatAccounts = useMemo(() => [
     ...(depositAccounts?.upi || []),
+    ...(depositAccounts?.digitalRupee || []),
     ...(depositAccounts?.bank || []),
     ...(depositAccounts?.online || []),
   ], [depositAccounts]);
@@ -185,7 +192,12 @@ export default function ExchangePage() {
     setGatewayId(null);
     setFiatPaymentOption("");
     setFiatAccountId("");
-    setPayoutAccountId(bankUpiAccounts.find(a => a.accountType === "upi")?.id ?? bankUpiAccounts[0]?.id ?? null);
+    setPayoutAccountId(
+      fiatPayoutAccounts.find(a => a.accountType === "upi")?.id
+        ?? fiatPayoutAccounts.find(a => a.accountType === "digital_rupee")?.id
+        ?? fiatPayoutAccounts[0]?.id
+        ?? null,
+    );
     setPayoutConfirmed(false);
     setReceiveMode("platform");
     setReceiveCryptoAccountId(null);
@@ -284,10 +296,19 @@ export default function ExchangePage() {
     && fiatPaymentOption === "upi"
     && fiatAmount.trim() !== ""
     && upiInrAmountExceedsLimit(Number(fiatAmount));
+  const buyDigitalRupeeOverLimit = dialogMode === "buy"
+    && fiatPaymentOption === "digital_rupee"
+    && fiatAmount.trim() !== ""
+    && digitalRupeeInrAmountExceedsLimit(Number(fiatAmount));
   const buyUpiQuoteOverLimit = dialogMode === "buy"
     && fiatPaymentOption === "upi"
     && quote
     && upiInrAmountExceedsLimit(Number(quote.fiatAmount));
+  const buyDigitalRupeeQuoteOverLimit = dialogMode === "buy"
+    && fiatPaymentOption === "digital_rupee"
+    && quote
+    && digitalRupeeInrAmountExceedsLimit(Number(quote.fiatAmount));
+  const buyInrLimitOver = buyUpiOverLimit || buyDigitalRupeeOverLimit || buyUpiQuoteOverLimit || buyDigitalRupeeQuoteOverLimit;
   const proofReady = dialogMode ? isExchangeProofReady(dialogMode, utr, txHash, proofFile) : false;
 
   const submitOrderDeposit = async (orderId: number) => {
@@ -313,8 +334,15 @@ export default function ExchangePage() {
         return;
       }
     }
+    if (dialogMode === "buy" && fiatPaymentOption === "digital_rupee") {
+      const payInr = Number(fiatAmount) || Number(quote.fiatAmount);
+      if (digitalRupeeInrAmountExceedsLimit(payInr)) {
+        toast({ title: "Digital Rupee limit exceeded", description: digitalRupeeLimitErrorMessage(), variant: "destructive" });
+        return;
+      }
+    }
     if (dialogMode === "buy" && !gatewayId) {
-      toast({ title: "Select deposit method", description: "Choose UPI, bank, or payment gateway above.", variant: "destructive" });
+      toast({ title: "Select deposit method", description: "Choose UPI, Digital Rupee, bank, or payment gateway above.", variant: "destructive" });
       return;
     }
     if (!proofReady) {
@@ -455,7 +483,11 @@ export default function ExchangePage() {
               type="number"
               step={dialogMode === "buy" ? "any" : "0.00000001"}
               min="0"
-              max={dialogMode === "buy" && fiatPaymentOption === "upi" ? UPI_MAX_INR_PER_TRANSACTION : undefined}
+              max={
+                dialogMode === "buy" && fiatPaymentOption === "upi" ? UPI_MAX_INR_PER_TRANSACTION
+                  : dialogMode === "buy" && fiatPaymentOption === "digital_rupee" ? DIGITAL_RUPEE_MAX_INR_PER_TRANSACTION
+                    : undefined
+              }
               value={dialogMode === "buy" ? fiatAmount : cryptoAmount}
               onChange={e => {
                 if (dialogMode === "buy") {
@@ -467,7 +499,7 @@ export default function ExchangePage() {
               className={cn(
                 financeInputClass("h-10"),
                 dialogMode === "buy" && "pl-7",
-                buyUpiOverLimit && "border-red-500/50",
+                buyInrLimitOver && "border-red-500/50",
               )}
               placeholder={dialogMode === "buy" ? "0.00" : "0.00000000"}
             />
@@ -478,6 +510,14 @@ export default function ExchangePage() {
               buyUpiOverLimit || buyUpiQuoteOverLimit ? "text-red-400" : "text-sky-600 dark:text-sky-400/90",
             )}>
               UPI max ₹{formatUpiLimitInr()} per transaction
+            </p>
+          )}
+          {dialogMode === "buy" && fiatPaymentOption === "digital_rupee" && (
+            <p className={cn(
+              "text-[11px]",
+              buyDigitalRupeeOverLimit || buyDigitalRupeeQuoteOverLimit ? "text-red-400" : "text-teal-600 dark:text-teal-400/90",
+            )}>
+              Digital Rupee max ₹{formatDigitalRupeeLimitInr()} per transaction
             </p>
           )}
         </div>
@@ -563,7 +603,7 @@ export default function ExchangePage() {
           || (dialogMode === "buy" && !buyReceiveConfirmed)
           || (dialogMode === "sell" && !payoutAccountId)
           || (dialogMode === "sell" && !payoutConfirmed)
-          || (dialogMode === "buy" && (buyUpiOverLimit || buyUpiQuoteOverLimit))
+          || (dialogMode === "buy" && buyInrLimitOver)
           || !proofReady
         }
         onClick={createOrder}
@@ -596,6 +636,22 @@ export default function ExchangePage() {
                   className="w-40 h-40 rounded-lg border border-border dark:border-white/10"
                 />
                 <code className="text-xs bg-muted dark:bg-black/30 px-2 py-1 rounded">{gw.upiId}</code>
+              </div>
+            )}
+            {gw.digitalRupeeId && (
+              <div className="flex flex-col items-center gap-2">
+                <QrImage
+                  src={resolveDepositQrSrc({
+                    qrCodeUrl: gw.qrCodeUrl,
+                    digitalRupeeId: gw.digitalRupeeId,
+                    payeeName: gw.name,
+                    amount: order.fiatAmount,
+                  })}
+                  fallbackSrc={resolveDepositQrSrc({ digitalRupeeId: gw.digitalRupeeId, payeeName: gw.name, amount: order.fiatAmount })}
+                  alt="Digital Rupee QR"
+                  className="w-40 h-40 rounded-lg border border-border dark:border-white/10"
+                />
+                <code className="text-xs bg-muted dark:bg-black/30 px-2 py-1 rounded">{gw.digitalRupeeId}</code>
               </div>
             )}
             {(gw.accountNumber || gw.bankName) && (
@@ -638,6 +694,30 @@ export default function ExchangePage() {
                   />
                 )}
                 <p>UPI: {order.payoutAccount.upiId}</p>
+              </>
+            )}
+            {order.payoutAccount.accountType === "digital_rupee" && order.payoutAccount.digitalRupeeId && (
+              <>
+                {(order.payoutAccount.upiQrUrl || order.payoutAccount.digitalRupeeId) && (
+                  <QrImage
+                    src={resolvePayoutQrSrc({
+                      accountType: "digital_rupee",
+                      label: order.payoutAccount.label || "Digital Rupee",
+                      digitalRupeeId: order.payoutAccount.digitalRupeeId,
+                      upiQrUrl: order.payoutAccount.upiQrUrl,
+                    })}
+                    fallbackSrc={order.payoutAccount.digitalRupeeId
+                      ? resolvePayoutQrSrc({
+                        accountType: "digital_rupee",
+                        label: order.payoutAccount.label || "Digital Rupee",
+                        digitalRupeeId: order.payoutAccount.digitalRupeeId,
+                      })
+                      : undefined}
+                    alt="Payout Digital Rupee QR"
+                    className="mx-auto max-h-36 rounded border border-border dark:border-white/10 bg-white p-1"
+                  />
+                )}
+                <p>Digital Rupee: {order.payoutAccount.digitalRupeeId}</p>
               </>
             )}
             {order.payoutAccount.accountType === "bank" && (
@@ -742,7 +822,7 @@ export default function ExchangePage() {
                 {t("exchange.buyCrypto")}
               </CardTitle>
               <CardDescription>
-                {ratesLoading ? "Loading…" : `${buyRates.length} assets available · pay with UPI, bank, or gateway`}
+                {ratesLoading ? "Loading…" : `${buyRates.length} assets available · pay with UPI, Digital Rupee, bank, or gateway`}
               </CardDescription>
             </CardHeader>
             <CardContent>

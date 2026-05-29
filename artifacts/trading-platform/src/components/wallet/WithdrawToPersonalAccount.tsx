@@ -71,6 +71,7 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
 
   function payoutLabel(account: PaymentAccount): string {
     if (account.accountType === "upi") return `${account.label} · UPI ${account.upiId || ""}`.trim();
+    if (account.accountType === "digital_rupee") return `${account.label} · Digital Rupee ${account.digitalRupeeId || ""}`.trim();
     if (account.accountType === "bank") {
       return `${account.label} · ${account.bankName || "Bank"} ****${String(account.accountNumber || "").slice(-4)}`;
     }
@@ -125,7 +126,7 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isGateway) {
-      toast({ title: "Use UPI or Bank", description: "Gateway withdrawals are not supported. Choose UPI or Bank transfer.", variant: "destructive" });
+      toast({ title: "Use UPI, Digital Rupee, or Bank", description: "Gateway withdrawals are not supported. Choose UPI, Digital Rupee, or Bank transfer.", variant: "destructive" });
       return;
     }
     if (!selected) {
@@ -287,7 +288,7 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
     return (
       <div className="text-center py-6 space-y-4">
         <p className="text-sm text-muted-foreground">
-          Add a personal bank, UPI, or crypto account to withdraw from your portal wallet.
+          Add a personal bank, UPI, Digital Rupee, or crypto account to withdraw from your portal wallet.
         </p>
         <Link href="/account?tab=payout">
           <Button className={WITHDRAW_BUTTON_CLASS}>
@@ -549,7 +550,7 @@ export function WithdrawToPersonalAccountDialog({ onSuccess, trigger, open, onOp
             <Landmark className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" /> Wallet → Personal Account
           </DialogTitle>
           <DialogDescription>
-            UPI, bank transfer, or crypto — same payout options as Sell Crypto on the exchange.
+            UPI, Digital Rupee, bank transfer, or crypto — same payout options as Sell Crypto on the exchange.
           </DialogDescription>
         </DialogHeader>
         <div className="dialog-form-inner px-4 pb-4 sm:px-6 sm:pb-6 min-w-0">

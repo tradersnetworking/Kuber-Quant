@@ -10,7 +10,7 @@ import {
   getExchangeCatalog, type ExchangeAssetSource,
 } from "./exchangeConstants";
 import { logger } from "../lib/logger";
-import { assertUpiDepositWithinLimit } from "./paymentLimits";
+import { assertUpiDepositWithinLimit, assertDigitalRupeeDepositWithinLimit } from "./paymentLimits";
 
 export function mapExchangeRate(r: typeof exchangeRatesTable.$inferSelect) {
   const buyPriceUsd = Number(r.buyPriceUsd);
@@ -566,10 +566,10 @@ export async function createExchangeOrder(userId: number, opts: {
   });
 
   if (opts.side === "buy" && !opts.paymentGatewayId) {
-    throw new WalletError("Select a deposit method (UPI, bank, or gateway)", "DEPOSIT_METHOD_REQUIRED");
+    throw new WalletError("Select a deposit method (UPI, Digital Rupee, bank, or gateway)", "DEPOSIT_METHOD_REQUIRED");
   }
   if (opts.side === "sell" && !opts.paymentAccountId) {
-    throw new WalletError("Select a UPI or bank account for fiat payout", "PAYOUT_ACCOUNT_REQUIRED");
+    throw new WalletError("Select a UPI, Digital Rupee, or bank account for fiat payout", "PAYOUT_ACCOUNT_REQUIRED");
   }
 
   if (opts.side === "buy" && opts.paymentGatewayId) {
@@ -579,6 +579,9 @@ export async function createExchangeOrder(userId: number, opts: {
     if (!gw) throw new WalletError("Deposit method not found", "GATEWAY_NOT_FOUND");
     if (gw.type === "upi") {
       await assertUpiDepositWithinLimit(quote.fiatAmount, quote.fiatCurrency);
+    }
+    if (gw.type === "digital_rupee") {
+      await assertDigitalRupeeDepositWithinLimit(quote.fiatAmount, quote.fiatCurrency);
     }
   }
 
@@ -590,8 +593,8 @@ export async function createExchangeOrder(userId: number, opts: {
         eq(userPaymentAccountsTable.isActive, true),
       )).limit(1);
     if (!acct) throw new WalletError("Payout account not found", "ACCOUNT_NOT_FOUND");
-    if (!["bank", "upi"].includes(acct.accountType)) {
-      throw new WalletError("Sell orders require a UPI or bank payout account", "INVALID_PAYOUT_ACCOUNT");
+    if (!["bank", "upi", "digital_rupee"].includes(acct.accountType)) {
+      throw new WalletError("Sell orders require a UPI, Digital Rupee, or bank payout account", "INVALID_PAYOUT_ACCOUNT");
     }
   }
 
@@ -738,7 +741,11 @@ export async function completeExchangeOrder(orderId: number, adminUserId: number
       currency: "USD",
       status: "approved",
       paymentMethod: acct
-        ? (acct.accountType === "upi" ? `UPI: ${acct.upiId}` : `Bank: ${acct.bankName} ${acct.accountNumber}`)
+        ? (acct.accountType === "upi"
+          ? `UPI: ${acct.upiId}`
+          : acct.accountType === "digital_rupee"
+            ? `Digital Rupee: ${acct.digitalRupeeId}`
+            : `Bank: ${acct.bankName} ${acct.accountNumber}`)
         : "Exchange fiat payout",
       gatewayProvider: "exchange_payout",
       notes: `Exchange SELL #${order.id} — admin pays ${order.fiatAmount} ${order.fiatCurrency} off-platform`,

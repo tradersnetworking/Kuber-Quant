@@ -9,6 +9,7 @@ export const paymentGatewaysTable = pgTable("payment_gateways", {
   description: text("description"),
   walletAddress: text("wallet_address"),
   upiId: text("upi_id"),
+  digitalRupeeId: text("digital_rupee_id"),
   qrCodeUrl: text("qr_code_url"),
   minAmount: numeric("min_amount", { precision: 18, scale: 2 }).default("10"),
   maxAmount: numeric("max_amount", { precision: 18, scale: 2 }),

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Switch } from "@/components/ui/switch";
 import { authFetchJson } from "@/lib/token-store";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2, Star, Building2, QrCode, Wallet, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Star, Building2, QrCode, Wallet, Loader2, IndianRupee } from "lucide-react";
 import { formatCryptoLabel } from "./crypto-networks";
 import { CryptoAssetPicker } from "./CryptoAssetPicker";
 import { CryptoAssetIcon } from "./CryptoAssetIcon";
@@ -32,6 +32,7 @@ type AccountForm = {
   ifscCode: string;
   branchName: string;
   upiId: string;
+  digitalRupeeId: string;
   upiQrUrl: string;
   cryptoSymbol: string;
   cryptoNetwork: string;
@@ -42,13 +43,13 @@ type AccountForm = {
 
 const EMPTY: AccountForm = {
   label: "", accountType: "bank", accountHolderName: "", bankName: "",
-  accountNumber: "", ifscCode: "", branchName: "", upiId: "", upiQrUrl: "",
+  accountNumber: "", ifscCode: "", branchName: "", upiId: "", digitalRupeeId: "", upiQrUrl: "",
   cryptoSymbol: "USDT", cryptoNetwork: "TRC20", walletAddress: "", walletQrUrl: "", isDefault: false,
 };
 
 const EMPTY_CRYPTO_META = { coinName: "Tether USD" };
 
-const TYPE_ICON = { bank: Building2, upi: QrCode, crypto: Wallet };
+const TYPE_ICON = { bank: Building2, upi: QrCode, digital_rupee: IndianRupee, crypto: Wallet };
 
 function buildAccountPayload(form: AccountForm) {
   const base = {
@@ -70,6 +71,13 @@ function buildAccountPayload(form: AccountForm) {
     return {
       ...base,
       upiId: form.upiId.trim().toLowerCase(),
+      upiQrUrl: form.upiQrUrl?.trim() || undefined,
+    };
+  }
+  if (form.accountType === "digital_rupee") {
+    return {
+      ...base,
+      digitalRupeeId: form.digitalRupeeId.trim(),
       upiQrUrl: form.upiQrUrl?.trim() || undefined,
     };
   }
@@ -114,6 +122,7 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
       ifscCode: acc.ifscCode || "",
       branchName: acc.branchName || "",
       upiId: acc.upiId || "",
+      digitalRupeeId: acc.digitalRupeeId || "",
       upiQrUrl: acc.upiQrUrl || "",
       cryptoSymbol: acc.cryptoSymbol || "USDT",
       cryptoNetwork: acc.cryptoNetwork || "",
@@ -138,6 +147,10 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
     }
     if (form.accountType === "upi" && !form.upiId.trim()) {
       toast({ title: "UPI ID required", variant: "destructive" });
+      return;
+    }
+    if (form.accountType === "digital_rupee" && !form.digitalRupeeId.trim()) {
+      toast({ title: "Digital Rupee ID required", variant: "destructive" });
       return;
     }
     if (form.accountType === "crypto" && !form.walletAddress.trim()) {
@@ -184,7 +197,7 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
         <div className="flex items-start justify-between gap-2">
           <div>
             <CardTitle className="text-base">My Payout Accounts</CardTitle>
-            <CardDescription>Save bank, UPI, and crypto wallets for withdrawals and exchange payouts. You can edit QR codes and addresses anytime.</CardDescription>
+            <CardDescription>Save bank, UPI, Digital Rupee, and crypto wallets for withdrawals and exchange payouts. You can edit QR codes and addresses anytime.</CardDescription>
           </div>
           <Button size="sm" className="bg-amber-500 text-black shrink-0" onClick={() => openNew()}>
             <Plus className="h-4 w-4 mr-1" /> Add
@@ -200,6 +213,7 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
             <div className="flex flex-wrap justify-center gap-2">
               <Button size="sm" variant="outline" onClick={() => openNew("bank")}>+ Bank</Button>
               <Button size="sm" variant="outline" onClick={() => openNew("upi")}>+ UPI</Button>
+              <Button size="sm" variant="outline" onClick={() => openNew("digital_rupee")}>+ Digital Rupee</Button>
               <Button size="sm" variant="outline" onClick={() => openNew("crypto")}>+ Crypto</Button>
             </div>
           </div>
@@ -210,7 +224,9 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
               ? `${acc.bankName} · ****${String(acc.accountNumber || "").slice(-4)}`
               : acc.accountType === "upi"
                 ? acc.upiId
-                : `${formatCryptoLabel(acc.cryptoSymbol, acc.cryptoNetwork)} · ${acc.walletAddress?.slice(0, 12)}…`;
+                : acc.accountType === "digital_rupee"
+                  ? acc.digitalRupeeId
+                  : `${formatCryptoLabel(acc.cryptoSymbol, acc.cryptoNetwork)} · ${acc.walletAddress?.slice(0, 12)}…`;
             return (
               <div key={acc.id} className="rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02] overflow-hidden">
                 <div className="flex items-center gap-3 p-3">
@@ -224,7 +240,7 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-sm truncate">{acc.label}</p>
-                      <Badge variant="outline" className="text-[10px] capitalize">{acc.accountType}</Badge>
+                      <Badge variant="outline" className="text-[10px] capitalize">{acc.accountType === "digital_rupee" ? "Digital Rupee" : acc.accountType}</Badge>
                       {acc.accountType === "crypto" && acc.cryptoNetwork && (
                         <Badge variant="outline" className="text-[10px]">{acc.cryptoNetwork.toUpperCase()}</Badge>
                       )}
@@ -267,6 +283,7 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
                 <SelectContent>
                   <SelectItem value="bank">Bank Account</SelectItem>
                   <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="digital_rupee">Digital Rupee (e-Rupee)</SelectItem>
                   <SelectItem value="crypto">Crypto Wallet</SelectItem>
                 </SelectContent>
               </Select>
@@ -299,6 +316,31 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
                         })}
                         fallbackSrc={form.upiId ? resolvePayoutQrSrc({ accountType: "upi", label: form.label || "UPI", upiId: form.upiId }) : undefined}
                         alt="UPI QR preview"
+                        className="h-16 w-16 rounded border border-border dark:border-white/10 bg-white p-0.5 object-contain"
+                      />
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {form.accountType === "digital_rupee" && (
+              <>
+                <Input required placeholder="Digital Rupee wallet ID" value={form.digitalRupeeId} onChange={e => setForm(f => ({ ...f, digitalRupeeId: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" />
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Digital Rupee QR code (optional — auto-generated if not uploaded)</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <UserQrUploadButton onUploaded={url => setForm(f => ({ ...f, upiQrUrl: url }))} />
+                    {(form.upiQrUrl || form.digitalRupeeId) && (
+                      <QrImage
+                        src={resolvePayoutQrSrc({
+                          accountType: "digital_rupee",
+                          label: form.label || "Digital Rupee",
+                          digitalRupeeId: form.digitalRupeeId,
+                          upiQrUrl: form.upiQrUrl,
+                        })}
+                        fallbackSrc={form.digitalRupeeId ? resolvePayoutQrSrc({ accountType: "digital_rupee", label: form.label || "Digital Rupee", digitalRupeeId: form.digitalRupeeId }) : undefined}
+                        alt="Digital Rupee QR preview"
                         className="h-16 w-16 rounded border border-border dark:border-white/10 bg-white p-0.5 object-contain"
                       />
                     )}

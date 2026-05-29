@@ -348,7 +348,7 @@ router.get("/agreement/preview", requireAuth, async (req, res) => {
     clientMeta: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as typeof userStakesTable.$inferSelect;
+  } as unknown as typeof userStakesTable.$inferSelect;
 
   const { buffer } = await generateStakingAgreementPdf({
     user,

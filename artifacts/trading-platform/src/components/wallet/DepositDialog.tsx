@@ -23,6 +23,10 @@ import {
   upiLimitErrorMessage,
   formatUpiLimitInr,
   UPI_MAX_INR_PER_TRANSACTION,
+  digitalRupeeDepositExceedsLimit,
+  digitalRupeeLimitErrorMessage,
+  formatDigitalRupeeLimitInr,
+  DIGITAL_RUPEE_MAX_INR_PER_TRANSACTION,
 } from "@/lib/payment-limits";
 import { FinanceFieldLabel, financeInputClass } from "@/components/wallet/PaymentMethodField";
 
@@ -54,15 +58,20 @@ export function WalletDepositForm({ onSuccess, compact }: FormProps) {
   const activeCryptoTab = cryptoTabs.find(t => t.key === accountId);
   const activeCrypto = activeCryptoTab ? findCryptoDepositAccount(crypto, activeCryptoTab) : undefined;
   const activeUpi = (depositAccounts?.upi || []).map(enrichDepositAccount).find(a => String(a.id) === accountId);
+  const activeDigitalRupee = (depositAccounts?.digitalRupee || []).map(enrichDepositAccount).find(a => String(a.id) === accountId);
   const activeBank = (depositAccounts?.bank || []).map(enrichDepositAccount).find(a => String(a.id) === accountId);
 
   const isCrypto = method === "crypto";
   const isGateway = method === "gateway";
   const isUpi = method === "upi";
+  const isDigitalRupee = method === "digital_rupee";
   const parsedAmount = Number(amount);
   const usdInrRate = (depositAccounts as any)?.exchangeRates?.USD_INR;
   const upiOverLimit = isUpi && amount.trim() !== "" && !Number.isNaN(parsedAmount)
     && upiDepositExceedsLimit(parsedAmount, currency, usdInrRate);
+  const digitalRupeeOverLimit = isDigitalRupee && amount.trim() !== "" && !Number.isNaN(parsedAmount)
+    && digitalRupeeDepositExceedsLimit(parsedAmount, currency, usdInrRate);
+  const inrLimitOver = upiOverLimit || digitalRupeeOverLimit;
   const proofMode = isCrypto ? "sell" : "buy";
   const proofReady = isGateway || isExchangeProofReady(proofMode, utr, utr, proofFile);
 
@@ -101,6 +110,10 @@ export function WalletDepositForm({ onSuccess, compact }: FormProps) {
       toast({ title: "UPI limit exceeded", description: upiLimitErrorMessage(), variant: "destructive" });
       return;
     }
+    if (isDigitalRupee && digitalRupeeDepositExceedsLimit(Number(amount), currency, usdInrRate)) {
+      toast({ title: "Digital Rupee limit exceeded", description: digitalRupeeLimitErrorMessage(), variant: "destructive" });
+      return;
+    }
     if (!proofReady) {
       toast({
         title: "Proof required",
@@ -124,7 +137,7 @@ export function WalletDepositForm({ onSuccess, compact }: FormProps) {
         });
         toast({ title: "Crypto deposit submitted", description: "Pending verification." });
       } else {
-        const active = method === "upi" ? activeUpi : activeBank;
+        const active = method === "upi" ? activeUpi : method === "digital_rupee" ? activeDigitalRupee : activeBank;
         const fd = new FormData();
         fd.append("amount", amount);
         fd.append("currency", currency);
@@ -184,14 +197,23 @@ export function WalletDepositForm({ onSuccess, compact }: FormProps) {
                 type="number"
                 required
                 min={1}
-                max={isUpi && currency === "INR" ? UPI_MAX_INR_PER_TRANSACTION : undefined}
+                max={
+                  isUpi && currency === "INR" ? UPI_MAX_INR_PER_TRANSACTION
+                    : isDigitalRupee && currency === "INR" ? DIGITAL_RUPEE_MAX_INR_PER_TRANSACTION
+                      : undefined
+                }
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                className={financeInputClass(upiOverLimit ? "border-red-500/50" : undefined)}
+                className={financeInputClass(inrLimitOver ? "border-red-500/50" : undefined)}
               />
               {isUpi && (
                 <p className={cn("text-[11px]", upiOverLimit ? "text-red-400" : "text-sky-600 dark:text-sky-400/90")}>
                   UPI max ₹{formatUpiLimitInr()} per transaction
+                </p>
+              )}
+              {isDigitalRupee && (
+                <p className={cn("text-[11px]", digitalRupeeOverLimit ? "text-red-400" : "text-teal-600 dark:text-teal-400/90")}>
+                  Digital Rupee max ₹{formatDigitalRupeeLimitInr()} per transaction
                 </p>
               )}
             </div>
@@ -242,7 +264,7 @@ export function WalletDepositForm({ onSuccess, compact }: FormProps) {
           <Button
             type="submit"
             size="wrap"
-            disabled={loading || !accountId || !proofReady || upiOverLimit}
+            disabled={loading || !accountId || !proofReady || inrLimitOver}
             className={cn("w-full font-bold", DEPOSIT_BUTTON_CLASS, mobileBtnWrap)}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Upload className="h-4 w-4 shrink-0" />}
@@ -283,7 +305,7 @@ export function DepositDialog({ onSuccess, trigger, open, onOpenChange }: Dialog
       <DialogContent className="dialog-scroll-content bg-background border-border dark:border-white/10 max-w-xl w-[calc(100vw-2rem)] overflow-x-hidden p-0 gap-0">
         <DialogHeader className="px-4 pt-4 sm:px-6">
           <DialogTitle>Deposit Funds</DialogTitle>
-          <DialogDescription>UPI, bank transfer, payment gateway, or crypto — same flow as Buy Crypto.</DialogDescription>
+          <DialogDescription>UPI, Digital Rupee, bank transfer, payment gateway, or crypto — same flow as Buy Crypto.</DialogDescription>
         </DialogHeader>
         <div className="dialog-form-inner px-4 pb-4 sm:px-6 sm:pb-6 min-w-0">
           <WalletDepositForm

@@ -20,18 +20,25 @@ const emptyTrader = {
   minInvestment: 100, riskLevel: "medium", status: "active",
 };
 
-export function CopyTradersPanel() {
+export function CopyTradersPanel({
+  apiBase = "/super-admin",
+  readOnly = false,
+}: {
+  apiBase?: "/super-admin" | "/manager" | "/support-team";
+  readOnly?: boolean;
+} = {}) {
   const { toast } = useToast();
   const [traders, setTraders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyTrader });
+  const canWrite = !readOnly && apiBase === "/super-admin";
 
   const load = async () => {
     setLoading(true);
     try {
-      setTraders(await staffFetch<any[]>("/super-admin/copy-traders"));
+      setTraders(await staffFetch<any[]>(`${apiBase}/copy-traders`));
     } catch (e: any) {
       toast({ title: "Failed to load copy traders", description: e.message, variant: "destructive" });
     } finally {
@@ -39,10 +46,11 @@ export function CopyTradersPanel() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [apiBase]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canWrite) return;
     try {
       if (editing) {
         await staffFetch(`/super-admin/copy-traders/${editing.id}`, { method: "PATCH", body: JSON.stringify(form) });
@@ -61,6 +69,7 @@ export function CopyTradersPanel() {
   };
 
   const remove = async (id: number) => {
+    if (!canWrite) return;
     if (!confirm("Delete this copy trader profile?")) return;
     try {
       await staffFetch(`/super-admin/copy-traders/${id}`, { method: "DELETE" });
@@ -82,13 +91,15 @@ export function CopyTradersPanel() {
       <div className={STAFF_HEADER_ROW}>
         <div className="min-w-0">
           <h2 className="text-lg font-semibold flex items-center gap-2"><Users className="h-5 w-5 text-cyan-600 dark:text-cyan-400 shrink-0" />Copy Trading Profiles</h2>
-          <p className="text-sm text-muted-foreground">Manage master traders users can follow for copy trading.</p>
+          <p className="text-sm text-muted-foreground">{readOnly ? "Master trader catalog for client guidance (read-only)." : "Manage master traders users can follow for copy trading."}</p>
         </div>
         <div className="flex flex-col xs:flex-row gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
-          <Button size="sm" className="bg-amber-500 text-black" onClick={() => { setEditing(null); setForm({ ...emptyTrader }); setOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" />Add Trader
-          </Button>
+          {canWrite && (
+            <Button size="sm" className="bg-amber-500 text-black" onClick={() => { setEditing(null); setForm({ ...emptyTrader }); setOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" />Add Trader
+            </Button>
+          )}
         </div>
       </div>
 
@@ -112,21 +123,24 @@ export function CopyTradersPanel() {
                     ROI {t.roi}% · Monthly {t.monthlyRoi}% · Win {t.winRate}% · {t.followers} followers · Min ${t.minInvestment}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => { setEditing(t); setForm({ ...emptyTrader, ...t }); setOpen(true); }}>
-                    <Edit2 className="h-3 w-3 mr-1" />Edit
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => duplicate(t)} title="Duplicate"><Copy className="h-3 w-3" /></Button>
-                  <Button size="sm" variant="outline" className="text-red-400" onClick={() => remove(t.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                {canWrite && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => { setEditing(t); setForm({ ...emptyTrader, ...t }); setOpen(true); }}>
+                      <Edit2 className="h-3 w-3 mr-1" />Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => duplicate(t)} title="Duplicate"><Copy className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="outline" className="text-red-400" onClick={() => remove(t.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
+      {canWrite && (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className={cn(APP_MODAL_MD, "bg-background border-border dark:border-white/10")}>
           <DialogHeader><DialogTitle>{editing ? "Edit Copy Trader" : "New Copy Trader"}</DialogTitle></DialogHeader>
@@ -164,6 +178,7 @@ export function CopyTradersPanel() {
           </form>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

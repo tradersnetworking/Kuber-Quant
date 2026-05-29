@@ -6,6 +6,8 @@ import {
   type VerifiedRegistrationResponse,
 } from "@simplewebauthn/server";
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
+
+type WebAuthnTransport = "ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb";
 import {
   db,
   webauthnCredentialsTable,
@@ -128,8 +130,8 @@ export async function createRegistrationOptions(userId: number, userEmail: strin
     userDisplayName: userName || userEmail,
     attestationType: "none",
     excludeCredentials: existing.map((c) => ({
-      id: base64UrlToBuffer(c.credentialId),
-      transports: (c.transports as AuthenticatorTransport[] | undefined) ?? undefined,
+      id: c.credentialId,
+      transports: (c.transports as WebAuthnTransport[] | undefined) ?? undefined,
     })),
     authenticatorSelection: {
       residentKey: "preferred",
@@ -236,8 +238,8 @@ export async function createAuthenticationOptions(userId: number) {
   const options = await generateAuthenticationOptions({
     rpID: getWebauthnRpId(),
     allowCredentials: creds.map((c) => ({
-      id: base64UrlToBuffer(c.credentialId),
-      transports: (c.transports as AuthenticatorTransport[] | undefined) ?? undefined,
+      id: c.credentialId,
+      transports: (c.transports as WebAuthnTransport[] | undefined) ?? undefined,
     })),
     userVerification: "required",
   });
@@ -316,10 +318,10 @@ export async function verifyAuthentication(
       expectedRPID: getWebauthnRpId(),
       requireUserVerification: true,
       credential: {
-        id: base64UrlToBuffer(storedCred.credentialId),
-        publicKey: base64UrlToBuffer(storedCred.publicKey),
+        id: storedCred.credentialId,
+        publicKey: new Uint8Array(base64UrlToBuffer(storedCred.publicKey)),
         counter: storedCred.counter,
-        transports: (storedCred.transports as AuthenticatorTransport[] | undefined) ?? undefined,
+        transports: (storedCred.transports as WebAuthnTransport[] | undefined) ?? undefined,
       },
     });
 

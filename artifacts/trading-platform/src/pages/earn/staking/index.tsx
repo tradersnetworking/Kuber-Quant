@@ -348,8 +348,8 @@ export default function StakingPage() {
 
       <Dialog open={!!selectedPlan} onOpenChange={(o) => !o && setSelectedPlan(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Stake in {selectedPlan?.name}</DialogTitle>
+          <DialogHeader className="text-left pr-8">
+            <DialogTitle className="break-words">Stake in {selectedPlan?.name}</DialogTitle>
           </DialogHeader>
           {selectedPlan && (
             <div className="space-y-4">

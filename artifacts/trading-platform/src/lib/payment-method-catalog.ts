@@ -1,6 +1,6 @@
 /** Visual catalog for deposit & withdrawal method grids (UPI, bank rails, gateways, crypto). */
 
-export type PaymentBrandCategory = "upi" | "bank" | "gateway" | "card" | "crypto";
+export type PaymentBrandCategory = "upi" | "digital_rupee" | "bank" | "gateway" | "card" | "crypto";
 
 export type PaymentBrandItem = {
   id: string;
@@ -41,6 +41,13 @@ export const UPI_BADGE_BRANDS: PaymentBrandItem[] = [
   { id: "paytm", label: "Paytm UPI", shortLabel: "Paytm UPI", category: "upi", tileClass: WHITE_TILE, upiBadge: true },
   { id: "phonepe", label: "PhonePe UPI", shortLabel: "PhonePe UPI", category: "upi", tileClass: WHITE_TILE, upiBadge: true },
   { id: "gpay", label: "G Pay UPI", shortLabel: "G Pay UPI", category: "upi", tileClass: WHITE_TILE, upiBadge: true },
+];
+
+/** RBI Digital Rupee (e₹ / CBDC) rails — mirrors the UPI grid with a teal identity. */
+export const DIGITAL_RUPEE_BRANDS: PaymentBrandItem[] = [
+  { id: "erupee", label: "Digital Rupee", shortLabel: "e₹", subtitle: "RBI CBDC", category: "digital_rupee", tileClass: "bg-teal-500/15 border-teal-500/30 text-teal-700 dark:text-teal-300" },
+  { id: "erupee-upi", label: "e₹ via UPI", shortLabel: "e₹ UPI", subtitle: "Interoperable", category: "digital_rupee", tileClass: "bg-teal-500/10 border-teal-500/25 text-teal-700 dark:text-teal-300" },
+  { id: "erupee-wallet", label: "CBDC Wallet", shortLabel: "CBDC", subtitle: "e-Rupee app", category: "digital_rupee", tileClass: "bg-teal-500/10 border-teal-500/25 text-teal-700 dark:text-teal-300" },
 ];
 
 export const BANK_RAIL_BRANDS: PaymentBrandItem[] = [

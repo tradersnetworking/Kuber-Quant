@@ -26,7 +26,7 @@ export function geoBlockGate(req: Request, res: Response, next: NextFunction) {
   }
 
   const path = (req.path || req.url?.split("?")[0] || "").replace(/\/+$/, "");
-  if (path === "/api/health" || path === "/api/healthz" || path === "/api/branding") {
+  if (path === "/api/health" || path === "/api/healthz" || path.startsWith("/api/branding")) {
     next();
     return;
   }

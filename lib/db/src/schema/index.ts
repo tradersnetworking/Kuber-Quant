@@ -7,6 +7,7 @@ export * from "./eaStrategies";
 export * from "./transactions";
 export * from "./investmentPlans";
 export * from "./kycRecords";
+export * from "./kycDocuments";
 export * from "./mt5Accounts";
 export * from "./tickets";
 export * from "./notifications";
