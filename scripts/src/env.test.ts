@@ -26,10 +26,10 @@ describe("validateMtTradingCredentials", () => {
 });
 
 describe("captchaStore", () => {
-  it("verifies correct answer once", () => {
-    const { captchaToken, question } = createCaptchaChallenge();
+  it("verifies correct answer once", async () => {
+    const { captchaToken, question } = await createCaptchaChallenge();
     const answer = question.split(" + ").reduce((s, n) => s + Number(n), 0);
-    assert.equal(verifyCaptchaChallenge(captchaToken, answer), true);
-    assert.equal(verifyCaptchaChallenge(captchaToken, answer), false);
+    assert.equal(await verifyCaptchaChallenge(captchaToken, answer), true);
+    assert.equal(await verifyCaptchaChallenge(captchaToken, answer), false);
   });
 });
