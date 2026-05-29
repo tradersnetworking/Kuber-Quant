@@ -244,4 +244,26 @@ router.get("/market-watchlist", requireAuth, handleGetWatchlist);
 router.put("/market-watchlist", requireAuth, (req, res) => handleSaveWatchlist(req, res, clearMarketTickerCache));
 router.post("/market-watchlist", requireAuth, (req, res) => handleSaveWatchlist(req, res, clearMarketTickerCache));
 
+router.get("/my-services", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const { getDashboardMyServices } = await import("../helpers/dashboardMyServices");
+  res.json({ services: await getDashboardMyServices(userId) });
+});
+
+router.post("/my-services/:key/opt-out", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const key = String(req.params.key);
+  const { SERVICE_KEYS } = await import("../helpers/serviceVisibility");
+  const { optOutOfService } = await import("../helpers/dashboardMyServices");
+  if (!(SERVICE_KEYS as readonly string[]).includes(key)) {
+    res.status(400).json({ error: "Unknown service" });
+    return;
+  }
+  try {
+    res.json(await optOutOfService(userId, key as any));
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Opt-out failed" });
+  }
+});
+
 export default router;

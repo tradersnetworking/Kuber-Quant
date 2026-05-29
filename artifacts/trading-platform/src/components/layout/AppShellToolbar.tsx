@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { UserAccountMenu } from "@/components/layout/UserAccountMenu";
 import { FiatBalanceDisplay } from "@/components/finance/FiatBalanceDisplay";
+import { PageRefreshButton } from "@/components/layout/PageRefreshButton";
 import type { WalletFiatFields } from "@/lib/format-money";
 import { formatPlatformAmount } from "@/lib/format-money";
 import { getRoleAwareHref } from "@/lib/nav-config";
@@ -110,6 +111,7 @@ export function AppShellToolbar({
             )}
           />
         </div>
+        <PageRefreshButton compact size="icon" variant="ghost" className={cn(compact ? "h-7 w-7 md:h-9 md:w-9" : "h-9 w-9")} />
         <Link href={getRoleAwareHref(role, "/notifications")} className={cn(compact && "hidden md:block")}>
           <Button
             variant="ghost"

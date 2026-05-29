@@ -17,6 +17,8 @@ import { Link } from "wouter";
 import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
 import { DownloadAppButton } from "@/components/pwa/DownloadAppButton";
 import { TradingQuickActions } from "@/components/dashboard/TradingQuickActions";
+import { MyServicesPanel } from "@/components/dashboard/MyServicesPanel";
+import { PageRefreshButton } from "@/components/layout/PageRefreshButton";
 import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
 import { formatWalletFiatDisplay, resolveWalletFiatInr } from "@/lib/format-money";
 import { format } from "date-fns";
@@ -149,6 +151,7 @@ export default function DashboardPage() {
       }
       actions={
         <div className={cn("flex flex-row flex-wrap items-center gap-1.5 sm:gap-2 min-w-0")}>
+          <PageRefreshButton compact />
           <WalletQuickActions layout="inline" compact />
           <DownloadAppButton compact />
           <ReferActionButton compact />
@@ -505,14 +508,16 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Actions + Investment Summary */}
-          <div className="space-y-4">
-            <Card className="bg-muted/60 dark:bg-white/5 backdrop-blur-sm border-border dark:border-white/10">
+          {/* Quick Actions + My Services */}
+          <div className="space-y-4 min-w-0">
+            <MyServicesPanel />
+
+            <Card className="bg-muted/60 dark:bg-white/5 backdrop-blur-sm border-border dark:border-white/10 min-w-0">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold">{t("dashboard.quickActions")}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 lg:space-y-4 min-w-0">
-                <TradingQuickActions />
+              <CardContent className="min-w-0">
+                <TradingQuickActions layout="sidebar" />
               </CardContent>
             </Card>
 
