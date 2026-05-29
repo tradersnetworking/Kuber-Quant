@@ -84,12 +84,50 @@ Wait until all services show **healthy**.
 
 ## 4. Initialize database (first deploy only)
 
+### Fresh VPS / empty PostgreSQL volume
+
+Choose **one** schema path:
+
+**Option A — versioned migrations (recommended for new installs)**
+
+```bash
+docker compose exec backend ./node_modules/.bin/pnpm run db:migrate
+# or: ./scripts/docker-db-migrate.sh
+```
+
+**Option B — Drizzle push (legacy, still supported)**
+
 ```bash
 docker compose exec backend ./node_modules/.bin/pnpm run db:push
+# or: ./scripts/docker-db-push.sh
+```
+
+Do not run both on the same empty database.
+
+Optional demo seed (local/staging only):
+
+```bash
 docker compose exec backend ./node_modules/.bin/pnpm run db:seed
 ```
 
 **Do not run `db:seed` in production** after go-live — it creates demo accounts.
+
+### Existing production database (already on `db:push`)
+
+Keep using `db:push` until a planned cutover. The baseline migration `lib/db/drizzle/0000_right_blink.sql` must **not** be applied to a populated database. See [scripts/DATABASE-MIGRATIONS.md](./scripts/DATABASE-MIGRATIONS.md).
+
+The API also applies idempotent index/column patches on startup via `ensureDatabaseSchemaPatches`.
+
+### Production env (required after first admin setup)
+
+In `.env`:
+
+```env
+BOOTSTRAP_USERS=false
+REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+```
+
+(`REDIS_URL` is set automatically in `docker-compose.yml` for the backend container.)
 
 ## 5. Verify
 
@@ -154,6 +192,14 @@ Terminate SSL at Cloudflare or Hostinger panel, proxy to VPS port 80, keep `ENAB
 | `CORS_ORIGINS` | `https://yourdomain.com` |
 
 Push to `main` or run **Deploy to Hostinger VPS** workflow manually.
+
+After deploy, smoke test from your machine (replace domain):
+
+```bash
+node scripts/smoke-test.mjs https://yourdomain.com
+```
+
+Or use the **Staging smoke** workflow (`.github/workflows/staging-smoke.yml`) with your public URL.
 
 Or deploy from your machine:
 
@@ -233,7 +279,10 @@ Configure in provider dashboards:
 | `docker/frontend/Dockerfile` | React static build |
 | `docker/nginx/` | Reverse proxy + SSL |
 | `ecosystem.docker.cjs` | PM2 process config |
-| `scripts/docker-db-push.sh` | DB schema init helper |
+| `scripts/docker-db-push.sh` | DB schema init helper (push) |
+| `scripts/docker-db-migrate.sh` | DB schema init helper (migrate) |
+| `scripts/smoke-test.mjs` | Post-deploy API smoke test |
+| `scripts/DATABASE-MIGRATIONS.md` | Migration cutover runbook |
 
 ## Hostinger Node.js Web Apps (non-Docker)
 
