@@ -1,72 +1,46 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowUp, ArrowDown, Save, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
+import { ArrowUp, ArrowDown, Save, Eye, EyeOff, Loader2, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { staffFetch } from "@/lib/staff-api";
-import { publicFetchJson } from "@/lib/api-fetch";
 import {
   DEFAULT_SERVICE_VISIBILITY,
   SERVICE_CATALOG,
   type ServiceKey,
   type ServiceVisibilityItem,
 } from "@/lib/service-catalog";
+import { loadServiceVisibilityAdmin, saveServiceVisibilityAdmin } from "@/lib/service-visibility-admin";
 import { STAFF_CARD } from "@/lib/staff-dashboard-ui";
 import { cn } from "@/lib/utils";
 
-type VisibilityResponse = { services: ServiceVisibilityItem[] };
-
-async function fetchServiceVisibility(): Promise<ServiceVisibilityItem[]> {
-  const paths = [
-    "/super-admin/service-visibility",
-    "/admin/service-visibility",
-    "/service-visibility",
-  ];
-  let lastError: Error | null = null;
-  for (const path of paths) {
-    try {
-      const data = path === "/service-visibility"
-        ? await publicFetchJson<VisibilityResponse>(path)
-        : await staffFetch<VisibilityResponse>(path);
-      if (Array.isArray(data.services) && data.services.length > 0) {
-        return data.services;
-      }
-    } catch (e: any) {
-      lastError = e instanceof Error ? e : new Error(String(e?.message || e));
-    }
-  }
-  throw lastError ?? new Error("Could not load service visibility");
-}
-
 export function ServiceVisibilityPanel() {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [items, setItems] = useState<ServiceVisibilityItem[]>(DEFAULT_SERVICE_VISIBILITY);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLoadError(null);
+    setError(null);
+    setSuccess(null);
     try {
-      const services = await fetchServiceVisibility();
+      const services = await loadServiceVisibilityAdmin();
       setItems(services);
       setDirty(false);
     } catch (e: any) {
       setItems(DEFAULT_SERVICE_VISIBILITY);
-      setLoadError(e?.message || "Could not load saved settings — showing defaults.");
-      toast({
-        title: "Using default service list",
-        description: "Save once to persist settings, or refresh after restarting the API server.",
-        variant: "destructive",
-      });
+      setError(e?.message || "Could not load saved settings — showing defaults.");
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -81,34 +55,30 @@ export function ServiceVisibilityPanel() {
       return next;
     });
     setDirty(true);
+    setSuccess(null);
   };
 
   const toggle = (key: ServiceKey, enabled: boolean) => {
     setItems(prev => prev.map(it => (it.key === key ? { ...it, enabled } : it)));
     setDirty(true);
+    setSuccess(null);
   };
 
   const save = async () => {
     setSaving(true);
+    setError(null);
+    setSuccess(null);
     try {
-      let data: VisibilityResponse;
-      try {
-        data = await staffFetch<VisibilityResponse>("/super-admin/service-visibility", {
-          method: "PATCH",
-          body: JSON.stringify({ services: items }),
-        });
-      } catch {
-        data = await staffFetch<VisibilityResponse>("/admin/service-visibility", {
-          method: "PATCH",
-          body: JSON.stringify({ services: items }),
-        });
-      }
-      setItems(data.services);
+      const saved = await saveServiceVisibilityAdmin(items);
+      setItems(saved);
       setDirty(false);
-      setLoadError(null);
+      setSuccess("Changes saved. Homepage and investor menus will update shortly.");
+      void qc.invalidateQueries({ queryKey: ["/api/service-visibility"] });
       toast({ title: "Service visibility saved", description: "Changes are now live for users and the homepage." });
     } catch (e: any) {
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+      const msg = e?.message || "Save failed. Restart the API server and try again.";
+      setError(msg);
+      toast({ title: "Save failed", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -125,18 +95,25 @@ export function ServiceVisibilityPanel() {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button size="sm" variant="outline" onClick={() => void load()} disabled={loading || saving}>
+            <Button size="sm" variant="outline" onClick={() => void load()} disabled={loading || saving} aria-label="Refresh">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             </Button>
-            <Button size="sm" onClick={save} disabled={!dirty || saving || loading}>
+            <Button size="sm" onClick={() => void save()} disabled={!dirty || saving || loading}>
               <Save className="h-4 w-4 mr-1.5" /> {saving ? "Saving…" : "Save changes"}
             </Button>
           </div>
         </div>
 
-        {loadError && (
+        {error && (
           <Alert variant="destructive" className="py-2">
-            <AlertDescription className="text-xs">{loadError}</AlertDescription>
+            <AlertDescription className="text-xs">{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert className="py-2 border-emerald-500/30 bg-emerald-500/10">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <AlertDescription className="text-xs text-emerald-800 dark:text-emerald-200">{success}</AlertDescription>
           </Alert>
         )}
 
