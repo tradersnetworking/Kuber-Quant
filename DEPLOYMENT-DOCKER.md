@@ -193,6 +193,8 @@ Terminate SSL at Cloudflare or Hostinger panel, proxy to VPS port 80, keep `ENAB
 
 Push to `main` or run **Deploy to Hostinger VPS** workflow manually.
 
+If `HOSTINGER_API_KEY` or `HOSTINGER_VM_ID` are not configured, the deploy job is **skipped** (workflow stays green) until you add them under **Settings → Secrets and variables → Actions**.
+
 After deploy, smoke test from your machine (replace domain):
 
 ```bash

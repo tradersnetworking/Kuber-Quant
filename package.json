@@ -5,6 +5,7 @@
   "type": "module",
   "main": "server.js",
   "license": "MIT",
+  "packageManager": "pnpm@10.33.4",
   "engines": {
     "node": ">=20"
   },

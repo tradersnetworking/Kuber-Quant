@@ -11,7 +11,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.repository != ''
+    if: >-
+      github.repository != '' &&
+      secrets.HOSTINGER_API_KEY != '' &&
+      vars.HOSTINGER_VM_ID != ''
     steps:
       - uses: actions/checkout@v4
 
@@ -69,3 +72,15 @@ jobs:
             PAYU_MERCHANT_KEY=${{ secrets.PAYU_MERCHANT_KEY }}
             PAYU_MERCHANT_SALT=${{ secrets.PAYU_MERCHANT_SALT }}
             PAYU_ENV=${{ vars.PAYU_ENV }}
+
+  deploy-skipped:
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository != '' &&
+      (secrets.HOSTINGER_API_KEY == '' || vars.HOSTINGER_VM_ID == '')
+    steps:
+      - name: Hostinger deploy not configured
+        run: |
+          echo "Deploy skipped — GitHub secrets/variables are not set yet."
+          echo "Required: HOSTINGER_API_KEY (secret), HOSTINGER_VM_ID (variable)."
+          echo "See DEPLOYMENT-DOCKER.md section 7 for the full checklist."
