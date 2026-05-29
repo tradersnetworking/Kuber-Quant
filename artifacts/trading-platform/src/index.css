@@ -645,25 +645,31 @@
     scroll-padding-inline: 0.5rem;
   }
 
-  /* Payment method tabs — vertical stack on phones, horizontal from md */
+  /* Payment method + long-label admin tabs — vertical stack on phones, horizontal from md */
   @media (max-width: 767px) {
-    .payment-method-tabs-list {
+    .payment-method-tabs-list,
+    .stacked-mobile-tabs-list {
       flex-direction: column !important;
+      flex-wrap: nowrap !important;
+      overflow-x: visible !important;
     }
 
-    .payment-method-tabs-list > [role="tab"] {
+    .payment-method-tabs-list > [role="tab"],
+    .stacked-mobile-tabs-list > [role="tab"] {
       width: 100%;
       max-width: 100%;
     }
   }
 
   @media (min-width: 768px) {
-    .payment-method-tabs-list {
+    .payment-method-tabs-list,
+    .stacked-mobile-tabs-list {
       flex-direction: row !important;
       flex-wrap: wrap;
     }
 
-    .payment-method-tabs-list > [role="tab"] {
+    .payment-method-tabs-list > [role="tab"],
+    .stacked-mobile-tabs-list > [role="tab"] {
       width: auto;
       flex: 1 1 auto;
       min-width: 0;

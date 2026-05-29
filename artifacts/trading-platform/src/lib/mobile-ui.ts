@@ -44,6 +44,19 @@ export const paymentMethodSubTabsList = cn(
   "md:flex-nowrap md:overflow-x-auto md:scrollbar-none",
 );
 
+/** Long-label admin tabs (Homepage Content, etc.) — full-width stack on phones, row on tablet+. */
+export const stackedMobileTabsList = cn(
+  "stacked-mobile-tabs-list w-full min-w-0 gap-1.5 p-1",
+  "!flex flex-col md:!inline-flex md:flex-row md:flex-wrap md:items-stretch md:overflow-visible",
+);
+
+export const stackedMobileTabTrigger = cn(
+  "min-w-0 max-w-full w-full md:w-auto md:flex-1 md:shrink",
+  "justify-start md:justify-center",
+  "[&_svg]:shrink-0",
+  "[&>:not(svg)]:min-w-0 [&>:not(svg)]:truncate",
+);
+
 /** File / chip rows with icon + filename + action. */
 export const mobileChipRow = "flex items-center gap-2 min-w-0 max-w-full";
 

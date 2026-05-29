@@ -4,6 +4,8 @@ import { PartnersManagementPanel } from "@/components/super-admin/PartnersManage
 import { AboutCompanyPanel } from "@/components/super-admin/AboutCompanyPanel";
 import { ServiceVisibilityPanel } from "@/components/super-admin/ServiceVisibilityPanel";
 import { STAFF_HEADER_ROW, STAFF_PAGE_STACK } from "@/lib/staff-dashboard-ui";
+import { stackedMobileTabTrigger, stackedMobileTabsList } from "@/lib/mobile-ui";
+import { cn } from "@/lib/utils";
 
 export function HomepageContentPanel() {
   return (
@@ -21,16 +23,21 @@ export function HomepageContentPanel() {
       </div>
 
       <Tabs defaultValue="services" className="space-y-4 sm:space-y-6 min-w-0">
-        <TabsList className="bg-muted/60 dark:bg-white/5 border border-border dark:border-white/10 flex-wrap h-auto w-full justify-start">
-          <TabsTrigger value="services" className="gap-2">
+        <TabsList
+          className={cn(
+            "bg-muted/60 dark:bg-white/5 border border-border dark:border-white/10 h-auto",
+            stackedMobileTabsList,
+          )}
+        >
+          <TabsTrigger value="services" className={cn("gap-2", stackedMobileTabTrigger)}>
             <LayoutList className="h-4 w-4 shrink-0" />
             Services & Order
           </TabsTrigger>
-          <TabsTrigger value="partners" className="gap-2">
+          <TabsTrigger value="partners" className={cn("gap-2", stackedMobileTabTrigger)}>
             <Building2 className="h-4 w-4 shrink-0" />
             Partners & Brokers
           </TabsTrigger>
-          <TabsTrigger value="about" className="gap-2">
+          <TabsTrigger value="about" className={cn("gap-2", stackedMobileTabTrigger)}>
             <Award className="h-4 w-4 shrink-0" />
             About Kuber Quant
           </TabsTrigger>
