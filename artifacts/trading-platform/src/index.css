@@ -432,7 +432,11 @@
   }
 
   .kpi-currency-value {
-    @apply mobile-stat-value;
+    @apply font-black tracking-tight max-w-full tabular-nums leading-tight;
+    font-size: clamp(0.8125rem, 0.45vw + 0.55rem, 1.625rem);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
   }
 
   .kpi-finance-value {
