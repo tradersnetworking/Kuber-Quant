@@ -1403,6 +1403,18 @@ router.delete("/partners/:id", async (req, res) => {
   res.json({ message: "Partner deleted" });
 });
 
+// ── Service visibility (homepage + investor nav) ───────────────────────────
+router.get("/service-visibility", async (_req, res) => {
+  const { getServiceVisibility } = await import("../helpers/serviceVisibility");
+  res.json({ services: await getServiceVisibility() });
+});
+
+router.patch("/service-visibility", async (req, res) => {
+  const { updateServiceVisibility } = await import("../helpers/serviceVisibility");
+  const services = Array.isArray(req.body?.services) ? req.body.services : [];
+  res.json({ services: await updateServiceVisibility(services) });
+});
+
 // ── About Kuber Quant (home page) ────────────────────────────────────────────
 router.get("/about", async (_req, res) => {
   const { getCompanyAboutConfig, ABOUT_CATEGORY_LABELS } = await import("../helpers/companyAbout");
