@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 
 export interface TradeCopierConfig {
   baseUrl: string;

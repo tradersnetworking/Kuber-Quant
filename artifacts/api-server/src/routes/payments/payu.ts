@@ -1,7 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { db, paymentOrdersTable, transactionsTable, notificationsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 import { requireAuth } from "../../middlewares/auth";
 
 const router = Router();
@@ -99,11 +99,12 @@ router.post("/callback", async (req, res) => {
   if (status === "success" && order.status !== "paid") {
     const depositAmount = Number(amount);
     const userId = order.userId;
+    const orderCurrency = (order.currency || "INR").toUpperCase() as "USD" | "EUR" | "INR" | "BTC" | "ETH" | "USDT" | "TRX" | "BNB";
     const [txn] = await db.insert(transactionsTable).values({
       userId,
       type: "deposit",
       amount: String(depositAmount),
-      currency: "USD",
+      currency: orderCurrency,
       status: "pending",
       paymentMethod: "PayU",
       gatewayProvider: "payu",

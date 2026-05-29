@@ -58,7 +58,7 @@ export const DEFAULT_MT5_RELAY_FORM_CONFIG: Mt5RelayFormConfig = {
     min: 10,
     max: 50,
     default: 30,
-    step: 5,
+    step: 1,
   },
   copyTradingDetailsPlaceholder:
     "Preferred trading pairs, risk tolerance, maximum lot size, etc.",

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, auditLogsTable, loginHistoryTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { db, dbRead, auditLogsTable, loginHistoryTable } from "@workspace/db";
+import { eq, desc } from "@workspace/db/orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 
 const router = Router();
@@ -8,14 +8,14 @@ const router = Router();
 // Admin: get audit logs
 router.get("/", requireAuth, requireAdmin, async (req, res) => {
   const limit = Math.min(parseInt(String(req.query.limit || "100")), 500);
-  const logs = await db.select().from(auditLogsTable).orderBy(desc(auditLogsTable.createdAt)).limit(limit);
+  const logs = await dbRead.select().from(auditLogsTable).orderBy(desc(auditLogsTable.createdAt)).limit(limit);
   res.json(logs);
 });
 
 // Admin: get login history for all users
 router.get("/login-history", requireAuth, requireAdmin, async (req, res) => {
   const limit = Math.min(parseInt(String(req.query.limit || "100")), 500);
-  const history = await db.select().from(loginHistoryTable).orderBy(desc(loginHistoryTable.createdAt)).limit(limit);
+  const history = await dbRead.select().from(loginHistoryTable).orderBy(desc(loginHistoryTable.createdAt)).limit(limit);
   res.json(history);
 });
 

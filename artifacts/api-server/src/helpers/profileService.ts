@@ -1,6 +1,7 @@
 import { db, usersTable, userProfilesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 import { getWalletFinancialSummary } from "./walletService";
+import { resolvePublicAssetUrl } from "./publicAssetUrl";
 
 async function mapUserBasic(user: typeof usersTable.$inferSelect) {
   const summary = await getWalletFinancialSummary(user.id);
@@ -17,7 +18,7 @@ async function mapUserBasic(user: typeof usersTable.$inferSelect) {
     referralCode: user.referralCode || null,
     referralCount: user.referralCount || 0,
     referralEarnings: Number(user.referralEarnings || 0),
-    avatarUrl: user.avatarUrl || null,
+    avatarUrl: resolvePublicAssetUrl(user.avatarUrl),
     managerId: user.managerId || null,
     isActive: user.isActive,
     twoFactorEnabled: user.twoFactorEnabled || false,

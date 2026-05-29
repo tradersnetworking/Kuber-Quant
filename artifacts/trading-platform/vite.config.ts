@@ -34,6 +34,10 @@ export default defineConfig(({ mode }) => {
           target: `http://127.0.0.1:${apiPort}`,
           changeOrigin: true,
         },
+        "/uploads": {
+          target: `http://127.0.0.1:${apiPort}`,
+          changeOrigin: true,
+        },
       },
     },
     preview: {
@@ -41,6 +45,10 @@ export default defineConfig(({ mode }) => {
       host: "127.0.0.1",
       proxy: {
         "/api": {
+          target: `http://127.0.0.1:${apiPort}`,
+          changeOrigin: true,
+        },
+        "/uploads": {
           target: `http://127.0.0.1:${apiPort}`,
           changeOrigin: true,
         },

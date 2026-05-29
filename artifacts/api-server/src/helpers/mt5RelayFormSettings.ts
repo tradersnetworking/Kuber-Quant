@@ -1,5 +1,5 @@
 import { db, siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 import {
   DEFAULT_MT5_RELAY_FORM_CONFIG,
   mergeMt5RelayFormConfig,

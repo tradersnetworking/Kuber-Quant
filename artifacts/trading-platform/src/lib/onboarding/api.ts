@@ -22,6 +22,8 @@ export type OnboardingConfig = {
   requireMobileOtp: boolean;
   requireCaptcha: boolean;
   kycRequired: boolean;
+  progressiveOnboarding?: boolean;
+  requiredStepCount?: number;
 };
 
 export function getOnboardingConfig() {

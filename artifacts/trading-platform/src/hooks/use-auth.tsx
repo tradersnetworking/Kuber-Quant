@@ -1,5 +1,10 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { User, setAuthTokenGetter, setTokenRefresher } from "@workspace/api-client-react";
+import {
+  User,
+  setAuthTokenGetter,
+  setTokenRefresher,
+  setSessionReplacedHandler as setApiSessionReplacedHandler,
+} from "@workspace/api-client-react";
 import {
   clearSession,
   getStoredToken,
@@ -7,10 +12,18 @@ import {
   isTokenExpired,
   refreshAccessToken,
   setAuthFailureHandler,
+  setSessionReplacedHandler as setStoreSessionReplacedHandler,
 } from "@/lib/token-store";
+import { publicFetch } from "@/lib/api-fetch";
 
 setAuthTokenGetter(() => localStorage.getItem("token"));
 setTokenRefresher(refreshAccessToken);
+
+function redirectSessionReplaced() {
+  if (!window.location.pathname.includes("/login") && !window.location.pathname.includes("/staff-login")) {
+    window.location.href = "/login?session=replaced";
+  }
+}
 
 interface AuthContextType {
   user: User | null;
@@ -31,23 +44,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const logout = useCallback(() => {
+    const role = getStoredUser()?.role as string | undefined;
     const refreshToken = localStorage.getItem("refreshToken");
     if (refreshToken) {
-      fetch("/api/auth/logout", {
+      publicFetch("/auth/logout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
         },
         body: JSON.stringify({ refreshToken }),
-      }).catch(() => {});
+      });
     }
     clearSession();
     setToken(null);
     setUser(null);
+    const loginPath = role === "superadmin" || role === "admin" || role === "manager" || role === "support"
+      ? "/staff-login"
+      : "/login";
+    if (!window.location.pathname.includes(loginPath)) {
+      window.location.href = loginPath;
+    }
   }, []);
 
   useEffect(() => {
+    const onSessionReplaced = () => {
+      clearSession();
+      setToken(null);
+      setUser(null);
+      redirectSessionReplaced();
+    };
+
     setAuthFailureHandler(() => {
       setToken(null);
       setUser(null);
@@ -55,7 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.location.href = "/login?session=expired";
       }
     });
-    return () => setAuthFailureHandler(null);
+    setStoreSessionReplacedHandler(onSessionReplaced);
+    setApiSessionReplacedHandler(onSessionReplaced);
+
+    return () => {
+      setAuthFailureHandler(null);
+      setStoreSessionReplacedHandler(null);
+      setApiSessionReplacedHandler(null);
+    };
   }, []);
 
   useEffect(() => {

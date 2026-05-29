@@ -209,6 +209,20 @@ paths:
                 items:
                   $ref: "#/components/schemas/ChartPoint"
 
+  /dashboard/monthly-returns:
+    get:
+      operationId: getMonthlyReturns
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Monthly investment returns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyReturnPoint"
+
   /dashboard/recent-activity:
     get:
       operationId: getRecentActivity
@@ -222,6 +236,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ActivityItem"
+
+  /investments/funding-status:
+    get:
+      operationId: getInvestmentFundingStatus
+      tags: [investments]
+      parameters:
+        - name: currency
+          in: query
+          schema:
+            type: string
+            default: USD
+      responses:
+        "200":
+          description: Available balance and active invested snapshot for new investments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestmentFundingSnapshot"
 
   /investments:
     get:
@@ -1654,6 +1686,9 @@ components:
       properties:
         idToken:
           type: string
+        referralCode:
+          type: string
+          description: Optional referral code to attribute a new Google signup
 
     AuthResponse:
       type: object
@@ -1729,9 +1764,21 @@ components:
       properties:
         totalBalance:
           type: number
+        totalPortfolio:
+          type: number
+        totalPortfolioInr:
+          type: number
         totalProfit:
           type: number
+        totalProfitInr:
+          type: number
         totalInvested:
+          type: number
+        totalInvestedInr:
+          type: number
+        activeInvested:
+          type: number
+        activeInvestedInr:
           type: number
         activeInvestments:
           type: integer
@@ -1739,7 +1786,25 @@ components:
           type: number
         fiatBalance:
           type: number
+        fiatBalanceInr:
+          type: number
         cryptoBalance:
+          type: number
+        totalFiatDeposits:
+          type: number
+        totalFiatWithdrawals:
+          type: number
+        totalCryptoDeposits:
+          type: number
+        totalCryptoWithdrawals:
+          type: number
+        totalFiatDepositsInr:
+          type: number
+        totalFiatWithdrawalsInr:
+          type: number
+        totalCryptoDepositsInr:
+          type: number
+        totalCryptoWithdrawalsInr:
           type: number
         followedTraders:
           type: integer
@@ -1751,6 +1816,46 @@ components:
           type: number
         unreadNotifications:
           type: integer
+        monthPortfolioChangePct:
+          type: number
+        monthProfitChangePct:
+          type: number
+        pendingActions:
+          type: integer
+        nextPayoutDate:
+          type: ["string", "null"]
+        nextPayoutAmountUsd:
+          type: ["number", "null"]
+        nextPayoutAmountInr:
+          type: ["number", "null"]
+        nextPayoutPlanName:
+          type: ["string", "null"]
+        portfolioAllocation:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortfolioAllocationSlice"
+
+    MonthlyReturnPoint:
+      type: object
+      required: [month, return, invested]
+      properties:
+        month:
+          type: string
+        return:
+          type: number
+        invested:
+          type: number
+
+    PortfolioAllocationSlice:
+      type: object
+      required: [label, pct, value]
+      properties:
+        label:
+          type: string
+        pct:
+          type: number
+        value:
+          type: number
 
     ChartPoint:
       type: object
@@ -1818,6 +1923,30 @@ components:
           type: ["string", "null"]
         createdAt:
           type: string
+
+    InvestmentFundingSnapshot:
+      type: object
+      required: [currency, walletType, availableBalance, activeInvested, activeInvestmentCount, totalPortfolio]
+      properties:
+        currency:
+          type: string
+        walletType:
+          type: string
+          enum: [fiat, crypto]
+        availableBalance:
+          type: number
+        availableBalanceInr:
+          type: ["number", "null"]
+        activeInvested:
+          type: number
+        activeInvestedInr:
+          type: ["number", "null"]
+        activeInvestmentCount:
+          type: integer
+        totalPortfolio:
+          type: number
+        totalPortfolioInr:
+          type: ["number", "null"]
 
     InvestmentInput:
       type: object
@@ -1996,6 +2125,14 @@ components:
           type: number
         currency:
           type: string
+        priceMonthly:
+          type: number
+        priceQuarterly:
+          type: number
+        priceBiannual:
+          type: number
+        priceAnnual:
+          type: number
 
     StrategySubscription:
       type: object
@@ -2005,6 +2142,9 @@ components:
           type: number
         currency:
           type: string
+        plan:
+          type: string
+          enum: [monthly, quarterly, biannual, annual]
         accountNumber:
           type: string
         brokerName:

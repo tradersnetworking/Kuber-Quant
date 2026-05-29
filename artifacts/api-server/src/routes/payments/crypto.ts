@@ -1,24 +1,30 @@
 import { Router } from "express";
 import QRCode from "qrcode";
 import { db, paymentGatewaysTable, transactionsTable, notificationsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and } from "@workspace/db/orm";
 import { requireAuth } from "../../middlewares/auth";
+import { ensurePaymentGatewayQrs } from "../../helpers/qrCodeService";
+import { mapEnrichedDepositGateway } from "../../helpers/paymentCredentialsService";
 
 const router = Router();
 
 router.get("/addresses", requireAuth, async (_req, res) => {
   const gateways = await db.select().from(paymentGatewaysTable)
     .where(and(eq(paymentGatewaysTable.type, "crypto"), eq(paymentGatewaysTable.isEnabled, true)));
-  res.json(gateways.map(g => ({
-    id: g.id,
-    name: g.name,
-    symbol: g.symbol,
-    network: g.network,
-    walletAddress: g.walletAddress,
-    minAmount: Number(g.minAmount),
-    maxAmount: g.maxAmount ? Number(g.maxAmount) : null,
-    qrCodeUrl: g.qrCodeUrl,
-  })));
+  await ensurePaymentGatewayQrs(gateways);
+  res.json(gateways.map(g => {
+    const mapped = mapEnrichedDepositGateway(g);
+    return {
+      id: mapped.id,
+      name: mapped.name,
+      symbol: mapped.symbol,
+      network: mapped.network,
+      walletAddress: mapped.walletAddress,
+      minAmount: mapped.minAmount,
+      maxAmount: mapped.maxAmount,
+      qrCodeUrl: mapped.qrCodeUrl,
+    };
+  }));
 });
 
 router.get("/qr/:address", requireAuth, async (req, res) => {

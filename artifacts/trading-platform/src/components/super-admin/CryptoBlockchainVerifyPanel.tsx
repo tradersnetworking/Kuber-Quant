@@ -35,12 +35,12 @@ export function isCryptoTransaction(tx: {
 }
 
 const statusColor: Record<string, string> = {
-  confirmed: "bg-green-500/20 text-green-400",
-  pending: "bg-orange-500/20 text-orange-400",
+  confirmed: "bg-green-500/20 text-green-700 dark:text-green-400",
+  pending: "bg-orange-500/20 text-orange-600 dark:text-orange-400",
   mismatch: "bg-red-500/20 text-red-400",
   duplicate: "bg-red-500/20 text-red-400",
   not_found: "bg-red-500/20 text-red-400",
-  unsupported: "bg-zinc-500/20 text-zinc-400",
+  unsupported: "bg-muted text-muted-foreground",
 };
 
 export function CryptoBlockchainVerifyPanel({
@@ -77,7 +77,7 @@ export function CryptoBlockchainVerifyPanel({
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-medium flex items-center gap-1.5">
-            <Link2 className="h-4 w-4 text-cyan-400" />
+            <Link2 className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
             Blockchain Verification
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -98,10 +98,10 @@ export function CryptoBlockchainVerifyPanel({
       {result && (
         <div className="space-y-2 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={statusColor[result.status] || "bg-zinc-500/20 text-zinc-400"}>{result.status}</Badge>
+            <Badge className={statusColor[result.status] || "bg-muted text-muted-foreground"}>{result.status}</Badge>
             <span className="text-muted-foreground">{result.network} · {result.symbol}</span>
           </div>
-          <p className={result.verified ? "text-green-400" : "text-amber-400"}>{result.message}</p>
+          <p className={result.verified ? "text-green-700 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}>{result.message}</p>
           <div className="grid grid-cols-2 gap-2 text-muted-foreground">
             <span>Confirmations</span>
             <span className="text-right text-foreground">{result.confirmations} / {result.requiredConfirmations}</span>
@@ -110,16 +110,16 @@ export function CryptoBlockchainVerifyPanel({
               {result.onChainAmount != null ? `${result.onChainAmount} ${result.onChainSymbol || ""}` : "—"}
             </span>
             <span>Address match</span>
-            <span className={`text-right ${result.addressMatch ? "text-green-400" : "text-red-400"}`}>
+            <span className={`text-right ${result.addressMatch ? "text-green-700 dark:text-green-400" : "text-red-400"}`}>
               {result.addressMatch ? "Yes" : "No"}
             </span>
             <span>Amount match</span>
-            <span className={`text-right ${result.amountMatch ? "text-green-400" : "text-red-400"}`}>
+            <span className={`text-right ${result.amountMatch ? "text-green-700 dark:text-green-400" : "text-red-400"}`}>
               {result.amountMatch ? "Yes" : "No"}
             </span>
           </div>
           {result.explorerUrl && (
-            <Button size="sm" variant="link" className="h-auto p-0 text-cyan-400" asChild>
+            <Button size="sm" variant="link" className="h-auto p-0 text-cyan-600 dark:text-cyan-400" asChild>
               <a href={result.explorerUrl} target="_blank" rel="noopener noreferrer">
                 View on explorer <ExternalLink className="h-3 w-3 ml-1 inline" />
               </a>

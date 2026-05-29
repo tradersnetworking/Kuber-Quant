@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { createSmtpTransporter, getSmtpConfig, type SmtpConfig } from "./smtpSettings";
+import { enqueueEmailJob, isJobQueueEnabled } from "./jobQueue";
 import {
   type EmailPurpose,
   isAutoEmailEnabled,
@@ -37,6 +38,7 @@ export async function sendMail(opts: {
   html: string;
   text?: string;
   from?: string;
+  attachments?: Array<{ filename: string; path?: string; content?: Buffer; contentType?: string }>;
 }): Promise<boolean> {
   const cfg = await getSmtpConfig();
   if (!cfg.enabled) return false;
@@ -63,6 +65,9 @@ export async function sendTransactionalEmail(opts: {
   text?: string;
 }): Promise<boolean> {
   if (!(await isAutoEmailEnabled(opts.purpose))) return false;
+  if (isJobQueueEnabled() && process.env.ASYNC_EMAIL !== "false") {
+    return enqueueEmailJob(opts);
+  }
   const from = await resolveFromAddress(opts.purpose);
   const subject = await resolveEmailSubject(opts.purpose, opts.subject);
   return sendMail({ ...opts, subject, from });
@@ -134,6 +139,64 @@ export function buildPasswordResetEmail(opts: { name: string; resetUrl: string }
   </div>
 </body>
 </html>`;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function textToHtmlParagraphs(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map(p => p.trim())
+    .filter(Boolean)
+    .map(p => `<p style="line-height:1.6;color:rgba(255,255,255,0.75);margin:0 0 12px">${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`)
+    .join("");
+}
+
+export function buildTicketAcknowledgmentEmail(opts: {
+  name: string;
+  ticketId: number;
+  category: string | null;
+  subject: string;
+  bodyText: string;
+}): string {
+  const kind = (opts.category || "General").toLowerCase();
+  const heading = kind.includes("complaint")
+    ? "Complaint Received"
+    : kind.includes("query")
+    ? "Query Received"
+    : "Support Ticket Received";
+
+  return `
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#050A14;color:#fff;padding:32px">
+  <div style="max-width:520px;margin:0 auto;background:#0a1628;border-radius:12px;padding:28px;border:1px solid rgba(212,175,55,0.2)">
+    <h2 style="color:#D4AF37;margin:0 0 8px">${heading}</h2>
+    <p style="color:rgba(255,255,255,0.45);font-size:13px;margin:0 0 20px">Ticket #${opts.ticketId} · ${escapeHtml(opts.subject)}</p>
+    ${opts.name ? `<p style="color:rgba(255,255,255,0.85)">Hi ${escapeHtml(opts.name)},</p>` : ""}
+    ${textToHtmlParagraphs(opts.bodyText)}
+    <p style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:20px">Log in to your dashboard to view this ticket and add follow-up messages.</p>
+  </div>
+</body></html>`;
+}
+
+export function buildTicketReplyEmail(opts: { name: string; ticketId: number; message: string }): string {
+  return `
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#050A14;color:#fff;padding:32px">
+  <div style="max-width:480px;margin:0 auto;background:#0a1628;border-radius:12px;padding:28px;border:1px solid rgba(212,175,55,0.2)">
+    <h2 style="color:#D4AF37;margin:0 0 12px">Support Ticket Update</h2>
+    <p>Hi ${escapeHtml(opts.name)},</p>
+    <p style="line-height:1.6;color:rgba(255,255,255,0.75)">Our team replied to your ticket <strong>#${opts.ticketId}</strong>:</p>
+    <blockquote style="border-left:3px solid #D4AF37;padding-left:12px;color:rgba(255,255,255,0.6);margin:16px 0;white-space:pre-wrap">${escapeHtml(opts.message)}</blockquote>
+    <p style="font-size:13px;color:rgba(255,255,255,0.4)">Log in to view the full conversation.</p>
+  </div>
+</body></html>`;
 }
 
 export function buildWelcomeEmail(opts: { name: string; loginUrl: string }): string {

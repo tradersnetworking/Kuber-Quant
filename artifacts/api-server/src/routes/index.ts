@@ -34,12 +34,17 @@ import paymentAccountsRouter from "./paymentAccounts";
 import onboardingRouter from "./onboarding";
 import brandingRouter from "./branding";
 import marketRouter from "./market";
+import exchangeRouter from "./exchange";
 import uploadsRouter from "./uploads";
+import partnerApiRouter from "./partnerApi";
+import rbacRouter from "./rbac";
+import { maintenanceGate } from "../middlewares/maintenance";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(brandingRouter);
+router.use(maintenanceGate);
 router.use("/market", marketRouter);
 router.use("/auth", authRouter);
 router.use("/dashboard", dashboardRouter);
@@ -64,6 +69,7 @@ router.use("/manager", managerRouter);
 router.use("/support-team", supportTeamRouter);
 router.use("/support-team/mail", supportMailRouter);
 router.use("/admin/mail", supportMailRouter);
+router.use("/manager/mail", supportMailRouter);
 router.use("/promoter", promoterRouter);
 router.use("/auth/2fa", twoFactorRouter);
 router.use("/roi", roiEngineRouter);
@@ -73,7 +79,10 @@ router.use("/agreements", agreementsRouter);
 router.use("/payments", paymentsRouter);
 router.use("/wallet-ledger", walletLedgerRouter);
 router.use("/onboarding", onboardingRouter);
+router.use("/exchange", exchangeRouter);
 router.use("/uploads-secure", uploadsRouter);
 router.use("/wallet/payment-accounts", paymentAccountsRouter);
+router.use("/partner/v1", partnerApiRouter);
+router.use("/rbac", rbacRouter);
 
 export default router;

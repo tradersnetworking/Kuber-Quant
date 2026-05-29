@@ -22,10 +22,12 @@ Local setup next steps:
   1. Edit .env — confirm DATABASE_URL points to your PostgreSQL database
   2. pnpm db:push
   3. pnpm db:seed        (optional demo data)
-  4. pnpm dev            API http://127.0.0.1:8080  Web http://127.0.0.1:3000
+  4. pnpm dev            Web http://127.0.0.1:3000  ·  API http://127.0.0.1:8080
+
+Open the app at http://127.0.0.1:3000 (not :8080 — that port is API-only in dev).
 
 Production-style run (after build):
 
-  pnpm build
-  pnpm start
+  pnpm build:prod
+  pnpm start             Single server http://127.0.0.1:8080 (serves built SPA + API)
 `);

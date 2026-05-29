@@ -5,6 +5,7 @@
  * Kuber Capital Trading Platform API
  * OpenAPI spec version: 0.2.0
  */
+import type { PortfolioAllocationSlice } from './portfolioAllocationSlice';
 
 export interface DashboardSummary {
   totalBalance: number;
@@ -19,4 +20,10 @@ export interface DashboardSummary {
   referralEarnings?: number;
   pendingWithdrawals?: number;
   unreadNotifications?: number;
+  monthPortfolioChangePct?: number;
+  monthProfitChangePct?: number;
+  pendingActions?: number;
+  /** @nullable */
+  nextPayoutDate?: string | null;
+  portfolioAllocation?: PortfolioAllocationSlice[];
 }

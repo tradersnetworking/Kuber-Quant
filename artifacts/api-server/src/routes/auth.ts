@@ -2,20 +2,33 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
-import { db, usersTable, loginHistoryTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, userProfilesTable } from "@workspace/db";
+import { eq } from "@workspace/db/orm";
 import { requireAuth, signToken, signRefreshToken, verifyRefreshToken } from "../middlewares/auth";
 import { OAuth2Client } from "google-auth-library";
 import {
   createEmailOtp, verifyEmailOtp, createRefreshToken, revokeRefreshToken,
-  validateRefreshToken, sendOtpEmail,
+  validateRefreshToken, sendOtpEmail, revokeAllRefreshTokensForUser,
 } from "../helpers/authHelpers";
+import { invalidateUserSessions } from "../helpers/sessionService";
 import { sendMail, buildWelcomeEmail, buildPasswordResetEmail } from "../helpers/mailer";
 import { getSiteSettings } from "../helpers/siteSettings";
+import { getPermissionsForRole } from "../helpers/rbacService";
 import { getUserProfile, updateUserProfile } from "../helpers/profileService";
 import { resolveLoginEmail } from "../helpers/defaultUsers";
 import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
+import { syncPassportPhotoUrl, copyPassportPhotoToAvatar } from "../helpers/passportPhotoService";
+import { resolvePublicAssetUrl } from "../helpers/publicAssetUrl";
 import { getWalletFinancialSummary } from "../helpers/walletService";
+import { resolveReferrerId } from "../helpers/referralAttribution";
+import { mapUserServiceFlags } from "../helpers/userAccessControl";
+import {
+  isAccountLocked, recordFailedLogin, recordSuccessfulLogin, maybeSendLoginAlert, isNewLoginDevice,
+} from "../helpers/loginSecurityService";
+import { validateTrustedDevice, parseUserAgent, clientIp } from "../helpers/trustedDeviceService";
+import { validateBody, getValidatedBody } from "../middlewares/validate";
+import { LoginBody, GoogleAuthBody } from "@workspace/api-zod";
+import { readTrustedDeviceToken } from "./twoFactor";
 
 const router = Router();
 const profileUpload = createUploadMiddleware("profile_images");
@@ -28,7 +41,8 @@ function generateReferralCode(): string {
 export { generateReferralCode };
 
 export function mapUser(user: any) {
-  const role = user.role === "admin" ? "superadmin" : user.role;
+  const role = user.role === "admin" ? "admin" : user.role;
+  const services = mapUserServiceFlags(user);
   return {
     id: user.id,
     email: user.email,
@@ -42,12 +56,12 @@ export function mapUser(user: any) {
     referralCode: user.referralCode || null,
     referralCount: user.referralCount || 0,
     referralEarnings: Number(user.referralEarnings || 0),
-    avatarUrl: user.avatarUrl || null,
+    avatarUrl: resolvePublicAssetUrl(user.avatarUrl),
     managerId: user.managerId || null,
-    isActive: user.isActive,
     isPromoter: user.isPromoter ?? false,
     promoterCommissionType: user.promoterCommissionType || null,
     twoFactorEnabled: user.twoFactorEnabled || false,
+    ...services,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -62,24 +76,46 @@ export async function mapUserWithLedger(user: typeof usersTable.$inferSelect) {
   });
 }
 
-async function issueTokens(user: { id: number; role: string }) {
-  const token = signToken({ userId: user.id, role: user.role });
-  const refreshToken = signRefreshToken({ userId: user.id, role: user.role });
-  await createRefreshToken(user.id, refreshToken);
+
+async function bumpSessionForLogin(user: typeof usersTable.$inferSelect): Promise<number> {
+  if (user.role === "superadmin") {
+    return user.sessionVersion ?? 1;
+  }
+  await revokeAllRefreshTokensForUser(user.id);
+  const next = (user.sessionVersion ?? 1) + 1;
+  await db.update(usersTable)
+    .set({ sessionVersion: next, updatedAt: new Date() })
+    .where(eq(usersTable.id, user.id));
+  return next;
+}
+
+async function issueTokens(
+  user: { id: number; role: string; sessionVersion?: number | null },
+  opts?: { login?: boolean; req?: any },
+) {
+  let sessionVersion = user.sessionVersion ?? 1;
+  if (opts?.login) {
+    const [fresh] = await db.select().from(usersTable).where(eq(usersTable.id, user.id)).limit(1);
+    if (!fresh) throw new Error("User not found");
+    sessionVersion = await bumpSessionForLogin(fresh);
+    user = { ...user, role: fresh.role };
+  }
+  const role = user.role;
+  const payload = { userId: user.id, role, sessionVersion };
+  const token = signToken(payload);
+  const refreshToken = signRefreshToken(payload);
+
+  let deviceMeta: { ipAddress?: string; userAgent?: string; deviceLabel?: string } | undefined;
+  if (opts?.req) {
+    const ua = opts.req.headers["user-agent"] || "";
+    const { label } = parseUserAgent(ua);
+    deviceMeta = { ipAddress: clientIp(opts.req), userAgent: ua, deviceLabel: label };
+  }
+  await createRefreshToken(user.id, refreshToken, 30, deviceMeta);
   return { token, refreshToken };
 }
 
 export { issueTokens };
-
-async function trackLogin(userId: number, req: any, success: boolean, failReason?: string) {
-  try {
-    const ua = req.headers["user-agent"] || "";
-    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
-    const browser = ua.includes("Chrome") ? "Chrome" : ua.includes("Firefox") ? "Firefox" : ua.includes("Safari") ? "Safari" : "Other";
-    const device = ua.includes("Mobile") ? "Mobile" : "Desktop";
-    await db.insert(loginHistoryTable).values({ userId, ipAddress: ip, userAgent: ua, browser, device, success, failReason: failReason || null });
-  } catch { /* non-fatal */ }
-}
 
 router.post("/register", async (_req, res) => {
   res.status(410).json({
@@ -88,12 +124,8 @@ router.post("/register", async (_req, res) => {
   });
 });
 
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    res.status(400).json({ error: "email and password are required" });
-    return;
-  }
+router.post("/login", validateBody(LoginBody), async (req, res) => {
+  const { email, password } = getValidatedBody<{ email: string; password: string }>(req);
   const loginEmail = resolveLoginEmail(email);
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, loginEmail)).limit(1);
   if (!user) {
@@ -104,21 +136,41 @@ router.post("/login", async (req, res) => {
     res.status(403).json({ error: "Account is suspended. Please contact support." });
     return;
   }
+  if (await isAccountLocked(user)) {
+    res.status(429).json({ error: "Too many failed attempts. Try again in 15 minutes." });
+    return;
+  }
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    await trackLogin(user.id, req, false, "Invalid password");
+    await recordFailedLogin(user.id, req, "Invalid password");
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
 
   if (user.twoFactorEnabled && user.twoFactorSecret) {
-    const tempToken = jwt.sign({ userId: user.id }, JWT_SECRET + "-2fa-temp", { expiresIn: "5m" });
-    res.json({ requiresTwoFactor: true, tempToken });
+    const trusted = await validateTrustedDevice(user.id, readTrustedDeviceToken(req));
+    if (trusted) {
+      const tokens = await issueTokens(user, { login: true, req });
+      await recordSuccessfulLogin(user.id, req);
+      res.json({ user: await mapUserWithLedger(user), ...tokens, trustedDeviceUsed: true });
+      return;
+    }
+    const { getLogin2faMethods } = await import("../helpers/otpDeliveryService");
+    const tempToken = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET + "-2fa-temp", { expiresIn: "5m" });
+    res.json({
+      requiresTwoFactor: true,
+      tempToken,
+      methods: await getLogin2faMethods(user),
+      maskedEmail: user.email.replace(/(.{2}).+(@.+)/, "$1***$2"),
+      maskedPhone: user.phone ? user.phone.replace(/(.{2}).+(.{2})/, "$1***$2") : undefined,
+    });
     return;
   }
 
-  const tokens = await issueTokens(user);
-  await trackLogin(user.id, req, true);
+  const tokens = await issueTokens(user, { login: true, req });
+  const isNewDevice = await isNewLoginDevice(user.id, req);
+  await recordSuccessfulLogin(user.id, req);
+  await maybeSendLoginAlert({ user, req, isNewDevice });
   res.json({ user: await mapUserWithLedger(user), ...tokens });
 });
 
@@ -133,8 +185,9 @@ router.post("/refresh", async (req, res) => {
     res.status(401).json({ error: "Invalid or expired refresh token" });
     return;
   }
+  let jwtPayload;
   try {
-    verifyRefreshToken(refreshToken);
+    jwtPayload = verifyRefreshToken(refreshToken);
   } catch {
     res.status(401).json({ error: "Invalid refresh token" });
     return;
@@ -143,6 +196,15 @@ router.post("/refresh", async (req, res) => {
   if (!user || !user.isActive) {
     res.status(401).json({ error: "User not found or inactive" });
     return;
+  }
+  if (user.role !== "superadmin") {
+    if ((jwtPayload.sessionVersion ?? 1) !== (user.sessionVersion ?? 1)) {
+      res.status(401).json({
+        error: "Your account was signed in on another device. Please sign in again.",
+        code: "SESSION_REPLACED",
+      });
+      return;
+    }
   }
   await revokeRefreshToken(refreshToken);
   const tokens = await issueTokens(user);
@@ -221,7 +283,8 @@ router.post("/reset-password", async (req, res) => {
     return;
   }
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await db.update(usersTable).set({ passwordHash, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+  await db.update(usersTable).set({ passwordHash, passwordChangedAt: new Date(), updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+  await invalidateUserSessions(user.id);
   res.json({ message: "Password reset successfully" });
 });
 
@@ -232,15 +295,12 @@ router.get("/config", async (_req, res) => {
   res.json({
     googleOAuthEnabled: settings.google_oauth_enabled === "true",
     googleClientId,
+    otp: await import("../helpers/otpCommunicationSettings").then(m => m.getPublicOtpConfig()),
   });
 });
 
-router.post("/google", async (req, res) => {
-  const { idToken } = req.body;
-  if (!idToken) {
-    res.status(400).json({ error: "idToken is required" });
-    return;
-  }
+router.post("/google", validateBody(GoogleAuthBody), async (req, res) => {
+  const { idToken, referralCode } = getValidatedBody<{ idToken: string; referralCode?: string }>(req);
 
   const settings = await getSiteSettings(["google_oauth_enabled", "google_client_id"]);
   if (settings.google_oauth_enabled !== "true") {
@@ -277,16 +337,28 @@ router.post("/google", async (req, res) => {
 
   let [user] = await db.select().from(usersTable).where(eq(usersTable.email, googleEmail)).limit(1);
 
+  let isNewUser = false;
   if (!user) {
+    isNewUser = true;
     const newReferralCode = generateReferralCode();
+    const referrerId = referralCode ? await resolveReferrerId(referralCode) : null;
     const [created] = await db.insert(usersTable).values({
       email: googleEmail,
       passwordHash: await bcrypt.hash(randomBytes(16).toString("hex"), 10),
       fullName: googleName,
       avatarUrl,
       referralCode: newReferralCode,
+      referredBy: referrerId,
     }).returning();
     user = created;
+    if (referrerId) {
+      const [referrer] = await db.select().from(usersTable).where(eq(usersTable.id, referrerId)).limit(1);
+      if (referrer) {
+        await db.update(usersTable)
+          .set({ referralCount: (referrer.referralCount || 0) + 1 })
+          .where(eq(usersTable.id, referrerId));
+      }
+    }
   } else {
     if (!user.isActive) {
       res.status(403).json({ error: "Account is suspended. Please contact support." });
@@ -298,8 +370,30 @@ router.post("/google", async (req, res) => {
     }
   }
 
-  const tokens = await issueTokens(user);
-  res.json({ user: await mapUserWithLedger(user), ...tokens });
+  const [profile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, user.id)).limit(1);
+  const needsOnboarding = isNewUser || !profile?.onboardingCompletedAt;
+
+  if (user.twoFactorEnabled && user.twoFactorSecret) {
+    const tempToken = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET + "-2fa-temp", { expiresIn: "5m" });
+    res.json({
+      requiresTwoFactor: true,
+      tempToken,
+      methods: ["totp", "email_otp", "backup"],
+      maskedEmail: user.email.replace(/(.{2}).+(@.+)/, "$1***$2"),
+      needsOnboarding,
+    });
+    return;
+  }
+
+  const tokens = await issueTokens(user, { login: true, req });
+  const isNewDevice = await isNewLoginDevice(user.id, req);
+  await recordSuccessfulLogin(user.id, req);
+  await maybeSendLoginAlert({ user, req, isNewDevice });
+  res.json({
+    user: await mapUserWithLedger(user),
+    ...tokens,
+    needsOnboarding,
+  });
 });
 
 router.put("/change-password", requireAuth, async (req, res) => {
@@ -318,7 +412,10 @@ router.put("/change-password", requireAuth, async (req, res) => {
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) { res.status(400).json({ error: "Current password is incorrect" }); return; }
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await db.update(usersTable).set({ passwordHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+  await db.update(usersTable).set({ passwordHash, passwordChangedAt: new Date(), updatedAt: new Date() }).where(eq(usersTable.id, userId));
+  await invalidateUserSessions(userId);
+  const { logAudit } = await import("../helpers/audit");
+  await logAudit({ req, userId, role: (req as any).user.role, action: "password_changed", entity: "user", entityId: userId });
   res.json({ message: "Password changed successfully" });
 });
 
@@ -338,6 +435,25 @@ router.get("/me", requireAuth, async (req, res) => {
     return;
   }
   res.json(await mapUserWithLedger(user));
+});
+
+router.get("/permissions", requireAuth, async (req, res) => {
+  const { role } = (req as any).user;
+  const permissions = await getPermissionsForRole(role);
+  res.json({ role, permissions });
+});
+
+router.get("/data-export", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const { buildUserDataExport } = await import("../helpers/gdprExportService");
+  const data = await buildUserDataExport(userId);
+  if (!data) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Disposition", `attachment; filename="kuber-data-export-${userId}.json"`);
+  res.json(data);
 });
 
 router.get("/profile", requireAuth, async (req, res) => {
@@ -379,8 +495,24 @@ router.post("/profile/avatar", requireAuth, profileUpload.single("avatar"), asyn
     res.status(404).json({ error: "User not found" });
     return;
   }
+  await syncPassportPhotoUrl(userId, avatarUrl, { onlyIfEmpty: true });
   const profile = await getUserProfile(userId);
   res.json(profile);
+});
+
+router.post("/profile/avatar/from-kyc", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  try {
+    await copyPassportPhotoToAvatar(userId);
+    const profile = await getUserProfile(userId);
+    if (!profile) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(profile);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Failed to use KYC passport photo" });
+  }
 });
 
 export default router;

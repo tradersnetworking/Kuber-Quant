@@ -1,5 +1,5 @@
 import { db, siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 
 export interface SupportMailDeskConfig {
   autoSyncEnabled: boolean;
@@ -7,6 +7,12 @@ export interface SupportMailDeskConfig {
   autoCreateTickets: boolean;
   autoTicketCategories: string[];
   notifyAgentsOnInbound: boolean;
+  /** Send AI/template acknowledgment email when a user complaint or query ticket is created */
+  autoReplyOnTicketCreate: boolean;
+  /** Use OpenAI (OPENAI_API_KEY) for personalized auto-replies; falls back to templates if unavailable */
+  useAiForAutoReplies: boolean;
+  /** Post the auto-reply as the first staff message on the ticket thread */
+  postAutoReplyInThread: boolean;
   slaHours: {
     query: number;
     complaint: number;
@@ -24,6 +30,9 @@ export const DEFAULT_DESK_CONFIG: SupportMailDeskConfig = {
   autoCreateTickets: true,
   autoTicketCategories: ["complaint", "dispute"],
   notifyAgentsOnInbound: true,
+  autoReplyOnTicketCreate: true,
+  useAiForAutoReplies: true,
+  postAutoReplyInThread: true,
   slaHours: {
     query: 24,
     complaint: 8,

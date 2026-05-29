@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, roiPayoutsTable, investmentsTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc } from "@workspace/db/orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { processMaturedInvestments, processManualPayout } from "../helpers/roiEngine";
 import { logAudit } from "../helpers/audit";

@@ -17,26 +17,28 @@ import { Mt5RelayFormConfigPanel } from "@/components/super-admin/Mt5RelayFormCo
 type WorkspaceTab = "credentials" | "requests" | "config";
 
 interface MtLinkedAccountsWorkspacePanelProps {
-  apiBase?: "/admin" | "/super-admin";
+  apiBase?: "/admin" | "/super-admin" | "/support-team";
   defaultTab?: WorkspaceTab;
   showFormConfig?: boolean;
+  readOnly?: boolean;
 }
 
 const statusColor: Record<string, string> = {
-  active: "bg-green-500/20 text-green-400",
-  inactive: "bg-gray-500/20 text-gray-400",
-  pending_review: "bg-amber-500/20 text-amber-400",
-  pending: "bg-amber-500/20 text-amber-400",
-  forwarded: "bg-blue-500/20 text-blue-400",
-  accepted: "bg-green-500/20 text-green-400",
+  active: "bg-green-500/20 text-green-700 dark:text-green-400",
+  inactive: "bg-muted text-muted-foreground",
+  pending_review: "bg-amber-500/20 text-amber-600 dark:text-amber-400",
+  pending: "bg-amber-500/20 text-amber-600 dark:text-amber-400",
+  forwarded: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+  accepted: "bg-green-500/20 text-green-700 dark:text-green-400",
   rejected: "bg-red-500/20 text-red-400",
-  completed: "bg-purple-500/20 text-purple-400",
+  completed: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
 };
 
 export function MtLinkedAccountsWorkspacePanel({
   apiBase = "/super-admin",
   defaultTab = "credentials",
   showFormConfig = apiBase === "/super-admin",
+  readOnly = false,
 }: MtLinkedAccountsWorkspacePanelProps) {
   const { toast } = useToast();
   const [tab, setTab] = useState<WorkspaceTab>(defaultTab);
@@ -155,7 +157,7 @@ export function MtLinkedAccountsWorkspacePanel({
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <LineChart className="h-5 w-5 text-sky-400" />
+            <LineChart className="h-5 w-5 text-sky-600 dark:text-sky-400" />
             User MT Accounts &amp; Profit Sharing
           </h2>
           <p className="text-sm text-muted-foreground max-w-2xl">
@@ -169,7 +171,7 @@ export function MtLinkedAccountsWorkspacePanel({
             placeholder="Search user or account..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-48 bg-white/5 border-white/10"
+            className="w-48 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
           />
           <Button variant="outline" size="sm" onClick={load}>
             <RefreshCw className="h-4 w-4" />
@@ -178,26 +180,26 @@ export function MtLinkedAccountsWorkspacePanel({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Badge variant="outline" className="border-amber-500/30 text-amber-400">
+        <Badge variant="outline" className="border-amber-500/30 text-amber-600 dark:text-amber-400">
           {pendingCredentials} credential{pendingCredentials !== 1 ? "s" : ""} pending review
         </Badge>
-        <Badge variant="outline" className="border-violet-500/30 text-violet-400">
+        <Badge variant="outline" className="border-violet-500/30 text-violet-600 dark:text-violet-400">
           {pendingRequests} profit-sharing request{pendingRequests !== 1 ? "s" : ""} pending
         </Badge>
       </div>
 
       <Tabs value={tab} onValueChange={v => setTab(v as WorkspaceTab)}>
-        <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto">
+        <TabsList className="bg-muted/60 dark:bg-white/5 border border-border dark:border-white/10 flex-wrap h-auto">
           <TabsTrigger value="credentials">
             Credential Submissions
             {pendingCredentials > 0 && (
-              <span className="ml-2 rounded-full bg-amber-500/20 text-amber-400 text-xs px-1.5">{pendingCredentials}</span>
+              <span className="ml-2 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs px-1.5">{pendingCredentials}</span>
             )}
           </TabsTrigger>
           <TabsTrigger value="requests">
             Profit-Sharing Requests
             {pendingRequests > 0 && (
-              <span className="ml-2 rounded-full bg-violet-500/20 text-violet-400 text-xs px-1.5">{pendingRequests}</span>
+              <span className="ml-2 rounded-full bg-violet-500/20 text-violet-600 dark:text-violet-400 text-xs px-1.5">{pendingRequests}</span>
             )}
           </TabsTrigger>
           {showFormConfig && <TabsTrigger value="config">Form &amp; Routing</TabsTrigger>}
@@ -207,20 +209,20 @@ export function MtLinkedAccountsWorkspacePanel({
           {loading ? (
             <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>
           ) : filteredAccounts.length === 0 ? (
-            <Card className="bg-white/5 border-white/10 p-8 text-center">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 p-8 text-center">
               <p className="text-muted-foreground text-sm">No user-submitted MT4/MT5 credentials yet.</p>
             </Card>
           ) : (
             filteredAccounts.map(a => (
-              <Card key={a.id} className="bg-white/5 border-white/10">
+              <Card key={a.id} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                 <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">#{a.accountNumber}</p>
-                      <Badge className={statusColor[a.status] || "bg-gray-500/20 text-gray-400"}>{a.status}</Badge>
+                      <Badge className={statusColor[a.status] || "bg-muted text-muted-foreground"}>{a.status}</Badge>
                       <Badge variant="outline">{(a.platform || "mt5").toUpperCase()}</Badge>
                       {a.hasCredentials && (
-                        <Badge variant="outline" className="text-green-400 border-green-500/30">
+                        <Badge variant="outline" className="text-green-700 dark:text-green-400 border-green-500/30">
                           <Key className="h-3 w-3 mr-1" />Credentials stored
                         </Badge>
                       )}
@@ -244,6 +246,7 @@ export function MtLinkedAccountsWorkspacePanel({
                       Submitted {new Date(a.createdAt).toLocaleString()}
                     </p>
                   </div>
+                  {!readOnly && (
                   <div className="flex gap-2 flex-wrap shrink-0">
                     {a.status === "pending_review" && (
                       <>
@@ -277,6 +280,7 @@ export function MtLinkedAccountsWorkspacePanel({
                       </Button>
                     )}
                   </div>
+                  )}
                 </CardContent>
               </Card>
             ))
@@ -285,7 +289,7 @@ export function MtLinkedAccountsWorkspacePanel({
 
         <TabsContent value="requests" className="mt-4 space-y-3">
           {tcConfigured && (
-            <div className="flex items-center gap-2 text-xs text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
               <Wifi className="h-3.5 w-3.5 shrink-0" />
               Trade Copier API connected — forwarding copy trading requests registers slave accounts automatically.
             </div>
@@ -294,24 +298,24 @@ export function MtLinkedAccountsWorkspacePanel({
           {loading ? (
             <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>
           ) : filteredRequests.length === 0 ? (
-            <Card className="bg-white/5 border-white/10 p-8 text-center">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 p-8 text-center">
               <p className="text-muted-foreground text-sm">No copy trading or account handling requests yet.</p>
             </Card>
           ) : (
             filteredRequests.map(r => (
-              <Card key={r.id} className="bg-white/5 border-white/10">
+              <Card key={r.id} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row md:items-center gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <Badge className={`text-xs ${r.type === "copy_trading" ? "bg-blue-500/20 text-blue-400" : "bg-purple-500/20 text-purple-400"}`}>
+                        <Badge className={`text-xs ${r.type === "copy_trading" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-purple-500/20 text-purple-600 dark:text-purple-400"}`}>
                           {r.type === "copy_trading" ? (
                             <><Copy className="h-3 w-3 mr-1 inline" />Copy Trading</>
                           ) : (
                             "Account Handling"
                           )}
                         </Badge>
-                        <Badge className={`text-xs ${statusColor[r.status] || "bg-gray-500/20 text-gray-400"}`}>
+                        <Badge className={`text-xs ${statusColor[r.status] || "bg-muted text-muted-foreground"}`}>
                           {r.status}
                         </Badge>
                         <span className="text-xs text-muted-foreground">Request #{r.id}</span>
@@ -320,7 +324,7 @@ export function MtLinkedAccountsWorkspacePanel({
                         {r.userName}{" "}
                         <span className="text-muted-foreground">({r.userEmail})</span>
                         {" · "}
-                        <span className="text-amber-400 font-medium">{r.profitSharingPercent}% profit sharing</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-medium">{r.profitSharingPercent}% profit sharing</span>
                       </p>
                       {r.accountNumber && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -333,6 +337,7 @@ export function MtLinkedAccountsWorkspacePanel({
                       {r.details && <p className="text-xs text-muted-foreground mt-1">{r.details}</p>}
                       <p className="text-xs text-muted-foreground mt-1">{new Date(r.createdAt).toLocaleString()}</p>
                     </div>
+                    {!readOnly && (
                     <div className="flex gap-2 flex-wrap">
                       {r.status === "pending" && (
                         <Button
@@ -348,7 +353,7 @@ export function MtLinkedAccountsWorkspacePanel({
                       {["forwarded", "pending"].includes(r.status) && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => updateRequestStatus(r.id, "accepted")}>
-                            <CheckCircle className="h-3 w-3 mr-1 text-green-400" />Accept
+                            <CheckCircle className="h-3 w-3 mr-1 text-green-700 dark:text-green-400" />Accept
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => updateRequestStatus(r.id, "rejected")}>
                             <XCircle className="h-3 w-3 mr-1 text-red-400" />Reject
@@ -357,10 +362,11 @@ export function MtLinkedAccountsWorkspacePanel({
                       )}
                       {r.status === "accepted" && (
                         <Button size="sm" variant="outline" onClick={() => updateRequestStatus(r.id, "completed")}>
-                          <CheckCircle className="h-3 w-3 mr-1 text-amber-400" />Complete
+                          <CheckCircle className="h-3 w-3 mr-1 text-amber-600 dark:text-amber-400" />Complete
                         </Button>
                       )}
                     </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -368,13 +374,13 @@ export function MtLinkedAccountsWorkspacePanel({
           )}
         </TabsContent>
 
-        {showFormConfig && (
+        {showFormConfig && !readOnly && (
           <TabsContent value="config" className="mt-4 space-y-6">
             <Mt5RelayFormConfigPanel />
-            <Card className="bg-white/5 border-white/10">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-amber-400" />
+                  <Globe className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   <h3 className="font-medium text-sm">External Relay Endpoint</h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -385,7 +391,7 @@ export function MtLinkedAccountsWorkspacePanel({
                     value={mt5Endpoint}
                     onChange={e => setMt5Endpoint(e.target.value)}
                     placeholder="https://your-mt5-site.com/api/relay"
-                    className="bg-white/5 border-white/10 flex-1"
+                    className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 flex-1"
                   />
                   <Button size="sm" className="bg-amber-500 text-black shrink-0" onClick={saveEndpoint}>
                     Save Endpoint

@@ -1,5 +1,5 @@
 import { db, supportMailTemplatesTable } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq } from "@workspace/db/orm";
 
 export async function listSupportMailTemplates(activeOnly = true) {
   const rows = await db.select().from(supportMailTemplatesTable).orderBy(desc(supportMailTemplatesTable.updatedAt));

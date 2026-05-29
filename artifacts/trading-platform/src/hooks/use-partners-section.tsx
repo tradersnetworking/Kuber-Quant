@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { publicFetchJson } from "@/lib/api-fetch";
 
 export type InstitutionalPartner = {
   id: number;
@@ -30,11 +31,7 @@ export function usePartnersSection() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/partners")
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to load partners");
-        return res.json() as Promise<PartnersSection>;
-      })
+    publicFetchJson<PartnersSection>("/partners")
       .then((json) => {
         if (active) setData(json);
       })

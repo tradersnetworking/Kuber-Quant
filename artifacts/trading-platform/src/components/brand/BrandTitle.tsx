@@ -2,10 +2,10 @@ import { cn } from "@/lib/utils";
 import { useSiteBranding, type SiteBranding } from "@/hooks/use-site-branding";
 
 const SIZE_CLASSES = {
-  sm: "text-base",
-  md: "text-xl",
-  lg: "text-2xl",
-  xl: "text-3xl",
+  sm: "text-base lg:text-lg xl:text-xl",
+  md: "text-xl lg:text-2xl xl:text-3xl",
+  lg: "text-2xl lg:text-3xl xl:text-4xl",
+  xl: "text-3xl lg:text-4xl xl:text-5xl",
 } as const;
 
 type BrandTitleProps = {
@@ -24,9 +24,9 @@ export function BrandTitle({ className, size = "md", branding }: BrandTitleProps
   } = branding ?? liveBranding;
 
   return (
-    <span className={cn("font-bold tracking-tight", SIZE_CLASSES[size], className)}>
+    <span className={cn("font-bold tracking-tight truncate block min-w-0 whitespace-nowrap overflow-hidden", SIZE_CLASSES[size], className)}>
       <span style={{ color: titleGoldColor }}>{titleGold}</span>
-      <span className="text-white/20"> </span>
+      <span className="text-muted-foreground/30 dark:text-muted-foreground/30"> </span>
       <span style={{ color: titleSilverColor }}>{titleSilver}</span>
     </span>
   );

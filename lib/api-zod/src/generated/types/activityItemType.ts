@@ -12,8 +12,4 @@ export type ActivityItemType = typeof ActivityItemType[keyof typeof ActivityItem
 export const ActivityItemType = {
   deposit: 'deposit',
   withdrawal: 'withdrawal',
-  profit: 'profit',
-  investment: 'investment',
-  trade: 'trade',
-  referral: 'referral',
 } as const;

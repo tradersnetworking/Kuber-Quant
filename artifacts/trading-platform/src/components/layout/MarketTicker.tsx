@@ -12,8 +12,8 @@ function TickItem({ tick }: { tick: MarketTick }) {
       <span className="font-mono text-xs text-foreground whitespace-nowrap">{formatMarketPrice(tick.symbol, tick.price)}</span>
       {tick.changePercent !== 0 && (
         <>
-          {up ? <TrendingUp className="h-3 w-3 text-green-400 shrink-0" /> : <TrendingDown className="h-3 w-3 text-red-400 shrink-0" />}
-          <span className={cn("text-xs font-medium whitespace-nowrap", up ? "text-green-400" : "text-red-400")}>
+          {up ? <TrendingUp className="h-3 w-3 text-green-700 dark:text-green-400 shrink-0" /> : <TrendingDown className="h-3 w-3 text-red-400 shrink-0" />}
+          <span className={cn("text-xs font-medium whitespace-nowrap", up ? "text-green-700 dark:text-green-400" : "text-red-400")}>
             {up ? "+" : ""}{tick.changePercent.toFixed(2)}%
           </span>
         </>
@@ -26,7 +26,7 @@ export function MarketTicker() {
   const [ticks, setTicks] = useState<MarketTick[]>([]);
   const [live, setLive] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [refreshMs, setRefreshMs] = useState(30_000);
+  const [refreshMs, setRefreshMs] = useState(60_000);
 
   useEffect(() => {
     fetch(apiPath("/market/config"))
@@ -39,6 +39,7 @@ export function MarketTicker() {
     let cancelled = false;
 
     async function load() {
+      if (document.hidden) return;
       try {
         const token = getStoredToken();
         const headers: Record<string, string> = {};
@@ -72,7 +73,7 @@ export function MarketTicker() {
     <div className="border-b border-border/60 bg-card/30 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-1 min-h-[34px]">
         <div className="flex items-center gap-1.5 shrink-0 pr-2 border-r border-border/40">
-          <Radio className={cn("h-3 w-3", live ? "text-green-400 animate-pulse" : "text-muted-foreground")} />
+          <Radio className={cn("h-3 w-3", live ? "text-green-700 dark:text-green-400 animate-pulse" : "text-muted-foreground")} />
           <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
             Live Markets
           </span>

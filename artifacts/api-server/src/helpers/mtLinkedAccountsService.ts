@@ -1,5 +1,5 @@
 import { db, usersTable, mt5AccountsTable, mt5RequestsTable, siteSettingsTable } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq } from "@workspace/db/orm";
 import { mapAccount } from "../routes/mt5";
 import { getLatestMtAccountForUser, getMtTradingPassword } from "./mtAccountLink";
 

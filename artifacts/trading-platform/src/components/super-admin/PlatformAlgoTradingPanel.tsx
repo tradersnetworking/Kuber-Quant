@@ -3,12 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
 import { Cpu, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { staffFetch } from "@/lib/staff-api";
 import { AlgoStrategiesManagementPanel } from "@/components/super-admin/AlgoStrategiesManagementPanel";
+import { KpiStatCard } from "@/components/ui/KpiStatCard";
+import { STAFF_CARD, STAFF_HEADER_ROW, STAFF_STAT_GRID, STAFF_TOOLBAR_ROW } from "@/lib/staff-dashboard-ui";
 
 interface AlgoSubscription {
   id: number;
@@ -22,7 +24,13 @@ interface AlgoSubscription {
   createdAt: string;
 }
 
-export function PlatformAlgoTradingPanel() {
+export function PlatformAlgoTradingPanel({
+  apiBase = "/super-admin",
+  readOnly = false,
+}: {
+  apiBase?: "/super-admin" | "/support-team";
+  readOnly?: boolean;
+}) {
   const { toast } = useToast();
   const [items, setItems] = useState<AlgoSubscription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +40,7 @@ export function PlatformAlgoTradingPanel() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await staffFetch<AlgoSubscription[]>("/super-admin/algo-subscriptions");
+      const data = await staffFetch<AlgoSubscription[]>(`${apiBase}/algo-subscriptions`);
       setItems(data);
     } catch {
       setItems([]);
@@ -41,7 +49,7 @@ export function PlatformAlgoTradingPanel() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [apiBase]);
 
   const filtered = items.filter(i =>
     !search ||
@@ -69,43 +77,33 @@ export function PlatformAlgoTradingPanel() {
 
   return (
     <div className="space-y-8">
-      <AlgoStrategiesManagementPanel />
+      {!readOnly && <AlgoStrategiesManagementPanel />}
 
-      <div className="border-t border-white/10 pt-8 space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
+      <div className={`${readOnly ? "" : "border-t border-border dark:border-white/10 pt-8"} space-y-6 min-w-0`}>
+      <div className={STAFF_HEADER_ROW}>
+        <div className="min-w-0">
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Cpu className="h-5 w-5 text-indigo-400" />
+            <Cpu className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
             Algo Trading Subscriptions
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Monitor algorithmic trading subscriptions across users and managers.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="shrink-0">
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-white/5 border-white/10">
-          <CardContent className="p-4">
-            <p className="text-2xl font-bold text-indigo-400">{activeCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">Active subscriptions</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white/5 border-white/10">
-          <CardContent className="p-4">
-            <p className="text-2xl font-bold text-blue-400">{items.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">Total subscriptions</p>
-          </CardContent>
-        </Card>
+      <div className={STAFF_STAT_GRID}>
+        <KpiStatCard compact label="Active subscriptions" value={activeCount} iconClassName="text-indigo-600 dark:text-indigo-400" />
+        <KpiStatCard compact label="Total subscriptions" value={items.length} iconClassName="text-blue-600 dark:text-blue-400" />
       </div>
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className={STAFF_CARD}>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className={STAFF_TOOLBAR_ROW}>
             <div>
               <CardTitle className="text-base">User & Manager Algo Subscriptions</CardTitle>
               <CardDescription>Who is subscribed to which algo strategy</CardDescription>
@@ -116,7 +114,7 @@ export function PlatformAlgoTradingPanel() {
                 placeholder="Search user or strategy..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-9 bg-white/5 border-white/10"
+                className="pl-9 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
               />
             </div>
           </div>
@@ -129,46 +127,78 @@ export function PlatformAlgoTradingPanel() {
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">No algo subscriptions found</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-white/10">
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Strategy</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Subscribed</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(i => (
-                    <TableRow key={i.id} className="border-white/5">
-                      <TableCell>
-                        <p className="font-medium text-sm">{i.userName}</p>
-                        <p className="text-xs text-muted-foreground">{i.userEmail}</p>
-                      </TableCell>
-                      <TableCell className="capitalize text-sm">{i.userRole}</TableCell>
-                      <TableCell>{i.strategyName}</TableCell>
-                      <TableCell>
-                        <Badge className={i.active ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}>
-                          {i.active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {new Date(i.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pending === i.id}
-                          onClick={() => toggleSub(i.id, !i.active)}>
-                          {i.active ? "Deactivate" : "Activate"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <ResponsiveDataView
+              data={filtered}
+              rowKey={i => i.id}
+              rowClassName="border-border/80 dark:border-white/5"
+              mobileHeader={i => (
+                <div className="mb-2 min-w-0">
+                  <p className="font-semibold text-sm">{i.userName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{i.userEmail}</p>
+                </div>
+              )}
+              mobileFooter={!readOnly ? i => (
+                <div className="mt-3 pt-3 border-t border-border/80 flex justify-end">
+                  <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pending === i.id}
+                    onClick={() => toggleSub(i.id, !i.active)}>
+                    {i.active ? "Deactivate" : "Activate"}
+                  </Button>
+                </div>
+              ) : undefined}
+              columns={[
+                {
+                  key: "user",
+                  header: "User",
+                  mobileTitle: true,
+                  hideOnMobile: true,
+                  cell: i => (
+                    <>
+                      <p className="font-medium text-sm">{i.userName}</p>
+                      <p className="text-xs text-muted-foreground font-normal">{i.userEmail}</p>
+                    </>
+                  ),
+                },
+                {
+                  key: "role",
+                  header: "Role",
+                  cell: i => <span className="capitalize text-sm">{i.userRole}</span>,
+                },
+                {
+                  key: "strategy",
+                  header: "Strategy",
+                  cell: i => i.strategyName,
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  cell: i => (
+                    <Badge className={i.active ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground"}>
+                      {i.active ? "Active" : "Inactive"}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: "subscribed",
+                  header: "Subscribed",
+                  cellClassName: "text-xs text-muted-foreground",
+                  cell: i => new Date(i.createdAt).toLocaleDateString(),
+                },
+                ...(!readOnly ? [{
+                  key: "actions",
+                  header: "Actions",
+                  headerClassName: "text-right",
+                  hideOnMobile: true,
+                  cell: (i: typeof filtered[0]) => (
+                    <div className="text-right">
+                      <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pending === i.id}
+                        onClick={() => toggleSub(i.id, !i.active)}>
+                        {i.active ? "Deactivate" : "Activate"}
+                      </Button>
+                    </div>
+                  ),
+                }] : []),
+              ]}
+            />
           )}
         </CardContent>
       </Card>

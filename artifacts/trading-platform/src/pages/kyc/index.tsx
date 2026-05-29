@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGetKyc } from "@workspace/api-client-react";
-import { getStoredToken } from "@/lib/token-store";
+import { authFetch, apiPath } from "@/lib/api-fetch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,9 @@ import { CardFooter } from "@/components/ui/card";
 import { PhoneCountryCodeSelect } from "@/components/forms/PhoneCountryCodeSelect";
 import { DEFAULT_DIAL_CODE } from "@/lib/country-codes";
 import { KycDocumentsList } from "@/components/kyc/KycDocumentsList";
+import { AppPage } from "@/components/layout/AppPage";
+import { APP_CARD, APP_FORM_GRID, APP_PAGE_STACK } from "@/lib/ui-system";
+import { cn } from "@/lib/utils";
 
 export default function KycPage() {
   const [submitting, setSubmitting] = useState(false);
@@ -64,10 +67,8 @@ export default function KycPage() {
       if (passportPhoto) fd.append("passportPhoto", passportPhoto);
       if (selfie) fd.append("selfie", selfie);
 
-      const token = getStoredToken();
-      const res = await fetch("/api/kyc", {
+      const res = await authFetch(apiPath("/kyc"), {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       });
       const data = await res.json();
@@ -90,16 +91,16 @@ export default function KycPage() {
   ];
 
   if (isLoading) return (
-    <div className="max-w-2xl mx-auto space-y-6">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-[400px] w-full" />
-      </div>
-);
+    <AppPage className="max-w-2xl mx-auto w-full" stackClassName={APP_PAGE_STACK}>
+      <Skeleton className="h-10 w-48" />
+      <Skeleton className="h-[400px] w-full" />
+    </AppPage>
+  );
 
   if (kyc && kyc.status !== 'rejected') {
     return (
-      <div className="max-w-2xl mx-auto py-12">
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10 text-center py-12">
+      <AppPage className="max-w-2xl mx-auto w-full py-6 sm:py-12" stackClassName={APP_PAGE_STACK}>
+          <Card className={cn(APP_CARD, "text-center py-8 sm:py-12")}>
             <CardContent className="space-y-6">
               <div className="flex justify-center">
                 {kyc.status === 'verified' ? (
@@ -120,12 +121,12 @@ export default function KycPage() {
                     : "We have received your KYC application and it is currently under review by our compliance team."}
                 </p>
               </div>
-              <div className="pt-4 grid grid-cols-2 gap-4 max-w-md mx-auto">
-                 <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-left">
+              <div className="pt-4 grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 max-w-md mx-auto keep-cols-2">
+                 <div className="p-3 bg-muted/60 dark:bg-white/5 rounded-lg border border-border dark:border-white/10 text-left">
                     <p className="text-[10px] text-muted-foreground uppercase">Reference ID</p>
                     <p className="text-sm font-mono truncate">{kyc.id}</p>
                  </div>
-                 <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-left">
+                 <div className="p-3 bg-muted/60 dark:bg-white/5 rounded-lg border border-border dark:border-white/10 text-left">
                     <p className="text-[10px] text-muted-foreground uppercase">Submitted On</p>
                     <p className="text-sm">{new Date(kyc.createdAt).toLocaleDateString()}</p>
                  </div>
@@ -136,16 +137,21 @@ export default function KycPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-);
+      </AppPage>
+  );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">Identity Verification</h1>
-          <p className="text-muted-foreground mt-2">Complete your KYC to unlock full trading and withdrawal capabilities.</p>
-        </div>
+    <AppPage
+      className="max-w-2xl mx-auto w-full"
+      stackClassName={APP_PAGE_STACK}
+      title={
+        <h1 className="page-title bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent text-center md:text-left">
+          Identity Verification
+        </h1>
+      }
+      subtitle="Complete your KYC to unlock full trading and withdrawal capabilities."
+    >
 
         {kyc?.status === 'rejected' && (
           <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
@@ -158,21 +164,23 @@ export default function KycPage() {
         )}
 
         {/* Stepper */}
-        <div className="flex justify-between relative px-2">
-          <div className="absolute top-5 left-0 w-full h-[2px] bg-white/10 -z-10" />
-          {steps.map((s) => (
-            <div key={s.n} className="flex flex-col items-center gap-2">
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all ${
-                step >= s.n ? 'bg-amber-500 border-amber-500 text-black' : 'bg-[#050A14] border-white/20 text-muted-foreground'
-              }`}>
-                {step > s.n ? <CheckCircle2 className="h-6 w-6" /> : <s.icon className="h-5 w-5" />}
+        <div className="overflow-x-auto scrollbar-none -mx-1 px-1">
+          <div className="flex justify-between relative px-2 min-w-[280px]">
+            <div className="absolute top-5 left-0 w-full h-[2px] bg-muted dark:bg-white/10 -z-10" />
+            {steps.map((s) => (
+              <div key={s.n} className="flex flex-col items-center gap-2 shrink-0">
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all ${
+                  step >= s.n ? 'bg-amber-500 border-amber-500 text-black' : 'bg-background border-border dark:border-white/20 text-muted-foreground'
+                }`}>
+                  {step > s.n ? <CheckCircle2 className="h-6 w-6" /> : <s.icon className="h-5 w-5" />}
+                </div>
+                <span className={`text-[10px] uppercase font-bold tracking-wider text-center ${step >= s.n ? 'text-amber-500' : 'text-muted-foreground'}`}>{s.title}</span>
               </div>
-              <span className={`text-[10px] uppercase font-bold tracking-wider ${step >= s.n ? 'text-amber-500' : 'text-muted-foreground'}`}>{s.title}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+        <Card className={cn(APP_CARD)}>
           <form onSubmit={handleSubmit}>
             <CardContent className="pt-6 space-y-4">
               {step === 1 && (
@@ -203,7 +211,7 @@ export default function KycPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className={APP_FORM_GRID}>
                     <div className="space-y-2">
                       <Label>Country</Label>
                       <Input name="country" placeholder="United States" value={formData.country} onChange={handleInputChange} required />
@@ -237,25 +245,25 @@ export default function KycPage() {
                     <Input name="idNumber" placeholder="Enter ID number" value={formData.idNumber} onChange={handleInputChange} required />
                   </div>
                   <div className="space-y-3">
-                    <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                    <div className="p-4 border border-dashed border-border dark:border-white/10 rounded-xl bg-muted/60 dark:bg-white/5">
                       <Label className="text-xs text-muted-foreground">Passport Size Photo</Label>
                       <p className="text-[10px] text-muted-foreground mt-0.5 mb-2">Recent colour photo, white background, face clearly visible (35×45 mm style)</p>
-                      <Input type="file" accept="image/*" className="mt-1 bg-white/5 border-white/10" required
+                      <Input type="file" accept="image/*" className="mt-1 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" required
                         onChange={e => setPassportPhoto(e.target.files?.[0] || null)} />
                     </div>
-                    <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                    <div className="p-4 border border-dashed border-border dark:border-white/10 rounded-xl bg-muted/60 dark:bg-white/5">
                       <Label className="text-xs text-muted-foreground">ID Document</Label>
-                      <Input type="file" accept="image/*,.pdf" className="mt-1 bg-white/5 border-white/10"
+                      <Input type="file" accept="image/*,.pdf" className="mt-1 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
                         onChange={e => setIdDoc(e.target.files?.[0] || null)} />
                     </div>
-                    <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                    <div className="p-4 border border-dashed border-border dark:border-white/10 rounded-xl bg-muted/60 dark:bg-white/5">
                       <Label className="text-xs text-muted-foreground">Address Proof</Label>
-                      <Input type="file" accept="image/*,.pdf" className="mt-1 bg-white/5 border-white/10"
+                      <Input type="file" accept="image/*,.pdf" className="mt-1 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
                         onChange={e => setAddressProof(e.target.files?.[0] || null)} />
                     </div>
-                    <div className="p-4 border border-dashed border-white/10 rounded-xl bg-white/5">
+                    <div className="p-4 border border-dashed border-border dark:border-white/10 rounded-xl bg-muted/60 dark:bg-white/5">
                       <Label className="text-xs text-muted-foreground">Selfie (holding ID beside face)</Label>
-                      <Input type="file" accept="image/*" className="mt-1 bg-white/5 border-white/10"
+                      <Input type="file" accept="image/*" className="mt-1 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
                         onChange={e => setSelfie(e.target.files?.[0] || null)} />
                     </div>
                   </div>
@@ -281,7 +289,7 @@ export default function KycPage() {
 
               {step === 4 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                  <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
+                  <div className={cn(APP_FORM_GRID, "gap-y-4 text-sm")}>
                     <div>
                       <p className="text-muted-foreground">Full Name</p>
                       <p className="font-medium">{formData.fullName}</p>
@@ -307,27 +315,28 @@ export default function KycPage() {
                 </div>
               )}
             </CardContent>
-            <CardFooter className="flex justify-between border-t border-white/5 pt-6">
+            <CardFooter className="flex flex-col-reverse xs:flex-row xs:justify-between gap-2 border-t border-border/80 dark:border-white/5 pt-6">
               <Button 
                 type="button" 
                 variant="ghost" 
                 onClick={() => setStep(s => s - 1)} 
                 disabled={step === 1}
+                className="w-full xs:w-auto touch-target"
               >
                 Back
               </Button>
               {step < 4 ? (
-                <Button type="button" className="bg-amber-500 text-black font-bold" onClick={() => setStep(s => s + 1)}>
+                <Button type="button" className="bg-amber-500 text-black font-bold w-full xs:w-auto touch-target" onClick={() => setStep(s => s + 1)}>
                   Next Step
                 </Button>
               ) : (
-                <Button type="submit" className="bg-amber-500 text-black font-bold" disabled={submitting}>
+                <Button type="submit" className="bg-amber-500 text-black font-bold w-full xs:w-auto touch-target" disabled={submitting}>
                   {submitting ? "Submitting..." : "Submit Application"}
                 </Button>
               )}
             </CardFooter>
           </form>
         </Card>
-      </div>
+    </AppPage>
 );
 }

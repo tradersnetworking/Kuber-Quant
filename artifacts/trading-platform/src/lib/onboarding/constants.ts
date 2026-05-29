@@ -1,3 +1,6 @@
+export const INVESTOR_REQUIRED_STEP_COUNT = 3;
+export const INVESTOR_OPTIONAL_STEP_START = 4;
+
 export const INVESTOR_STEPS = [
   { num: 1, label: "Account", key: "account" },
   { num: 2, label: "Personal", key: "personal" },

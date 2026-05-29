@@ -1,5 +1,5 @@
 import { db, siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 import nodemailer from "nodemailer";
 
 export interface SmtpConfig {

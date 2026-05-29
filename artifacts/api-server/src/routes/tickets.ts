@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { db, ticketsTable, ticketRepliesTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
+import { queueTicketAutoAcknowledgment } from "../helpers/ticketAutoReplyService";
+import { emitN8nEvent } from "../helpers/n8nWebhookService";
+import { validateBody, getValidatedBody } from "../middlewares/validate";
+import { CreateTicketBody } from "@workspace/api-zod";
+import { TicketReplyBody } from "../lib/routeBodySchemas";
+import { loadUserTickets } from "../helpers/ticketListService";
 
 const router = Router();
 
@@ -31,25 +37,44 @@ async function mapTicket(t: any, userEmail?: string, userName?: string) {
 
 router.get("/", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
-  const tickets = await db.select().from(ticketsTable)
-    .where(eq(ticketsTable.userId, userId))
-    .orderBy(desc(ticketsTable.createdAt));
-  const mapped = await Promise.all(tickets.map(t => mapTicket(t)));
-  res.json(mapped);
+  res.json(await loadUserTickets(userId));
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, validateBody(CreateTicketBody), async (req, res) => {
   const { userId } = (req as any).user;
-  const { subject, message, priority, category } = req.body;
-  if (!subject || !message) {
-    res.status(400).json({ error: "subject and message are required" });
-    return;
-  }
+  const { subject, message, priority, category } = getValidatedBody<{
+    subject: string;
+    message: string;
+    priority?: "low" | "medium" | "high" | "urgent";
+    category?: string;
+  }>(req);
   const [ticket] = await db.insert(ticketsTable).values({
     userId, subject, message,
     priority: priority || "medium",
     category: category || null,
   }).returning();
+
+  const [user] = await db.select({
+    email: usersTable.email,
+    fullName: usersTable.fullName,
+  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  if (user?.email) {
+    queueTicketAutoAcknowledgment({
+      ticket: ticket!,
+      userEmail: user.email,
+      userName: user.fullName || "",
+    });
+  }
+
+  emitN8nEvent("ticket.created", {
+    ticketId: ticket.id,
+    userId,
+    subject,
+    priority: priority || "medium",
+    category: category || null,
+  });
+
   res.status(201).json(await mapTicket(ticket));
 });
 
@@ -65,11 +90,10 @@ router.get("/:id", requireAuth, async (req, res) => {
   res.json(await mapTicket(ticket));
 });
 
-router.post("/:id/reply", requireAuth, async (req, res) => {
+router.post("/:id/reply", requireAuth, validateBody(TicketReplyBody), async (req, res) => {
   const { userId } = (req as any).user;
   const id = parseInt(String(req.params.id));
-  const { message } = req.body;
-  if (!message) { res.status(400).json({ error: "message is required" }); return; }
+  const { message } = getValidatedBody<{ message: string }>(req);
   const [ticket] = await db.select().from(ticketsTable)
     .where(eq(ticketsTable.id, id)).limit(1);
   if (!ticket || ticket.userId !== userId) {

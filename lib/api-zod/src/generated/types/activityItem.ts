@@ -5,13 +5,16 @@
  * Kuber Capital Trading Platform API
  * OpenAPI spec version: 0.2.0
  */
+import type { ActivityItemStatus } from './activityItemStatus';
 import type { ActivityItemType } from './activityItemType';
 
 export interface ActivityItem {
   id: number;
+  transactionId?: number;
   type: ActivityItemType;
-  description: string;
   amount: number;
   currency: string;
+  status: ActivityItemStatus;
+  paymentMethod?: string | null;
   createdAt: string;
 }

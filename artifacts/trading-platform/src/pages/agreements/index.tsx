@@ -51,9 +51,9 @@ const TYPE_ICONS: Record<string, typeof FileText> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  pending_signature: { label: "Pending Signature", color: "bg-amber-500/20 text-amber-400", icon: Clock },
-  signed: { label: "Signed", color: "bg-green-500/20 text-green-400", icon: CheckCircle },
-  expired: { label: "Expired", color: "bg-gray-500/20 text-gray-400", icon: XCircle },
+  pending_signature: { label: "Pending Signature", color: "bg-amber-500/20 text-amber-600 dark:text-amber-400", icon: Clock },
+  signed: { label: "Signed", color: "bg-green-500/20 text-green-700 dark:text-green-400", icon: CheckCircle },
+  expired: { label: "Expired", color: "bg-muted text-muted-foreground", icon: XCircle },
   revoked: { label: "Revoked", color: "bg-red-500/20 text-red-400", icon: XCircle },
 };
 
@@ -137,9 +137,9 @@ function SignatureCanvas({ onSigned }: { onSigned: (data: string) => void }) {
           onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
           style={{ background: "#0a1628" }}
         />
-        <div className="absolute bottom-2 left-3 text-xs text-white/20 pointer-events-none">Draw your signature above</div>
+        <div className="absolute bottom-2 left-3 text-xs text-muted-foreground/30 pointer-events-none">Draw your signature above</div>
       </div>
-      <Button size="sm" variant="ghost" onClick={clear} className="text-xs text-muted-foreground hover:text-white">
+      <Button size="sm" variant="ghost" onClick={clear} className="text-xs text-muted-foreground hover:text-foreground">
         <Eraser className="h-3 w-3 mr-1" />Clear
       </Button>
     </div>
@@ -257,22 +257,22 @@ export default function AgreementsPage() {
         {/* Alert for pending */}
         {pendingCount > 0 && (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-amber-400">{pendingCount} agreement{pendingCount > 1 ? "s" : ""} awaiting your signature</p>
+              <p className="text-sm font-medium text-amber-600 dark:text-amber-400">{pendingCount} agreement{pendingCount > 1 ? "s" : ""} awaiting your signature</p>
               <p className="text-xs text-muted-foreground mt-0.5">Please review and sign all pending agreements to maintain full platform access.</p>
             </div>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-white/10 pb-px">
+        <div className="flex gap-2 border-b border-border dark:border-white/10 pb-px">
           {(["pending", "signed", "all"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
                 activeTab === tab
-                  ? "border-amber-500 text-amber-400"
-                  : "border-transparent text-muted-foreground hover:text-white"
+                  ? "border-amber-500 text-amber-600 dark:text-amber-400"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}>
               {tab === "pending" ? `Pending ${pendingCount > 0 ? `(${pendingCount})` : ""}` :
                tab === "signed" ? `Signed (${agreements.filter(a => a.status === "signed").length})` :
@@ -288,7 +288,7 @@ export default function AgreementsPage() {
           <div className="text-center py-16">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-30" />
             <p className="text-muted-foreground">No {activeTab !== "all" ? activeTab : ""} agreements found.</p>
-            <Button onClick={() => setShowGenDialog(true)} variant="outline" className="mt-4 border-white/10">
+            <Button onClick={() => setShowGenDialog(true)} variant="outline" className="mt-4 border-border dark:border-white/10">
               Request an agreement
             </Button>
           </div>
@@ -299,7 +299,7 @@ export default function AgreementsPage() {
               const Icon = TYPE_ICONS[agr.type] || FileText;
               return (
                 <Card key={agr.id}
-                  className={`bg-white/5 border-white/10 hover:border-amber-500/30 transition-all cursor-pointer ${
+                  className={`bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 hover:border-amber-500/30 transition-all cursor-pointer ${
                     agr.status === "pending_signature" ? "border-amber-500/20" : ""
                   }`}
                   onClick={() => openDetail(agr)}>
@@ -309,7 +309,7 @@ export default function AgreementsPage() {
                         <div className={`h-10 w-10 rounded-xl shrink-0 flex items-center justify-center ${
                           agr.status === "signed" ? "bg-green-500/10" : "bg-amber-500/10"
                         }`}>
-                          <Icon className={`h-5 w-5 ${agr.status === "signed" ? "text-green-400" : "text-amber-400"}`} />
+                          <Icon className={`h-5 w-5 ${agr.status === "signed" ? "text-green-700 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`} />
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">{TYPE_LABELS[agr.type] || agr.type}</p>
@@ -325,7 +325,7 @@ export default function AgreementsPage() {
                         <Button size="sm" variant="ghost"
                           onClick={e => { e.stopPropagation(); handleDownload(agr.id, agr.agreementUid); }}
                           disabled={downloading === agr.id}
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-amber-400">
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-amber-600 dark:text-amber-400">
                           <Download className="h-3.5 w-3.5" />
                         </Button>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -340,12 +340,12 @@ export default function AgreementsPage() {
 
         {/* Detail / Sign Dialog */}
         <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
-          <DialogContent className="bg-[#050A14] border-white/10 max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="bg-background border-border dark:border-white/10 max-w-2xl max-h-[85vh] overflow-y-auto">
             {selected && (
               <>
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-amber-400" />
+                    <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                     {TYPE_LABELS[selected.type] || selected.type}
                   </DialogTitle>
                   <div className="flex items-center gap-2 mt-1">
@@ -358,15 +358,15 @@ export default function AgreementsPage() {
 
                 {/* Agreement preview */}
                 {detailData?.filledData && (
-                  <div className="bg-black/30 rounded-xl border border-white/5 p-4 space-y-3 text-sm max-h-64 overflow-y-auto">
-                    <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Agreement Details</p>
+                  <div className="bg-muted dark:bg-black/30 rounded-xl border border-border/80 dark:border-white/5 p-4 space-y-3 text-sm max-h-64 overflow-y-auto">
+                    <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Agreement Details</p>
                     {Object.entries(detailData.filledData as Record<string, string>)
                       .filter(([k, v]) => v && v !== "—" && !["PDF_HASH", "AGREEMENT_STATUS"].includes(k))
                       .slice(0, 20)
                       .map(([key, val]) => (
-                        <div key={key} className="flex gap-2 text-xs py-1 border-b border-white/5 last:border-0">
+                        <div key={key} className="flex gap-2 text-xs py-1 border-b border-border/80 dark:border-white/5 last:border-0">
                           <span className="text-muted-foreground w-36 shrink-0">{key.replace(/_/g, " ")}</span>
-                          <span className="text-white/80 font-mono break-all">{val}</span>
+                          <span className="text-foreground/80 font-mono break-all">{val}</span>
                         </div>
                       ))}
                   </div>
@@ -374,9 +374,9 @@ export default function AgreementsPage() {
 
                 {/* Signing section */}
                 {selected.status === "pending_signature" && (
-                  <div className="space-y-4 border-t border-white/10 pt-4">
+                  <div className="space-y-4 border-t border-border dark:border-white/10 pt-4">
                     <div>
-                      <p className="text-sm font-semibold text-amber-400 mb-1 flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1.5">
                         <PenTool className="h-4 w-4" />Digital Signature
                       </p>
                       <p className="text-xs text-muted-foreground mb-3">
@@ -394,11 +394,11 @@ export default function AgreementsPage() {
 
                 {/* Signed state */}
                 {selected.status === "signed" && (
-                  <div className="space-y-3 border-t border-white/10 pt-4">
+                  <div className="space-y-3 border-t border-border dark:border-white/10 pt-4">
                     <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+                      <CheckCircle className="h-4 w-4 text-green-700 dark:text-green-400 shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm text-green-400 font-medium">Agreement signed successfully</p>
+                        <p className="text-sm text-green-700 dark:text-green-400 font-medium">Agreement signed successfully</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Signed on {selected.signedAt ? new Date(selected.signedAt).toLocaleString() : "—"}
                         </p>
@@ -419,7 +419,7 @@ export default function AgreementsPage() {
 
         {/* Generate Dialog */}
         <Dialog open={showGenDialog} onOpenChange={setShowGenDialog}>
-          <DialogContent className="bg-[#050A14] border-white/10 max-w-md">
+          <DialogContent className="bg-background border-border dark:border-white/10 max-w-md">
             <DialogHeader>
               <DialogTitle>Request Legal Agreement</DialogTitle>
             </DialogHeader>
@@ -427,7 +427,7 @@ export default function AgreementsPage() {
               <div className="space-y-2">
                 <label className="text-xs uppercase tracking-wider text-muted-foreground">Agreement Type</label>
                 <Select value={genType} onValueChange={setGenType}>
-                  <SelectTrigger className="bg-white/5 border-white/10">
+                  <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

@@ -28,7 +28,7 @@ export function CopyCredentialButton({ text, className }: { text: string; classN
       onClick={copy}
       title="Copy"
     >
-      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? <Check className="h-3.5 w-3.5 text-green-700 dark:text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
     </Button>
   );
 }

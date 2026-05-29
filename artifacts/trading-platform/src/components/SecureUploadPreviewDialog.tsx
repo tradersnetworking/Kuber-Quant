@@ -70,7 +70,7 @@ export function SecureUploadPreviewDialog({ open, onOpenChange, url, title = "Do
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-950 border-white/10 max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="bg-zinc-950 border-border dark:border-white/10 max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -78,10 +78,10 @@ export function SecureUploadPreviewDialog({ open, onOpenChange, url, title = "Do
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-[240px] flex items-center justify-center overflow-auto rounded-lg border border-white/10 bg-black/40">
+        <div className="flex-1 min-h-[240px] flex items-center justify-center overflow-auto rounded-lg border border-border dark:border-white/10 bg-muted/90 dark:bg-black/40">
           {loading && (
             <div className="flex flex-col items-center gap-2 text-muted-foreground py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+              <Loader2 className="h-8 w-8 animate-spin text-amber-600 dark:text-amber-400" />
               <p className="text-sm">Loading document…</p>
             </div>
           )}

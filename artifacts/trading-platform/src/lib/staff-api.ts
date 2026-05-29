@@ -1,24 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { authFetchJson } from "@/lib/token-store";
+import { pollQueryOptions, STAFF_POLL_MS } from "@/lib/query-config";
 
 export async function staffFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return authFetchJson<T>(path, init);
 }
 
+const staffPollOptions = pollQueryOptions(STAFF_POLL_MS);
+
 export function useAdminAnalytics() {
   return useQuery({
     queryKey: ["/api/admin/analytics"],
     queryFn: () => staffFetch<any>("/admin/analytics"),
-    refetchInterval: 60000,
+    ...staffPollOptions,
   });
 }
 
 export function usePlatformStats(enabled = true) {
   return useQuery({
-    queryKey: ["/api/admin/stats"],
-    queryFn: () => staffFetch<any>("/admin/stats"),
+    queryKey: ["/api/super-admin/stats", "present"],
+    queryFn: () => staffFetch<any>("/super-admin/stats?period=present"),
     enabled,
-    refetchInterval: 60000,
+    ...staffPollOptions,
   });
 }
 
@@ -26,7 +29,7 @@ export function useManagerAnalytics() {
   return useQuery({
     queryKey: ["/api/manager/analytics"],
     queryFn: () => staffFetch<any>("/manager/analytics"),
-    refetchInterval: 60000,
+    ...staffPollOptions,
   });
 }
 
@@ -111,4 +114,28 @@ export async function resolveSupportTicket(ticketId: number) {
 
 export async function closeSupportTicket(ticketId: number) {
   return staffFetch<any>(`/support-team/tickets/${ticketId}/close`, { method: "POST" });
+}
+
+export type StaffReportPayload = {
+  subjectUserId: number;
+  issueType?: string;
+  subject: string;
+  message: string;
+  priority?: "low" | "medium" | "high" | "urgent";
+};
+
+export async function submitStaffReport(role: "support" | "manager", payload: StaffReportPayload) {
+  const path = role === "support" ? "/support-team/reports" : "/manager/reports";
+  return staffFetch<{ ticketId: number; ticket: unknown }>(path, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function useStaffReports(role: "support" | "manager") {
+  const path = role === "support" ? "/support-team/reports" : "/manager/reports";
+  return useQuery({
+    queryKey: [`/api${path}`],
+    queryFn: () => staffFetch<any[]>(path),
+  });
 }

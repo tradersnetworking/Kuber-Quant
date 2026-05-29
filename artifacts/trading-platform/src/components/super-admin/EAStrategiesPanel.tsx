@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit2, Trash2, RefreshCw, Cpu, Copy } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
+import { STAFF_FORM_GRID } from "@/lib/staff-dashboard-ui";
 
 const emptyStrategy = {
   name: "", type: "trend", description: "", backtestRoi: 0, winRate: 0,
@@ -90,11 +91,11 @@ export function EAStrategiesPanel() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2"><Cpu className="h-5 w-5 text-purple-400" />EA Strategies Catalog</h2>
+          <h2 className="text-lg font-semibold flex items-center gap-2"><Cpu className="h-5 w-5 text-purple-600 dark:text-purple-400" />EA Strategies Catalog</h2>
           <p className="text-sm text-muted-foreground">Manage EA strategies shown to users — create, edit, delete, modify pricing and metadata.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="w-40 bg-white/5 border-white/10" />
+          <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="w-40 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
           <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /></Button>
           <Button size="sm" className="bg-amber-500 text-black" onClick={() => { setEditing(null); setForm({ ...emptyStrategy }); setOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" />Add Strategy
@@ -107,7 +108,7 @@ export function EAStrategiesPanel() {
       ) : (
         <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
           {filtered.map(s => (
-            <Card key={s.id} className="bg-white/5 border-white/10">
+            <Card key={s.id} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <CardContent className="p-3 flex flex-col md:flex-row md:items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -136,28 +137,28 @@ export function EAStrategiesPanel() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[#050A14] border-white/10 max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-background border-border dark:border-white/10 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? "Edit EA Strategy" : "Add EA Strategy"}</DialogTitle></DialogHeader>
           <form onSubmit={save} className="space-y-3">
-            <div className="space-y-1"><Label>Name</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-            <div className="space-y-1"><Label>Description</Label><Textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label>Name</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <div className="space-y-1"><Label>Description</Label><Textarea required value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <div className={STAFF_FORM_GRID}>
               <div className="space-y-1">
                 <Label>Type</Label>
                 <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {["scalping", "swing", "trend", "grid", "arbitrage"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1"><Label>Category</Label><Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Backtest ROI %</Label><Input type="number" step="0.1" value={form.backtestRoi} onChange={e => setForm(f => ({ ...f, backtestRoi: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Win Rate %</Label><Input type="number" step="0.1" value={form.winRate} onChange={e => setForm(f => ({ ...f, winRate: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Monthly Price ($)</Label><Input type="number" value={form.priceMonthly} onChange={e => setForm(f => ({ ...f, priceMonthly: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Annual Price ($)</Label><Input type="number" value={form.priceAnnual} onChange={e => setForm(f => ({ ...f, priceAnnual: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Pairs</Label><Input value={form.pairs} onChange={e => setForm(f => ({ ...f, pairs: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Risk Level</Label><Input value={form.riskLevel} onChange={e => setForm(f => ({ ...f, riskLevel: e.target.value }))} className="bg-white/5 border-white/10" /></div>
+              <div className="space-y-1"><Label>Category</Label><Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Backtest ROI %</Label><Input type="number" step="0.1" value={form.backtestRoi} onChange={e => setForm(f => ({ ...f, backtestRoi: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Win Rate %</Label><Input type="number" step="0.1" value={form.winRate} onChange={e => setForm(f => ({ ...f, winRate: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Monthly Price ($)</Label><Input type="number" value={form.priceMonthly} onChange={e => setForm(f => ({ ...f, priceMonthly: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Annual Price ($)</Label><Input type="number" value={form.priceAnnual} onChange={e => setForm(f => ({ ...f, priceAnnual: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Pairs</Label><Input value={form.pairs} onChange={e => setForm(f => ({ ...f, pairs: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Risk Level</Label><Input value={form.riskLevel} onChange={e => setForm(f => ({ ...f, riskLevel: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
             </div>
             <DialogFooter>
               <Button type="submit" className="bg-amber-500 text-black w-full">{editing ? "Save Changes" : "Add to Catalog"}</Button>

@@ -1,4 +1,5 @@
 import type { User } from "@workspace/api-client-react";
+import { getDeviceFingerprint } from "./device-fingerprint";
 
 /** Resolve /api/... path respecting Vite BASE_URL (e.g. subpath deploys). */
 export function apiPath(path: string): string {
@@ -36,7 +37,11 @@ export async function refreshAccessToken(): Promise<string | null> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        const err = await parseErrorBody(res);
+        if (err.code === "SESSION_REPLACED") handleSessionReplaced();
+        return null;
+      }
 
       const data = await res.json();
       if (data.token) localStorage.setItem("token", data.token);
@@ -61,14 +66,36 @@ export function clearSession() {
 
 type AuthFailureHandler = () => void;
 let onAuthFailure: AuthFailureHandler | null = null;
+let onSessionReplaced: AuthFailureHandler | null = null;
 
 export function setAuthFailureHandler(handler: AuthFailureHandler | null) {
   onAuthFailure = handler;
 }
 
+export function setSessionReplacedHandler(handler: AuthFailureHandler | null) {
+  onSessionReplaced = handler;
+}
+
 export function handleAuthFailure() {
   clearSession();
   onAuthFailure?.();
+}
+
+export function handleSessionReplaced() {
+  clearSession();
+  if (onSessionReplaced) {
+    onSessionReplaced();
+  } else {
+    onAuthFailure?.();
+  }
+}
+
+async function parseErrorBody(res: Response): Promise<{ code?: string; error?: string }> {
+  try {
+    return await res.clone().json();
+  } catch {
+    return {};
+  }
 }
 
 /** Fetch with bearer token; auto-refreshes once on 401. */
@@ -78,10 +105,11 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
 
   const buildHeaders = (token: string | null) => {
     const headers = new Headers(init.headers);
-    if (!headers.has("Content-Type") && init.body) {
+    if (!headers.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
       headers.set("Content-Type", "application/json");
     }
     if (token) headers.set("Authorization", `Bearer ${token}`);
+    headers.set("X-Device-Fingerprint", getDeviceFingerprint());
     return headers;
   };
 
@@ -95,6 +123,11 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
   let res = await fetch(input, { ...init, headers: buildHeaders(token) });
 
   if (res.status === 401 && !isRefreshCall) {
+    const err = await parseErrorBody(res);
+    if (err.code === "SESSION_REPLACED") {
+      handleSessionReplaced();
+      return res;
+    }
     const newToken = await refreshAccessToken();
     if (newToken) {
       res = await fetch(input, { ...init, headers: buildHeaders(newToken) });

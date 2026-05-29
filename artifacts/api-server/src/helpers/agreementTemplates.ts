@@ -59,15 +59,19 @@ const DISPUTE_RESOLUTION = `Dispute Resolution:
 
 const INVESTOR_DETAILS_SECTION = `Investor Details (Auto-filled):
 Full Name: {{FULL_NAME}}
+Role: {{ROLE}}
 Father's Name: {{FATHER_NAME}}
 PAN Number: {{PAN_NUMBER}}
 Aadhaar Number: {{AADHAAR_NUMBER}}
 Passport Number: {{PASSPORT_NUMBER}}
+Passport Size Photo: {{PASSPORT_PHOTO_ON_FILE}} ({{PROFILE_PHOTO_URL}})
 Residential Address: {{ADDRESS}}
+Full Address: {{FULL_ADDRESS}}
 Mobile Number: {{MOBILE}}
 Email Address: {{EMAIL}}
 Investor ID: {{INVESTOR_ID}}
-KYC Status: {{KYC_STATUS}}`;
+KYC Status: {{KYC_STATUS}}
+KYC Documents: {{KYC_DOCUMENTS}}`;
 
 const AGREEMENT_META = `Agreement Reference: {{AGREEMENT_UID}}
 Agreement Date: {{AGREEMENT_DATE}}
@@ -238,7 +242,7 @@ export const DEFAULT_TEMPLATES: AgreementTemplateContent[] = [
     sections: [
       {
         heading: "DECLARANT DETAILS",
-        body: `This AML/KYC Declaration is submitted by:\n\n${INVESTOR_DETAILS_SECTION}\n\nKYC Documents Provided: {{KYC_DOCUMENTS}}\nKYC Verification Date: {{KYC_DATE}}\nVerification Status: {{KYC_STATUS}}`,
+        body: `This AML/KYC Declaration is submitted by:\n\n${INVESTOR_DETAILS_SECTION}\n\nKYC Documents Provided: {{KYC_DOCUMENTS}}\nPassport Photo: {{PASSPORT_PHOTO_ON_FILE}}\nID Document: {{ID_DOCUMENT_URL}}\nSelfie: {{SELFIE_URL}}\nSignature: {{SIGNATURE_URL}}\nKYC Verification Date: {{KYC_DATE}}\nVerification Status: {{KYC_STATUS}}`,
       },
       {
         heading: "SOURCE OF FUNDS DECLARATION",

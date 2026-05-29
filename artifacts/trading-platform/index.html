@@ -2,13 +2,14 @@
 <html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
     <title>Kuber Quant — Precision. Profit. Performance.</title>
     <meta name="description" content="Kuber Quant — Institutional-grade algorithmic trading, EA strategies, copy trading, and wealth management. MT4/MT5 Expert Advisors, algo trading, and investment plans." />
     <meta name="keywords" content="algorithmic trading, EA strategies, MetaTrader 5, MT5, MT4, copy trading, Expert Advisor, forex trading, crypto trading, investment platform, wealth management, algo trading" />
     <meta name="author" content="Kuber Quant" />
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#050A14" />
+    <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#050A14" media="(prefers-color-scheme: dark)" />
 
     <!-- Open Graph -->
     <meta property="og:title" content="Kuber Quant — Precision. Profit. Performance." />
@@ -53,6 +54,21 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   </head>
   <body>
+    <script>
+      (function () {
+        var key = "kq-theme";
+        var pref = localStorage.getItem(key);
+        if (pref !== "light" && pref !== "dark" && pref !== "system") pref = "system";
+        var resolved =
+          pref === "light" || pref === "dark"
+            ? pref
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        document.documentElement.classList.add(resolved);
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

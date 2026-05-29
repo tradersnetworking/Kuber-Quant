@@ -1,7 +1,7 @@
 import { createHash, randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import { db, emailOtpsTable, refreshTokensTable } from "@workspace/db";
-import { eq, and, isNull, gt } from "drizzle-orm";
+import { eq, and, isNull, gt } from "@workspace/db/orm";
 import { sendTransactionalEmail } from "./mailer";
 
 export function hashToken(token: string): string {
@@ -15,7 +15,7 @@ export function generateOtp(): string {
 export async function createEmailOtp(opts: {
   email: string;
   userId?: number;
-  purpose: "password_reset" | "email_verify" | "login" | "registration" | "mobile_verify";
+  purpose: "password_reset" | "email_verify" | "login" | "registration" | "mobile_verify" | "withdrawal_confirm";
   ttlMinutes?: number;
 }): Promise<{ otp: string; expiresAt: Date }> {
   const otp = generateOtp();
@@ -36,7 +36,7 @@ export async function createEmailOtp(opts: {
 export async function verifyEmailOtp(opts: {
   email: string;
   otp: string;
-  purpose: "password_reset" | "email_verify" | "login" | "registration" | "mobile_verify";
+  purpose: "password_reset" | "email_verify" | "login" | "registration" | "mobile_verify" | "withdrawal_confirm";
 }): Promise<boolean> {
   const now = new Date();
   const rows = await db.select().from(emailOtpsTable)
@@ -58,10 +58,22 @@ export async function verifyEmailOtp(opts: {
   return false;
 }
 
-export async function createRefreshToken(userId: number, rawToken: string, days = 30) {
+export async function createRefreshToken(
+  userId: number,
+  rawToken: string,
+  days = 30,
+  meta?: { ipAddress?: string; userAgent?: string; deviceLabel?: string },
+) {
   const tokenHash = hashToken(rawToken);
   const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-  await db.insert(refreshTokensTable).values({ userId, tokenHash, expiresAt });
+  await db.insert(refreshTokensTable).values({
+    userId,
+    tokenHash,
+    expiresAt,
+    ipAddress: meta?.ipAddress ?? null,
+    userAgent: meta?.userAgent?.slice(0, 512) ?? null,
+    deviceLabel: meta?.deviceLabel ?? null,
+  });
   return expiresAt;
 }
 
@@ -70,6 +82,15 @@ export async function revokeRefreshToken(rawToken: string) {
   await db.update(refreshTokensTable)
     .set({ revokedAt: new Date() })
     .where(eq(refreshTokensTable.tokenHash, tokenHash));
+}
+
+export async function revokeAllRefreshTokensForUser(userId: number) {
+  await db.update(refreshTokensTable)
+    .set({ revokedAt: new Date() })
+    .where(and(
+      eq(refreshTokensTable.userId, userId),
+      isNull(refreshTokensTable.revokedAt),
+    ));
 }
 
 export async function validateRefreshToken(rawToken: string): Promise<number | null> {

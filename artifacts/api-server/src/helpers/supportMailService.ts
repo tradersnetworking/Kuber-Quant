@@ -2,13 +2,21 @@ import {
   db, usersTable, ticketsTable, supportInboxTable, notificationsTable,
   type SupportInboxMessage,
 } from "@workspace/db";
-import { and, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, or } from "@workspace/db/orm";
 import { getSupportInboxConfig } from "./supportInboxSettings";
 import {
   computePriority, computeSlaDueAt, getSupportMailDeskConfig, type SupportMailDeskConfig,
 } from "./supportMailDeskSettings";
 import { resolveFromAddress } from "./emailCommunicationSettings";
 import { sendMail } from "./mailer";
+import { queueTicketAutoAcknowledgment } from "./ticketAutoReplyService";
+import {
+  getAttachmentFilesForSend,
+  linkStagedAttachmentsToMessage,
+  loadAttachmentsByMessageIds,
+  saveInboundMailAttachments,
+  type MailAttachmentDto,
+} from "./supportMailAttachmentService";
 
 export type SupportMailCategory = "query" | "complaint" | "dispute" | "general" | "other";
 export type SupportMailStatus = "unread" | "read" | "replied" | "archived";
@@ -63,6 +71,7 @@ export async function mapSupportMail(
   row: SupportInboxMessage,
   user?: UserLite | null,
   agents?: Map<number, UserLite>,
+  attachments?: MailAttachmentDto[],
 ) {
   const agentMap = agents ?? await loadUsersMap(
     [row.assignedToUserId, row.handledByUserId].filter(Boolean) as number[],
@@ -97,6 +106,7 @@ export async function mapSupportMail(
     slaStatus: slaStatus(row),
     receivedAt: row.receivedAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
+    attachments: attachments ?? [],
   };
 }
 
@@ -156,6 +166,19 @@ async function autoCreateTicketForMail(
   await db.update(supportInboxTable)
     .set({ ticketId: ticket!.id, userId })
     .where(eq(supportInboxTable.id, mailId));
+
+  const [user] = await db.select({
+    email: usersTable.email,
+    fullName: usersTable.fullName,
+  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  if (user?.email) {
+    queueTicketAutoAcknowledgment({
+      ticket: ticket!,
+      userEmail: user.email,
+      userName: user.fullName || "",
+    });
+  }
 
   return ticket!.id;
 }
@@ -274,8 +297,15 @@ export async function listSupportMail(filters?: {
   const agentIds = [...new Set(rows.flatMap(r => [r.userId, r.assignedToUserId, r.handledByUserId].filter(Boolean)))] as number[];
   const userMap = await loadUsersMap(userIds);
   const agentMap = await loadUsersMap(agentIds);
+  const attachmentMap = await loadAttachmentsByMessageIds(rows.map(r => r.id));
 
-  return Promise.all(rows.map(r => mapSupportMail(r, r.userId ? userMap.get(r.userId) : null, agentMap)));
+  const mapped = await Promise.all(rows.map(r => mapSupportMail(
+    r,
+    r.userId ? userMap.get(r.userId) : null,
+    agentMap,
+    attachmentMap.get(r.id),
+  )));
+  return mapped;
 }
 
 export async function listSupportMailThreads(filters?: {
@@ -334,8 +364,14 @@ export async function getSupportMailThread(threadId: string) {
   const ids = [...new Set(rows.flatMap(r => [r.userId, r.assignedToUserId, r.handledByUserId].filter(Boolean)))] as number[];
   const agentMap = await loadUsersMap(ids);
   const userMap = await loadUsersMap(rows.map(r => r.userId).filter(Boolean) as number[]);
+  const attachmentMap = await loadAttachmentsByMessageIds(rows.map(r => r.id));
 
-  return Promise.all(rows.map(r => mapSupportMail(r, r.userId ? userMap.get(r.userId) : null, agentMap)));
+  return Promise.all(rows.map(r => mapSupportMail(
+    r,
+    r.userId ? userMap.get(r.userId) : null,
+    agentMap,
+    attachmentMap.get(r.id),
+  )));
 }
 
 export async function getSupportMailStats(staffUserId?: number) {
@@ -368,7 +404,8 @@ export async function getSupportMailById(id: number) {
   const [row] = await db.select().from(supportInboxTable).where(eq(supportInboxTable.id, id)).limit(1);
   if (!row) return null;
   const user = row.userId ? (await loadUsersMap([row.userId])).get(row.userId) : null;
-  return mapSupportMail(row, user);
+  const attachmentMap = await loadAttachmentsByMessageIds([row.id]);
+  return mapSupportMail(row, user, undefined, attachmentMap.get(row.id));
 }
 
 export async function assignSupportMail(id: number, assignedToUserId: number | null, staffUserId: number) {
@@ -473,6 +510,7 @@ export async function sendSupportMail(opts: {
   body: string;
   staffUserId: number;
   inReplyToId?: number;
+  attachmentIds?: number[];
 }) {
   const from = await resolveFromAddress("ticket_reply");
   const html = `
@@ -485,7 +523,19 @@ export async function sendSupportMail(opts: {
   </div>
 </body></html>`;
 
-  const sent = await sendMail({ to: opts.to, subject: opts.subject, html, text: opts.body, from });
+  const attachmentIds = opts.attachmentIds?.filter(Boolean) ?? [];
+  const smtpAttachments = attachmentIds.length
+    ? await getAttachmentFilesForSend(attachmentIds, opts.staffUserId)
+    : [];
+
+  const sent = await sendMail({
+    to: opts.to,
+    subject: opts.subject,
+    html,
+    text: opts.body,
+    from,
+    attachments: smtpAttachments,
+  });
 
   let parent: SupportInboxMessage | undefined;
   if (opts.inReplyToId) {
@@ -502,6 +552,11 @@ export async function sendSupportMail(opts: {
     priority: parent?.priority,
   });
 
+  let linkedAttachments: MailAttachmentDto[] = [];
+  if (attachmentIds.length) {
+    linkedAttachments = await linkStagedAttachmentsToMessage(attachmentIds, outbound.id, opts.staffUserId);
+  }
+
   if (opts.inReplyToId && parent) {
     await db.update(supportInboxTable)
       .set({
@@ -515,17 +570,22 @@ export async function sendSupportMail(opts: {
       ));
   }
 
-  return { sent, message: await mapSupportMail(outbound) };
+  return { sent, message: await mapSupportMail(outbound, null, undefined, linkedAttachments) };
 }
 
-export async function replyToSupportMail(id: number, body: string, staffUserId: number) {
+export async function replyToSupportMail(
+  id: number,
+  body: string,
+  staffUserId: number,
+  attachmentIds?: number[],
+) {
   const [original] = await db.select().from(supportInboxTable).where(eq(supportInboxTable.id, id)).limit(1);
   if (!original) return null;
 
   const to = original.direction === "inbound" ? original.fromEmail : original.toEmail;
   const subject = original.subject.startsWith("Re:") ? original.subject : `Re: ${original.subject}`;
 
-  return sendSupportMail({ to, subject, body, staffUserId, inReplyToId: id });
+  return sendSupportMail({ to, subject, body, staffUserId, inReplyToId: id, attachmentIds });
 }
 
 export async function createTicketFromMail(id: number, staffUserId: number) {
@@ -557,6 +617,19 @@ export async function createTicketFromMail(id: number, staffUserId: number) {
     .set({ ticketId: ticket!.id, userId, status: "read", handledByUserId: staffUserId })
     .where(eq(supportInboxTable.id, id));
 
+  const [user] = await db.select({
+    email: usersTable.email,
+    fullName: usersTable.fullName,
+  }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  if (user?.email) {
+    queueTicketAutoAcknowledgment({
+      ticket: ticket!,
+      userEmail: user.email,
+      userName: user.fullName || "",
+    });
+  }
+
   return { ticketId: ticket!.id };
 }
 
@@ -571,6 +644,7 @@ type ParsedInbound = {
   bodyHtml: string | null;
   receivedAt: Date;
   category: SupportMailCategory;
+  attachments: Array<{ filename: string; content: Buffer; contentType: string }>;
 };
 
 async function parseImapMessage(source: Buffer, envelope: any, internalDate?: Date | string): Promise<ParsedInbound | null> {
@@ -588,6 +662,13 @@ async function parseImapMessage(source: Buffer, envelope: any, internalDate?: Da
     const bodyText = parsed.text || null;
     const bodyHtml = typeof parsed.html === "string" ? parsed.html : null;
     const messageId = parsed.messageId || envelope?.messageId || `imap-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const attachments = (parsed.attachments || [])
+      .filter(att => att.content && att.filename)
+      .map(att => ({
+        filename: att.filename || "attachment",
+        content: att.content as Buffer,
+        contentType: att.contentType || "application/octet-stream",
+      }));
 
     return {
       externalMessageId: messageId,
@@ -600,6 +681,7 @@ async function parseImapMessage(source: Buffer, envelope: any, internalDate?: Da
       bodyHtml,
       receivedAt: parsed.date || (internalDate ? new Date(internalDate) : undefined) || new Date(),
       category: detectMailCategory(subject, bodyText || bodyHtml || ""),
+      attachments,
     };
   } catch {
     return null;
@@ -647,9 +729,14 @@ export async function syncSupportInboxFromImap(): Promise<{ synced: number; skip
         if (existing.length) { skipped++; continue; }
 
         const user = await matchUserByEmail(parsed.fromEmail);
+        const { attachments, ...mailFields } = parsed;
         const [inserted] = await db.insert(supportInboxTable).values(
-          buildInboundValues({ ...parsed, userId: user?.id ?? null }, desk),
+          buildInboundValues({ ...mailFields, userId: user?.id ?? null }, desk),
         ).returning();
+
+        if (attachments.length) {
+          await saveInboundMailAttachments(inserted!.id, attachments);
+        }
 
         await processNewInboundMessage(inserted!);
         synced++;

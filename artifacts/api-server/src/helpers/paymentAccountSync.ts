@@ -1,5 +1,5 @@
 import { db, userPaymentAccountsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and } from "@workspace/db/orm";
 
 const CRYPTO_KEY_MAP: Record<string, { symbol: string; network: string; label: string }> = {
   btc: { symbol: "BTC", network: "BTC", label: "BTC Wallet" },

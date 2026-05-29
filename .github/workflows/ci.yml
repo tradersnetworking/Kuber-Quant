@@ -47,3 +47,76 @@ jobs:
         env:
           SESSION_SECRET: ci-test-secret-key-minimum-32-chars
           ENCRYPTION_KEY: ci-test-encryption-key-32chars!!
+
+  smoke:
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kuber_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        run: pnpm build:api
+        env:
+          SESSION_SECRET: ci-smoke-secret-key-minimum-32-chars
+          ENCRYPTION_KEY: ci-smoke-encryption-key-32chars!!
+
+      - name: Prepare database
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/kuber_smoke
+
+      - name: Start API and worker
+        run: |
+          export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/kuber_smoke
+          export REDIS_URL=redis://127.0.0.1:6379
+          export PORT=8080
+          export NODE_ENV=development
+          export SESSION_SECRET=ci-smoke-secret-key-minimum-32-chars
+          export ENCRYPTION_KEY=ci-smoke-encryption-key-32chars!!
+          export BOOTSTRAP_USERS=true
+          export RUN_JOBS_INLINE=true
+          node artifacts/api-server/dist/index.mjs &
+          echo $! > /tmp/kuber-api.pid
+          sleep 8
+
+      - name: Smoke test
+        run: node scripts/smoke-test.mjs http://127.0.0.1:8080
+
+      - name: Stop API
+        if: always()
+        run: kill "$(cat /tmp/kuber-api.pid)" 2>/dev/null || true

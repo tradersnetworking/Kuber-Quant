@@ -23,6 +23,8 @@ export const kycRecordsTable = pgTable("kyc_records", {
   aadhaarFrontUrl: text("aadhaar_front_url"),
   aadhaarBackUrl: text("aadhaar_back_url"),
   passportDocumentUrl: text("passport_document_url"),
+  driversLicenseNumber: text("drivers_license_number"),
+  driversLicenseDocumentUrl: text("drivers_license_document_url"),
   passportPhotoUrl: text("passport_photo_url"),
   addressProofUrl: text("address_proof_url"),
   selfieUrl: text("selfie_url"),
@@ -33,6 +35,7 @@ export const kycRecordsTable = pgTable("kyc_records", {
   taxId: text("tax_id"),
   status: kycSubmitStatusEnum("status").notNull().default("submitted"),
   rejectionReason: text("rejection_reason"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

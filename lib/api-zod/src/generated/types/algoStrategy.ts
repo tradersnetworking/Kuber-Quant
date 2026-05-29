@@ -18,4 +18,8 @@ export interface AlgoStrategy {
   status: AlgoStrategyStatus;
   minInvestment?: number;
   currency?: string;
+  priceMonthly?: number;
+  priceQuarterly?: number;
+  priceBiannual?: number;
+  priceAnnual?: number;
 }

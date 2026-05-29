@@ -1,5 +1,6 @@
 import type { usersTable, userProfilesTable, kycRecordsTable, userPaymentAccountsTable, mt5AccountsTable } from "@workspace/db";
 import { maskAccountNumber } from "./paymentAccountSync";
+import { resolveAgreementAssetUrl, documentOnFileLabel } from "./agreementAssetHelper";
 
 export type PlaceholderMeta = { key: string; label: string; group: string };
 
@@ -146,6 +147,26 @@ export function buildUserCollectedPlaceholders(input: {
       ? "On file"
       : "—";
 
+  const passportPhotoRaw = kyc?.passportPhotoUrl || user.avatarUrl || null;
+  const avatarRaw = user.avatarUrl || kyc?.passportPhotoUrl || null;
+  const passportPhotoUrl = resolveAgreementAssetUrl(passportPhotoRaw);
+  const avatarUrl = resolveAgreementAssetUrl(avatarRaw);
+
+  const kycDocUrls = {
+    PASSPORT_PHOTO_URL: passportPhotoUrl,
+    AVATAR_URL: avatarUrl,
+    PROFILE_PHOTO_URL: passportPhotoUrl !== "—" ? passportPhotoUrl : avatarUrl,
+    ID_DOCUMENT_URL: resolveAgreementAssetUrl(kyc?.idDocumentUrl),
+    PASSPORT_DOCUMENT_URL: resolveAgreementAssetUrl(kyc?.passportDocumentUrl),
+    PAN_DOCUMENT_URL: resolveAgreementAssetUrl(kyc?.panDocumentUrl),
+    AADHAAR_FRONT_URL: resolveAgreementAssetUrl(kyc?.aadhaarFrontUrl),
+    AADHAAR_BACK_URL: resolveAgreementAssetUrl(kyc?.aadhaarBackUrl),
+    ADDRESS_PROOF_URL: resolveAgreementAssetUrl(kyc?.addressProofUrl),
+    SELFIE_URL: resolveAgreementAssetUrl(kyc?.selfieUrl),
+    SIGNATURE_URL: resolveAgreementAssetUrl(kyc?.signatureUrl),
+    CANCELLED_CHEQUE_URL: resolveAgreementAssetUrl(kyc?.cancelledChequeUrl),
+  };
+
   return {
     USER_ID: String(user.id),
     USERNAME: dash(profile?.username),
@@ -183,10 +204,11 @@ export function buildUserCollectedPlaceholders(input: {
     KYC_SUBMIT_DATE: kyc?.createdAt ? fmtDate(kyc.createdAt) : "—",
     KYC_DOCUMENTS: kyc
       ? [
+          kyc.passportPhotoUrl ? "Passport Size Photo" : null,
           kyc.idType ? String(kyc.idType).replace(/_/g, " ") : null,
           kyc.panCard ? "PAN" : null,
           kyc.aadhaarNumber ? "Aadhaar" : null,
-          kyc.passportDocumentUrl ? "Passport" : null,
+          kyc.passportDocumentUrl ? "Passport Document" : null,
           kyc.addressProofUrl ? "Address Proof" : null,
           kyc.selfieUrl ? "Selfie" : null,
           kyc.signatureUrl ? "Signature" : null,
@@ -198,6 +220,12 @@ export function buildUserCollectedPlaceholders(input: {
     PAN_NUMBER: dash(kyc?.panCard || profile?.taxId),
     AADHAAR_NUMBER: maskAadhaar(kyc?.aadhaarNumber),
     PASSPORT_NUMBER: passportNumber,
+    PASSPORT_PHOTO_ON_FILE: documentOnFileLabel(passportPhotoRaw),
+    AVATAR_ON_FILE: documentOnFileLabel(avatarRaw),
+    PASSPORT_PHOTO_PATH: dash(passportPhotoRaw),
+    AVATAR_PATH: dash(avatarRaw),
+    ...kycDocUrls,
+
     ID_TYPE: idType,
     ID_NUMBER: kyc?.idType === "passport"
       ? dash(kyc.idNumber)
@@ -277,6 +305,20 @@ export const AGREEMENT_PLACEHOLDERS: PlaceholderMeta[] = [
   { key: "PAN_NUMBER", label: "PAN Number", group: "KYC & Identity" },
   { key: "AADHAAR_NUMBER", label: "Aadhaar (masked)", group: "KYC & Identity" },
   { key: "PASSPORT_NUMBER", label: "Passport Number", group: "KYC & Identity" },
+  { key: "PASSPORT_PHOTO_URL", label: "Passport Size Photo URL", group: "KYC & Identity" },
+  { key: "PASSPORT_PHOTO_ON_FILE", label: "Passport Photo Provided (YES/NO)", group: "KYC & Identity" },
+  { key: "AVATAR_URL", label: "Profile / Avatar Photo URL", group: "KYC & Identity" },
+  { key: "AVATAR_ON_FILE", label: "Avatar Photo Provided (YES/NO)", group: "KYC & Identity" },
+  { key: "PROFILE_PHOTO_URL", label: "Primary ID Photo (passport photo or avatar)", group: "KYC & Identity" },
+  { key: "ID_DOCUMENT_URL", label: "ID Document Image URL", group: "KYC Documents" },
+  { key: "PASSPORT_DOCUMENT_URL", label: "Passport Document Image URL", group: "KYC Documents" },
+  { key: "PAN_DOCUMENT_URL", label: "PAN Document Image URL", group: "KYC Documents" },
+  { key: "AADHAAR_FRONT_URL", label: "Aadhaar Front Image URL", group: "KYC Documents" },
+  { key: "AADHAAR_BACK_URL", label: "Aadhaar Back Image URL", group: "KYC Documents" },
+  { key: "ADDRESS_PROOF_URL", label: "Address Proof Image URL", group: "KYC Documents" },
+  { key: "SELFIE_URL", label: "Selfie Verification Image URL", group: "KYC Documents" },
+  { key: "SIGNATURE_URL", label: "Signature Image URL", group: "KYC Documents" },
+  { key: "CANCELLED_CHEQUE_URL", label: "Cancelled Cheque Image URL", group: "KYC Documents" },
   { key: "ID_TYPE", label: "ID Document Type", group: "KYC & Identity" },
   { key: "ID_NUMBER", label: "ID Number (masked)", group: "KYC & Identity" },
   { key: "TAX_ID", label: "Tax ID", group: "KYC & Identity" },

@@ -28,6 +28,18 @@ export function warnDevSecrets() {
   }
 }
 
+export function warnProductionBootstrap() {
+  if (process.env.NODE_ENV !== "production") return;
+  if (process.env.BOOTSTRAP_USERS !== "false") {
+    throw new Error(
+      "BOOTSTRAP_USERS must be 'false' in production — set BOOTSTRAP_USERS=false after initial setup to disable demo account seeding",
+    );
+  }
+  if (!process.env.REDIS_URL?.trim()) {
+    logger.warn("REDIS_URL not set — distributed locks and captcha will use in-memory fallback (not safe for multi-instance)");
+  }
+}
+
 export function getSessionSecret(): string {
   return process.env.SESSION_SECRET || DEV_JWT;
 }

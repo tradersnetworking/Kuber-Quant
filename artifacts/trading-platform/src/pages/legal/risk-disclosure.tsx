@@ -5,8 +5,8 @@ export default function RiskDisclosurePage() {
   return (
     <LegalLayout title="Risk Disclosure" lastUpdated="May 25, 2026">
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 mb-8 flex gap-4">
-        <AlertTriangle className="h-6 w-6 text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-amber-300 text-sm leading-relaxed">
+        <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        <p className="text-amber-700 dark:text-amber-300 text-sm leading-relaxed">
           <strong>Important Warning:</strong> Trading in financial instruments including forex, commodities, indices, cryptocurrencies, and derivatives carries significant risk. You may lose some or all of your invested capital. Do not invest funds you cannot afford to lose. This document is not financial advice.
         </p>
       </div>

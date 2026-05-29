@@ -2,8 +2,9 @@ import { Router } from "express";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { db, transactionsTable, paymentOrdersTable, notificationsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 import { requireAuth } from "../../middlewares/auth";
+import { tryAutoApproveGatewayDeposit } from "../../helpers/gatewayAutoApprove";
 
 const router = Router();
 
@@ -87,11 +88,12 @@ router.post("/verify", requireAuth, async (req, res) => {
   }
 
   const depositAmount = amount ? Number(amount) : Number(order.amount);
+  const depositCurrency = (currency || order.currency || "INR").toUpperCase() as "USD" | "EUR" | "INR" | "BTC" | "ETH" | "USDT" | "TRX" | "BNB";
   const [txn] = await db.insert(transactionsTable).values({
     userId,
     type: "deposit",
     amount: String(depositAmount),
-    currency: currency === "INR" ? "USD" : currency,
+    currency: depositCurrency,
     status: "pending",
     paymentMethod: "Razorpay",
     gatewayProvider: "razorpay",
@@ -109,18 +111,33 @@ router.post("/verify", requireAuth, async (req, res) => {
   await db.insert(notificationsTable).values({
     userId,
     title: "Deposit Submitted",
-    message: `${depositAmount} ${currency} via Razorpay is pending admin approval.`,
+    message: `${depositAmount} ${depositCurrency} via Razorpay is pending admin approval.`,
     type: "info",
     isRead: false,
   });
 
-  res.json({ success: true, transactionId: txn.id });
+  const autoApproved = await tryAutoApproveGatewayDeposit(txn.id);
+
+  res.json({
+    success: true,
+    transactionId: txn.id,
+    autoApproved,
+    status: autoApproved ? "approved" : "pending",
+  });
 });
 
 router.post("/webhook", async (req, res) => {
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (process.env.NODE_ENV === "production" && !webhookSecret) {
+    res.status(503).json({ error: "Razorpay webhook secret is not configured" });
+    return;
+  }
   if (webhookSecret) {
     const signature = req.headers["x-razorpay-signature"] as string;
+    if (!signature) {
+      res.status(400).json({ error: "Missing webhook signature" });
+      return;
+    }
     const expected = crypto.createHmac("sha256", webhookSecret)
       .update(JSON.stringify(req.body)).digest("hex");
     if (signature !== expected) {
@@ -138,11 +155,12 @@ router.post("/webhook", async (req, res) => {
       if (order && order.status !== "paid") {
         const userId = order.userId;
         const amount = Number(order.amount);
+        const orderCurrency = (order.currency || "INR").toUpperCase() as "USD" | "EUR" | "INR" | "BTC" | "ETH" | "USDT" | "TRX" | "BNB";
         const [txn] = await db.insert(transactionsTable).values({
           userId,
           type: "deposit",
           amount: String(amount),
-          currency: "USD",
+          currency: orderCurrency,
           status: "pending",
           paymentMethod: "Razorpay",
           gatewayProvider: "razorpay",
@@ -152,6 +170,7 @@ router.post("/webhook", async (req, res) => {
         }).returning();
         await db.update(paymentOrdersTable).set({ status: "paid", paymentId: payment.id, transactionId: txn.id })
           .where(eq(paymentOrdersTable.id, order.id));
+        await tryAutoApproveGatewayDeposit(txn.id);
       }
     }
   }

@@ -1,7 +1,7 @@
 import { db, usersTable, walletLedgerTable } from "@workspace/db";
-import { eq, desc, and, inArray, sql } from "drizzle-orm";
+import { eq, desc, and, inArray, sql, gte, lte } from "@workspace/db/orm";
 
-const CRYPTO_CURRENCIES = new Set(["BTC", "ETH", "USDT"]);
+const CRYPTO_CURRENCIES = new Set(["BTC", "ETH", "USDT", "TRX", "BNB"]);
 
 export type WalletType = "fiat" | "crypto";
 export type LedgerType = "deposit" | "withdrawal" | "profit" | "referral" | "investment" | "bonus" | "adjustment" | "transfer";
@@ -57,7 +57,12 @@ export type WalletFinancialSummary = {
   totalDeposited: number;
   totalWithdrawn: number;
   totalProfit: number;
+  /** Net capital currently deployed (outflows minus returns). */
   totalInvested: number;
+  /** Gross capital sent into investments (ledger debits). */
+  totalInvestedOut: number;
+  /** Capital returned from matured/closed investments (ledger credits). */
+  totalInvestmentReturns: number;
   totalReferral: number;
   totalBonus: number;
   netLedgerFlow: number;
@@ -86,6 +91,8 @@ export async function getWalletFinancialSummary(userId: number): Promise<WalletF
       totalWithdrawn: 0,
       totalProfit: Number(user.totalProfit),
       totalInvested: 0,
+      totalInvestedOut: 0,
+      totalInvestmentReturns: 0,
       totalReferral: 0,
       totalBonus: 0,
       netLedgerFlow: fiat + crypto,
@@ -96,7 +103,8 @@ export async function getWalletFinancialSummary(userId: number): Promise<WalletF
   let totalDeposited = 0;
   let totalWithdrawn = 0;
   let totalProfit = 0;
-  let totalInvested = 0;
+  let totalInvestedOut = 0;
+  let totalInvestmentReturns = 0;
   let totalReferral = 0;
   let totalBonus = 0;
   let totalAdjustments = 0;
@@ -114,8 +122,8 @@ export async function getWalletFinancialSummary(userId: number): Promise<WalletF
         if (amt > 0) totalProfit += amt;
         break;
       case "investment":
-        if (amt < 0) totalInvested += Math.abs(amt);
-        else if (amt > 0) totalDeposited += amt;
+        if (amt < 0) totalInvestedOut += Math.abs(amt);
+        else if (amt > 0) totalInvestmentReturns += amt;
         break;
       case "referral":
         if (amt > 0) totalReferral += amt;
@@ -134,8 +142,10 @@ export async function getWalletFinancialSummary(userId: number): Promise<WalletF
   const fiatBalance = ledgerBalances.fiat;
   const cryptoBalance = ledgerBalances.crypto;
   const totalBalance = fiatBalance + cryptoBalance;
+  const totalInvested = Math.max(0, parseFloat((totalInvestedOut - totalInvestmentReturns).toFixed(8)));
   const netLedgerFlow =
-    totalDeposited + totalProfit + totalReferral + totalBonus + totalAdjustments - totalWithdrawn - totalInvested;
+    totalDeposited + totalProfit + totalReferral + totalBonus + totalAdjustments
+    + totalInvestmentReturns - totalWithdrawn - totalInvestedOut;
 
   // Keep users.account balances aligned with ledger (source of truth)
   if (
@@ -156,6 +166,8 @@ export async function getWalletFinancialSummary(userId: number): Promise<WalletF
     totalWithdrawn,
     totalProfit,
     totalInvested,
+    totalInvestedOut,
+    totalInvestmentReturns,
     totalReferral,
     totalBonus,
     netLedgerFlow,
@@ -323,13 +335,19 @@ export async function transferBetweenWallets(opts: {
 
 export async function getLedger(
   userId: number,
-  opts: { limit?: number; offset?: number; types?: LedgerType[] } = {},
+  opts: { limit?: number; offset?: number; types?: LedgerType[]; from?: Date | null; to?: Date | null } = {},
 ) {
   const limit = Math.min(opts.limit ?? 50, 200);
   const offset = opts.offset ?? 0;
   const conditions = [eq(walletLedgerTable.userId, userId)];
   if (opts.types?.length) {
     conditions.push(inArray(walletLedgerTable.type, opts.types));
+  }
+  if (opts.from) {
+    conditions.push(gte(walletLedgerTable.createdAt, opts.from));
+  }
+  if (opts.to) {
+    conditions.push(lte(walletLedgerTable.createdAt, opts.to));
   }
   return db.select().from(walletLedgerTable)
     .where(and(...conditions))
@@ -361,6 +379,23 @@ export async function countLedger(userId: number, types?: LedgerType[]) {
     .from(walletLedgerTable)
     .where(and(...conditions));
   return row?.count ?? 0;
+}
+
+/** Net crypto holdings per currency derived from ledger entry amounts. */
+export async function getCryptoCurrencyBreakdown(userId: number): Promise<Record<string, number>> {
+  const rows = await db.select()
+    .from(walletLedgerTable)
+    .where(and(eq(walletLedgerTable.userId, userId), eq(walletLedgerTable.walletType, "crypto")));
+
+  const breakdown: Record<string, number> = {};
+  for (const row of rows) {
+    const cur = row.currency.toUpperCase();
+    breakdown[cur] = (breakdown[cur] ?? 0) + Number(row.amount);
+  }
+  for (const cur of Object.keys(breakdown)) {
+    breakdown[cur] = Math.max(0, parseFloat(breakdown[cur].toFixed(8)));
+  }
+  return breakdown;
 }
 
 export { isCryptoCurrency, walletForCurrency };

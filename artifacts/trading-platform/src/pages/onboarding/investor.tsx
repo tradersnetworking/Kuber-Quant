@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ZodTypeAny } from "zod";
 import { useForm, Controller } from "react-hook-form";
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
@@ -20,14 +21,18 @@ import { useOnboardingDraft, loadLocalDraft, saveLocalDraft } from "@/hooks/use-
 import { PhoneCountryCodeSelect } from "@/components/forms/PhoneCountryCodeSelect";
 import { MtAccountCredentialsForm } from "@/components/forms/MtAccountCredentialsForm";
 import {
-  INVESTOR_STEPS, COUNTRIES, STATES_BY_COUNTRY, GENDERS,
+  INVESTOR_STEPS, INVESTOR_REQUIRED_STEP_COUNT, INVESTOR_OPTIONAL_STEP_START,
+  COUNTRIES, STATES_BY_COUNTRY, GENDERS,
   INCOME_RANGES, EXPERIENCE_LEVELS, RISK_LEVELS, FUND_SOURCES, INVESTMENT_TYPES, TRADING_SERVICES, WALLET_FIELDS,
   requiresMtAccountLink,
 } from "@/lib/onboarding/constants";
 import {
   defaultInvestorValues, INVESTOR_STEP_SCHEMAS, InvestorFormValues, walletValidators,
+  buildInvestorStep1Schema, buildInvestorStep3Schema,
 } from "@/lib/onboarding/schemas";
-import { fetchRegistrationCaptcha, submitInvestorOnboarding, checkDuplicate } from "@/lib/onboarding/api";
+import { fetchRegistrationCaptcha, submitInvestorOnboarding, checkDuplicate, getOnboardingConfig, type OnboardingConfig } from "@/lib/onboarding/api";
+import { isIndianUser } from "@/lib/onboarding/kyc-region";
+import { captureReferralFromSearch, readReferralCode, clearReferralCode } from "@/lib/referral-attribution";
 
 const STEP_SUBTITLES = [
   "Create Your Account",
@@ -45,7 +50,7 @@ const STEP_SUBTITLES = [
 const STEP_FIELDS: (keyof InvestorFormValues)[][] = [
   ["fullName", "username", "email", "phoneCode", "phoneNum", "password", "confirmPassword", "referralCode", "agreeTerms", "agreeRisk", "emailOtpVerified", "mobileOtpVerified", "captchaAnswer", "captchaExpected"],
   ["dateOfBirth", "gender", "nationality", "country", "state", "city", "address", "postalCode"],
-  ["panCard", "aadhaarNumber", "passportNumber", "taxId", "panDocument", "aadhaarFront", "aadhaarBack", "passportDocument", "selfie", "addressProof", "signature"],
+  ["panCard", "aadhaarNumber", "passportNumber", "driversLicenseNumber", "taxId", "panDocument", "aadhaarFront", "aadhaarBack", "passportDocument", "driversLicenseDocument", "selfie", "addressProof", "signature"],
   ["accountHolderName", "bankName", "accountNumber", "confirmAccountNumber", "ifscCode", "branchName", "upiId", "cancelledCheque"],
   ["cryptoWallets"],
   ["occupation", "annualIncomeRange", "investmentExperience", "riskAppetite", "preferredInvestmentType", "sourceOfFunds"],
@@ -62,12 +67,7 @@ export default function InvestorOnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [captcha, setCaptcha] = useState({ question: "", captchaToken: "" });
-
-  useEffect(() => {
-    fetchRegistrationCaptcha()
-      .then(c => setCaptcha(c))
-      .catch(() => setCaptcha({ question: "?", captchaToken: "" }));
-  }, []);
+  const [onboardingConfig, setOnboardingConfig] = useState<OnboardingConfig | null>(null);
 
   const form = useForm<InvestorFormValues>({
     defaultValues: {
@@ -82,12 +82,25 @@ export default function InvestorOnboardingPage() {
   const { lastSaved, saving } = useOnboardingDraft("investor", step, values as Record<string, unknown>);
 
   useEffect(() => {
+    fetchRegistrationCaptcha()
+      .then(c => {
+        setCaptcha(c);
+        setValue("captchaToken", c.captchaToken);
+      })
+      .catch(() => setCaptcha({ question: "?", captchaToken: "" }));
+    getOnboardingConfig()
+      .then(setOnboardingConfig)
+      .catch(() => setOnboardingConfig(null));
+  }, [setValue]);
+
+  useEffect(() => {
     saveLocalDraft("investor", values as Record<string, unknown>);
   }, [values]);
 
   useEffect(() => {
+    captureReferralFromSearch(window.location.search);
     const params = new URLSearchParams(window.location.search);
-    const ref = params.get("ref");
+    const ref = params.get("ref") || readReferralCode();
     if (ref) setValue("referralCode", ref.toUpperCase());
   }, [setValue]);
 
@@ -102,9 +115,18 @@ export default function InvestorOnboardingPage() {
   }, [step, values.tradingInterests, values.mtAccountNumber, setValue]);
 
   const phone = values.phoneNum ? `${values.phoneCode} ${values.phoneNum}` : "";
+  const indianKyc = isIndianUser(values.country, values.nationality);
 
   async function validateCurrentStep(): Promise<boolean> {
-    const schema = INVESTOR_STEP_SCHEMAS[step - 1];
+    const config = onboardingConfig ?? {
+      requireEmailOtp: true,
+      requireMobileOtp: false,
+      requireCaptcha: true,
+    } as Pick<OnboardingConfig, "requireEmailOtp" | "requireMobileOtp" | "requireCaptcha">;
+
+    let schema: ZodTypeAny = INVESTOR_STEP_SCHEMAS[step - 1];
+    if (step === 1) schema = buildInvestorStep1Schema(config);
+    if (step === 3) schema = buildInvestorStep3Schema(values.country, values.nationality);
     const fields = STEP_FIELDS[step - 1];
     const subset = Object.fromEntries(fields.map(f => [f, getValues(f)]));
     const result = schema.safeParse(subset);
@@ -164,7 +186,8 @@ export default function InvestorOnboardingPage() {
         referralCode: v.referralCode || undefined,
         dateOfBirth: v.dateOfBirth, gender: v.gender, nationality: v.nationality,
         country: v.country, state: v.state, city: v.city, address: v.address, postalCode: v.postalCode,
-        panCard: v.panCard, aadhaarNumber: v.aadhaarNumber, passportNumber: v.passportNumber, taxId: v.taxId,
+        panCard: v.panCard, aadhaarNumber: v.aadhaarNumber, passportNumber: v.passportNumber,
+        driversLicenseNumber: v.driversLicenseNumber, taxId: v.taxId,
         accountHolderName: v.accountHolderName, bankName: v.bankName, accountNumber: v.accountNumber,
         ifscCode: v.ifscCode, branchName: v.branchName, upiId: v.upiId,
         cryptoWallets: v.cryptoWallets,
@@ -193,7 +216,8 @@ export default function InvestorOnboardingPage() {
       fd.append("data", JSON.stringify(payload));
       const fileMap: [keyof InvestorFormValues, string][] = [
         ["panDocument", "panDocument"], ["aadhaarFront", "aadhaarFront"], ["aadhaarBack", "aadhaarBack"],
-        ["passportDocument", "passportDocument"], ["selfie", "selfie"], ["addressProof", "addressProof"],
+        ["passportDocument", "passportDocument"], ["driversLicenseDocument", "driversLicenseDocument"],
+        ["selfie", "selfie"], ["addressProof", "addressProof"],
         ["signature", "signature"], ["cancelledCheque", "cancelledCheque"],
       ];
       for (const [field, name] of fileMap) {
@@ -203,6 +227,7 @@ export default function InvestorOnboardingPage() {
 
       const res = await submitInvestorOnboarding(fd);
       login(res.token, res.user as any, res.refreshToken);
+      clearReferralCode();
       localStorage.removeItem("kq-onboarding-local-investor");
       localStorage.removeItem("kq-onboarding-draft-token-investor");
       toast.success(`Welcome! Your Investor ID: ${res.investorId}`);
@@ -217,20 +242,40 @@ export default function InvestorOnboardingPage() {
   const states = useMemo(() => STATES_BY_COUNTRY[values.country] || [], [values.country]);
   const mtRequired = useMemo(() => requiresMtAccountLink(values.tradingInterests), [values.tradingInterests]);
 
+  function skipOptionalSteps() {
+    setStep(INVESTOR_STEPS.length);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  const progressiveEnabled = onboardingConfig?.progressiveOnboarding !== false;
+  const agreementsStep = INVESTOR_STEPS.length;
+
   const footer = (
-    <div className={`flex gap-3 mt-8 ${step > 1 ? "justify-between" : "justify-end"}`}>
-      {step > 1 && (
-        <Button type="button" variant="outline" onClick={prevStep} className="gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
-      )}
+    <div className={`flex flex-col-reverse sm:flex-row gap-3 mt-8 min-w-0 ${step > 1 ? "sm:justify-between" : "sm:justify-end"}`}>
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+        {step > 1 && (
+          <Button type="button" variant="outline" onClick={prevStep} className="gap-2 w-full sm:w-auto">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        )}
+        {progressiveEnabled && step === INVESTOR_REQUIRED_STEP_COUNT && step < agreementsStep && (
+          <Button type="button" variant="ghost" onClick={skipOptionalSteps} className="w-full sm:w-auto text-muted-foreground">
+            Skip optional steps
+          </Button>
+        )}
+        {progressiveEnabled && step >= INVESTOR_OPTIONAL_STEP_START && step < agreementsStep && (
+          <Button type="button" variant="ghost" onClick={() => { setStep(s => Math.min(s + 1, agreementsStep)); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="w-full sm:w-auto text-muted-foreground">
+            Skip for now
+          </Button>
+        )}
+      </div>
       {step < INVESTOR_STEPS.length ? (
-        <Button type="button" onClick={nextStep} className="gap-2 font-semibold">
+        <Button type="button" onClick={nextStep} className="gap-2 font-semibold w-full sm:w-auto">
           Next <ArrowRight className="h-4 w-4" />
         </Button>
       ) : (
-        <Button type="button" onClick={onSubmit} disabled={submitting} className="gap-2 font-semibold">
-          {submitting ? "Submitting…" : <><CheckCircle2 className="h-4 w-4" /> Complete Registration</>}
+        <Button type="button" onClick={onSubmit} disabled={submitting} className="gap-2 font-semibold w-full sm:w-auto text-wrap-safe">
+          {submitting ? "Submitting…" : <><CheckCircle2 className="h-4 w-4 shrink-0" /> Complete Registration</>}
         </Button>
       )}
     </div>
@@ -240,7 +285,10 @@ export default function InvestorOnboardingPage() {
     <WizardShell
       title="Investor Onboarding"
       subtitle={STEP_SUBTITLES[step - 1]!}
-      steps={INVESTOR_STEPS.map(s => ({ num: s.num, label: s.label }))}
+      steps={INVESTOR_STEPS.map(s => ({
+        num: s.num,
+        label: progressiveEnabled && s.num > INVESTOR_REQUIRED_STEP_COUNT ? `${s.label} (optional)` : s.label,
+      }))}
       currentStep={step}
       totalSteps={INVESTOR_STEPS.length}
       footer={footer}
@@ -293,16 +341,24 @@ export default function InvestorOnboardingPage() {
             <Input {...form.register("referralCode")} className="uppercase font-mono" placeholder="KQABC123" />
           </Field>
 
-          <OtpVerification channel="email" email={values.email} fullName={values.fullName}
-            verified={values.emailOtpVerified} onVerified={(v, token) => { setValue("emailOtpVerified", v); if (token) setValue("emailVerificationToken", token); }} />
-          {values.phoneNum && (
+          {(onboardingConfig?.requireEmailOtp ?? true) && (
+            <OtpVerification channel="email" email={values.email} fullName={values.fullName}
+              verified={values.emailOtpVerified} onVerified={(v, token) => { setValue("emailOtpVerified", v); if (token) setValue("emailVerificationToken", token); }} />
+          )}
+          {values.phoneNum && (onboardingConfig?.requireMobileOtp ?? false) && (
+            <OtpVerification channel="mobile" phone={phone} fullName={values.fullName}
+              verified={values.mobileOtpVerified} onVerified={(v, token) => { setValue("mobileOtpVerified", v); if (token) setValue("mobileVerificationToken", token); }} label="Mobile OTP" />
+          )}
+          {values.phoneNum && !(onboardingConfig?.requireMobileOtp ?? false) && (
             <OtpVerification channel="mobile" phone={phone} fullName={values.fullName}
               verified={values.mobileOtpVerified} onVerified={(v, token) => { setValue("mobileOtpVerified", v); if (token) setValue("mobileVerificationToken", token); }} label="Mobile OTP (optional)" />
           )}
 
-          <Field label={`CAPTCHA: ${captcha.question} = ?`} error={errors.captchaAnswer?.message}>
-            <Input {...form.register("captchaAnswer")} placeholder="Answer" inputMode="numeric" />
-          </Field>
+          {(onboardingConfig?.requireCaptcha ?? true) && (
+            <Field label={`CAPTCHA: ${captcha.question} = ?`} error={errors.captchaAnswer?.message}>
+              <Input {...form.register("captchaAnswer")} placeholder="Answer" inputMode="numeric" />
+            </Field>
+          )}
 
           <div className="space-y-3">
             <CheckboxField id="terms" checked={values.agreeTerms} onChange={v => setValue("agreeTerms", v)} error={errors.agreeTerms?.message}
@@ -361,28 +417,50 @@ export default function InvestorOnboardingPage() {
       {/* STEP 3 — KYC */}
       {step === 3 && (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">Upload clear, unedited documents. OCR verification runs automatically on submission.</p>
+          <p className="text-sm text-muted-foreground">
+            {indianKyc
+              ? "Indian residents: upload PAN card and Aadhaar (front & back). OCR verification runs on submission."
+              : "International users: upload passport and driving license. OCR verification runs on submission."}
+          </p>
+          {indianKyc ? (
+            <>
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field label="PAN Card Number" error={errors.panCard?.message}><Input {...form.register("panCard")} className="uppercase" placeholder="ABCDE1234F" /></Field>
+                <Field label="Aadhaar Number" error={errors.aadhaarNumber?.message}><Input {...form.register("aadhaarNumber")} placeholder="XXXX XXXX XXXX" /></Field>
+                <Field label="Tax ID (optional)"><Input {...form.register("taxId")} /></Field>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <Controller name="panDocument" control={control} render={({ field }) => (
+                  <FileUploadField label="PAN Card" required value={field.value} onChange={field.onChange} error={errors.panDocument?.message as string} />
+                )} />
+                <Controller name="aadhaarFront" control={control} render={({ field }) => (
+                  <FileUploadField label="Aadhaar Front" required value={field.value} onChange={field.onChange} error={errors.aadhaarFront?.message as string} />
+                )} />
+                <Controller name="aadhaarBack" control={control} render={({ field }) => (
+                  <FileUploadField label="Aadhaar Back" required value={field.value} onChange={field.onChange} error={errors.aadhaarBack?.message as string} />
+                )} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field label="Passport Number" error={errors.passportNumber?.message}><Input {...form.register("passportNumber")} /></Field>
+                <Field label="Driving License Number" error={errors.driversLicenseNumber?.message}><Input {...form.register("driversLicenseNumber")} /></Field>
+                <Field label="Tax ID (optional)"><Input {...form.register("taxId")} /></Field>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <Controller name="passportDocument" control={control} render={({ field }) => (
+                  <FileUploadField label="Passport" required value={field.value} onChange={field.onChange} error={errors.passportDocument?.message as string} />
+                )} />
+                <Controller name="driversLicenseDocument" control={control} render={({ field }) => (
+                  <FileUploadField label="Driving License" required value={field.value} onChange={field.onChange} error={errors.driversLicenseDocument?.message as string} />
+                )} />
+              </div>
+            </>
+          )}
           <div className="grid md:grid-cols-2 gap-4">
-            <Field label="PAN Card Number" error={errors.panCard?.message}><Input {...form.register("panCard")} className="uppercase" placeholder="ABCDE1234F" /></Field>
-            <Field label="Aadhaar Number"><Input {...form.register("aadhaarNumber")} placeholder="XXXX XXXX XXXX" /></Field>
-            <Field label="Passport Number (optional)"><Input {...form.register("passportNumber")} /></Field>
-            <Field label="Tax ID (optional)"><Input {...form.register("taxId")} /></Field>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <Controller name="panDocument" control={control} render={({ field }) => (
-              <FileUploadField label="PAN Card" required value={field.value} onChange={field.onChange} error={errors.panDocument?.message as string} />
-            )} />
             <Controller name="selfie" control={control} render={({ field }) => (
               <FileUploadField label="Selfie Verification" required value={field.value} onChange={field.onChange} hint="Hold ID beside face" error={errors.selfie?.message as string} />
-            )} />
-            <Controller name="aadhaarFront" control={control} render={({ field }) => (
-              <FileUploadField label="Aadhaar Front" value={field.value} onChange={field.onChange} />
-            )} />
-            <Controller name="aadhaarBack" control={control} render={({ field }) => (
-              <FileUploadField label="Aadhaar Back" value={field.value} onChange={field.onChange} />
-            )} />
-            <Controller name="passportDocument" control={control} render={({ field }) => (
-              <FileUploadField label="Passport (optional)" value={field.value} onChange={field.onChange} />
             )} />
             <Controller name="addressProof" control={control} render={({ field }) => (
               <FileUploadField label="Address Proof" required value={field.value} onChange={field.onChange} error={errors.addressProof?.message as string} />
@@ -484,6 +562,13 @@ export default function InvestorOnboardingPage() {
           <p className="text-sm text-muted-foreground">
             Account Handling, Algo Trading, and Copy Trading require linking an MT4/MT5 account in the next step.
           </p>
+          {requiresMtAccountLink(values.tradingInterests) && (
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <AlertDescription className="text-sm">
+                An initial wallet deposit of <strong>₹10,000</strong> or <strong>$100 / 100 USDT</strong> (converted at live FX rates) is required before these services activate. You can deposit after registration from Wallet.
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="grid sm:grid-cols-2 gap-3">
             {TRADING_SERVICES.map(svc => {
               const selected = values.tradingInterests.includes(svc.id);
@@ -502,7 +587,15 @@ export default function InvestorOnboardingPage() {
 
       {/* STEP 8 — MT4/MT5 */}
       {step === 8 && (
-        <MtAccountCredentialsForm
+        <div className="space-y-4">
+          {mtRequired && (
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <AlertDescription className="text-sm">
+                Deposit at least ₹10,000 or $100 / 100 USDT to your portal wallet after signup to link MT4/MT5 and activate your selected services.
+              </AlertDescription>
+            </Alert>
+          )}
+          <MtAccountCredentialsForm
           values={{
             mtPlatform: values.mtPlatform,
             mtAccountNumber: values.mtAccountNumber,
@@ -521,6 +614,7 @@ export default function InvestorOnboardingPage() {
             mtPassword: errors.mtPassword?.message,
           }}
         />
+        </div>
       )}
 
       {/* STEP 9 — Security */}
@@ -570,24 +664,24 @@ export default function InvestorOnboardingPage() {
 
 function Field({ label, children, error, tooltip }: { label: string; children: React.ReactNode; error?: string; tooltip?: string }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center">
+    <div className="space-y-1.5 min-w-0">
+      <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center break-words">
         {label}{tooltip && <FieldTooltip text={tooltip} />}
       </Label>
-      {children}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <div className="min-w-0">{children}</div>
+      {error && <p className="text-xs text-destructive break-words">{error}</p>}
     </div>
   );
 }
 
 function CheckboxField({ id, checked, onChange, label, error }: { id: string; checked: boolean; onChange: (v: boolean) => void; label: string; error?: string }) {
   return (
-    <div>
-      <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/20">
-        <Checkbox id={id} checked={checked} onCheckedChange={v => onChange(!!v)} />
-        <Label htmlFor={id} className="text-xs leading-relaxed cursor-pointer">{label}</Label>
+    <div className="min-w-0">
+      <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/20 min-w-0">
+        <Checkbox id={id} checked={checked} onCheckedChange={v => onChange(!!v)} className="shrink-0 mt-0.5" />
+        <Label htmlFor={id} className="text-xs leading-relaxed cursor-pointer break-words min-w-0 flex-1">{label}</Label>
       </div>
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+      {error && <p className="text-xs text-destructive mt-1 break-words">{error}</p>}
     </div>
   );
 }

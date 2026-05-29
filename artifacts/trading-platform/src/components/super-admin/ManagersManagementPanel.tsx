@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -72,7 +72,7 @@ export function ManagersManagementPanel() {
         </Button>
       </div>
 
-      <Card className="bg-white/5 border-white/10 w-fit">
+      <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 w-fit">
         <CardContent className="p-4 flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
             <UserCheck className="h-5 w-5 text-amber-500" />
@@ -84,7 +84,7 @@ export function ManagersManagementPanel() {
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/5">
+      <Card className="border-border dark:border-white/10 bg-muted/60 dark:bg-white/5">
         <CardHeader><CardTitle className="text-base">All Managers</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
@@ -92,72 +92,104 @@ export function ManagersManagementPanel() {
           ) : managers?.length === 0 ? (
             <p className="text-center py-12 text-muted-foreground text-sm">No managers yet — create one above.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/10">
-                  <TableHead>Manager</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {managers?.map((manager: User) => (
-                  <TableRow
-                    key={manager.id}
-                    className="border-white/10 cursor-pointer hover:bg-white/5"
-                    onClick={() => openDetail(manager)}
+            <ResponsiveDataView
+              data={managers ?? []}
+              rowKey={manager => manager.id}
+              onRowClick={openDetail}
+              rowClassName="border-border dark:border-white/10 hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5"
+              mobileFooter={manager => (
+                <div className="mt-3 pt-3 border-t border-border/80 flex justify-end" onClick={e => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setDemoteTarget(manager);
+                    }}
+                    className="text-red-400"
                   >
-                    <TableCell>
-                      <p className="font-medium hover:text-amber-400">{manager.fullName}</p>
-                      <p className="text-xs text-muted-foreground">ID #{manager.id}</p>
-                    </TableCell>
-                    <TableCell>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              columns={[
+                {
+                  key: "manager",
+                  header: "Manager",
+                  mobileTitle: true,
+                  cell: manager => (
+                    <>
+                      <p className="font-medium hover:text-amber-600 dark:text-amber-400">{manager.fullName}</p>
+                      <p className="text-xs text-muted-foreground font-normal">ID #{manager.id}</p>
+                    </>
+                  ),
+                },
+                {
+                  key: "contact",
+                  header: "Contact",
+                  cell: manager => (
+                    <>
                       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Mail className="h-3 w-3" />{manager.email}
+                        <Mail className="h-3 w-3 shrink-0" />{manager.email}
                       </div>
                       {manager.phone && (
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                          <Phone className="h-3 w-3" />{manager.phone}
+                          <Phone className="h-3 w-3 shrink-0" />{manager.phone}
                         </div>
                       )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    </>
+                  ),
+                },
+                {
+                  key: "joined",
+                  header: "Joined",
+                  cellClassName: "text-sm text-muted-foreground",
+                  cell: manager => (
+                    <>
                       <Calendar className="h-3 w-3 inline mr-1" />
                       {manager.createdAt ? format(new Date(manager.createdAt), "MMM d, yyyy") : "—"}
-                    </TableCell>
-                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                    </>
+                  ),
+                },
+                {
+                  key: "actions",
+                  header: "Actions",
+                  headerClassName: "text-right",
+                  cellClassName: "text-right",
+                  hideOnMobile: true,
+                  cell: manager => (
+                    <div onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="sm" onClick={() => setDemoteTarget(manager)} className="text-red-400">
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  ),
+                },
+              ]}
+            />
           )}
         </CardContent>
       </Card>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="bg-[#050A14] border-white/10 max-w-md">
+        <DialogContent className="bg-background border-border dark:border-white/10 max-w-md">
           <DialogHeader><DialogTitle>Create Manager Account</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="space-y-1">
               <Label>Full Name</Label>
-              <Input required value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} className="bg-white/5 border-white/10" />
+              <Input required value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <div className="space-y-1">
               <Label>Email</Label>
-              <Input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="bg-white/5 border-white/10" />
+              <Input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <div className="space-y-1">
               <Label>Password</Label>
-              <Input type="password" required minLength={8} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="bg-white/5 border-white/10" />
+              <Input type="password" required minLength={8} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <div className="space-y-1">
               <Label>Phone</Label>
-              <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="bg-white/5 border-white/10" />
+              <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <DialogFooter>
               <Button type="submit" disabled={createMutation.isPending} className="w-full bg-amber-500 text-black">
@@ -169,7 +201,7 @@ export function ManagersManagementPanel() {
       </Dialog>
 
       <AlertDialog open={!!demoteTarget} onOpenChange={() => setDemoteTarget(null)}>
-        <AlertDialogContent className="bg-[#050A14] border-white/10">
+        <AlertDialogContent className="bg-background border-border dark:border-white/10">
           <AlertDialogHeader>
             <AlertDialogTitle>Demote Manager?</AlertDialogTitle>
             <AlertDialogDescription>

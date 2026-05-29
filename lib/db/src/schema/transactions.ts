@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const transactionTypeEnum = pgEnum("transaction_type", ["deposit", "withdrawal"]);
-export const transactionCurrencyEnum = pgEnum("transaction_currency", ["USD", "EUR", "INR", "BTC", "ETH", "USDT"]);
+export const transactionCurrencyEnum = pgEnum("transaction_currency", ["USD", "EUR", "INR", "BTC", "ETH", "USDT", "TRX", "BNB"]);
 export const transactionStatusEnum = pgEnum("transaction_status", ["pending", "approved", "rejected"]);
 
 export const transactionsTable = pgTable("transactions", {
@@ -21,9 +21,13 @@ export const transactionsTable = pgTable("transactions", {
   gatewayProvider: text("gateway_provider"),
   gatewayOrderId: text("gateway_order_id"),
   gatewayPaymentId: text("gateway_payment_id"),
+  paymentAccountId: integer("payment_account_id"),
   adminNotes: text("admin_notes"),
   reviewedByUserId: integer("reviewed_by_user_id"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  /** First approver when dual approval is required (amount above threshold). */
+  firstReviewedByUserId: integer("first_reviewed_by_user_id"),
+  firstReviewedAt: timestamp("first_reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -10,6 +10,9 @@ import {
   Server, Wifi, WifiOff, Settings2, RefreshCw, CheckCircle, Eye, EyeOff, AlertCircle,
 } from "lucide-react";
 import { authFetchJson } from "@/lib/token-store";
+import { STAFF_CARD, STAFF_FORM_GRID } from "@/lib/staff-dashboard-ui";
+import { APP_ACTION_ROW } from "@/lib/ui-system";
+import { cn } from "@/lib/utils";
 
 type VpsConfig = {
   enabled: boolean;
@@ -69,18 +72,18 @@ export function VpsBridgeSettingsPanel() {
   const configured = Boolean(cfg.host);
 
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className={STAFF_CARD}>
       <CardHeader>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="p-2 bg-violet-500/10 border border-violet-500/20 rounded-lg">
-            <Server className="h-5 w-5 text-violet-400" />
+            <Server className="h-5 w-5 text-violet-600 dark:text-violet-400" />
           </div>
           <div className="flex-1">
             <CardTitle className="flex items-center gap-2">
               Windows VPS Bridge
               {configured
-                ? <Badge className="bg-green-500/20 text-green-400 text-xs"><Wifi className="h-2.5 w-2.5 mr-1" />Configured</Badge>
-                : <Badge className="bg-orange-500/20 text-orange-400 text-xs"><WifiOff className="h-2.5 w-2.5 mr-1" />Not configured</Badge>}
+                ? <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 text-xs"><Wifi className="h-2.5 w-2.5 mr-1" />Configured</Badge>
+                : <Badge className="bg-orange-500/20 text-orange-600 dark:text-orange-400 text-xs"><WifiOff className="h-2.5 w-2.5 mr-1" />Not configured</Badge>}
             </CardTitle>
             <CardDescription>
               Connect your Windows VPS running MT4/MT5 bridge software. Used for live market quotes and trade copier dump (Duplikium / custom relay).
@@ -98,27 +101,27 @@ export function VpsBridgeSettingsPanel() {
               Enable VPS bridge for live quotes &amp; trade dumps
             </label>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={cn(STAFF_FORM_GRID, "md:grid-cols-3")}>
               <div className="md:col-span-2 space-y-2">
                 <Label>VPS Host / IP</Label>
-                <Input value={cfg.host} onChange={e => setCfg(c => ({ ...c, host: e.target.value }))} placeholder="203.0.113.10 or vps.yourdomain.com" className="bg-white/5 border-white/10 font-mono" />
+                <Input value={cfg.host} onChange={e => setCfg(c => ({ ...c, host: e.target.value }))} placeholder="203.0.113.10 or vps.yourdomain.com" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" />
               </div>
               <div className="space-y-2">
                 <Label>Port</Label>
-                <Input type="number" value={cfg.port} onChange={e => setCfg(c => ({ ...c, port: Number(e.target.value) }))} className="bg-white/5 border-white/10" />
+                <Input type="number" value={cfg.port} onChange={e => setCfg(c => ({ ...c, port: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={STAFF_FORM_GRID}>
               <div className="space-y-2">
                 <Label>Base Path</Label>
-                <Input value={cfg.basePath} onChange={e => setCfg(c => ({ ...c, basePath: e.target.value }))} placeholder="/api" className="bg-white/5 border-white/10 font-mono" />
+                <Input value={cfg.basePath} onChange={e => setCfg(c => ({ ...c, basePath: e.target.value }))} placeholder="/api" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" />
               </div>
               <div className="space-y-2">
                 <Label>API Key</Label>
                 <div className="relative">
-                  <Input type={showKey ? "text" : "password"} value={cfg.apiKey} onChange={e => setCfg(c => ({ ...c, apiKey: e.target.value }))} className="bg-white/5 border-white/10 font-mono pr-10" />
-                  <button type="button" onClick={() => setShowKey(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
+                  <Input type={showKey ? "text" : "password"} value={cfg.apiKey} onChange={e => setCfg(c => ({ ...c, apiKey: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono pr-10" />
+                  <button type="button" onClick={() => setShowKey(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -130,25 +133,25 @@ export function VpsBridgeSettingsPanel() {
               Use HTTPS (uncheck for plain HTTP on private VPS)
             </label>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={STAFF_FORM_GRID}>
               <div className="space-y-2">
                 <Label>Market Quotes Path</Label>
-                <Input value={cfg.marketQuotesPath} onChange={e => setCfg(c => ({ ...c, marketQuotesPath: e.target.value }))} placeholder="/v1/quotes" className="bg-white/5 border-white/10 font-mono text-sm" />
+                <Input value={cfg.marketQuotesPath} onChange={e => setCfg(c => ({ ...c, marketQuotesPath: e.target.value }))} placeholder="/v1/quotes" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm" />
                 <p className="text-xs text-muted-foreground">GET ?symbols=EUR/USD,BTC/USD — returns ticks array</p>
               </div>
               <div className="space-y-2">
                 <Label>Trade Copier Dump Path</Label>
-                <Input value={cfg.tradeCopierDumpPath} onChange={e => setCfg(c => ({ ...c, tradeCopierDumpPath: e.target.value }))} placeholder="/v1/trades/dump" className="bg-white/5 border-white/10 font-mono text-sm" />
+                <Input value={cfg.tradeCopierDumpPath} onChange={e => setCfg(c => ({ ...c, tradeCopierDumpPath: e.target.value }))} placeholder="/v1/trades/dump" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm" />
                 <p className="text-xs text-muted-foreground">POST trade events from Duplikium / copier relay</p>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Notes</Label>
-              <Input value={cfg.notes} onChange={e => setCfg(c => ({ ...c, notes: e.target.value }))} placeholder="Optional admin notes" className="bg-white/5 border-white/10" />
+              <Input value={cfg.notes} onChange={e => setCfg(c => ({ ...c, notes: e.target.value }))} placeholder="Optional admin notes" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
 
-            <div className="flex gap-3 flex-wrap">
+            <div className={APP_ACTION_ROW}>
               <Button onClick={save} disabled={saving} className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-medium">
                 {saving ? "Saving..." : <><Settings2 className="h-4 w-4 mr-2" />Save VPS Settings</>}
               </Button>
@@ -158,7 +161,7 @@ export function VpsBridgeSettingsPanel() {
             </div>
 
             {testResult && (
-              <div className={`flex items-start gap-3 p-3 rounded-lg border text-sm ${testResult.ok ? "bg-green-500/10 border-green-500/20 text-green-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
+              <div className={`flex items-start gap-3 p-3 rounded-lg border text-sm ${testResult.ok ? "bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
                 {testResult.ok ? <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" /> : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />}
                 {testResult.message}
               </div>

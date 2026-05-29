@@ -1,5 +1,5 @@
 import { db, siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 
 const PARTNERS_KEY = "partners_json";
 

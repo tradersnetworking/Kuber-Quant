@@ -15,6 +15,7 @@ export const DEFAULT_EMAIL_PURPOSE_META: Record<string, { label: string; descrip
   kyc_rejected: { label: "KYC Rejected", description: "When KYC is rejected", group: "Compliance" },
   investment: { label: "Investment", description: "Investment plan confirmations", group: "Trading" },
   ticket_reply: { label: "Support Ticket Reply", description: "When staff replies to a support ticket", group: "Support" },
+  ticket_acknowledgment: { label: "Ticket Auto-Acknowledgment", description: "AI or template email when a complaint/query ticket is created", group: "Support" },
   broadcast: { label: "Admin Broadcast", description: "Bulk announcements from admin", group: "Support" },
   generic: { label: "Generic / Other", description: "Fallback for uncategorized mail", group: "Other" },
 };
@@ -47,6 +48,7 @@ export const DEFAULT_EMAIL_COMM_CONFIG = {
     kyc_rejected: { enabled: true, subject: "KYC verification update" },
     investment: { enabled: true, subject: "Investment confirmation" },
     ticket_reply: { enabled: true, subject: "Support ticket update" },
+    ticket_acknowledgment: { enabled: true, subject: "We received your support request" },
     broadcast: { enabled: true, subject: "Message from Kuber Quant" },
     generic: { enabled: true, subject: "Notification from Kuber Quant" },
   },

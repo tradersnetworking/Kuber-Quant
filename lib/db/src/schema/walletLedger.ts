@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, numeric, integer, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, numeric, integer, pgEnum, index } from "drizzle-orm/pg-core";
 
 export const ledgerTypeEnum = pgEnum("ledger_type", [
   "deposit", "withdrawal", "profit", "referral", "investment", "bonus", "adjustment", "transfer",
@@ -18,6 +18,9 @@ export const walletLedgerTable = pgTable("wallet_ledger", {
   referenceId: integer("reference_id"),
   description: text("description"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("wallet_ledger_user_created_idx").on(table.userId, table.createdAt),
+  index("wallet_ledger_user_type_idx").on(table.userId, table.type),
+]);
 
 export type WalletLedgerEntry = typeof walletLedgerTable.$inferSelect;

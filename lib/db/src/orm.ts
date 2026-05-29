@@ -1,0 +1,20 @@
+/** Re-export Drizzle operators so consumers share one drizzle-orm instance with schema types. */
+export {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
+  lte,
+  lt,
+  ne,
+  not,
+  or,
+  sql,
+} from "drizzle-orm";

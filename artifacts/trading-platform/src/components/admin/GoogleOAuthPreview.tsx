@@ -17,12 +17,12 @@ export function GoogleOAuthPreview({ enabled, clientId, envClientId }: Props) {
   return (
     <Card className="border-amber-500/20 bg-gradient-to-br from-black/40 to-amber-500/5">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base text-white flex items-center gap-2">
+        <CardTitle className="text-base text-foreground flex items-center gap-2">
           Google Sign-In Preview
           {enabled && configured ? (
-            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Active</Badge>
+            <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30">Active</Badge>
           ) : (
-            <Badge className="bg-zinc-500/20 text-zinc-400 border-zinc-500/30">Inactive</Badge>
+            <Badge className="bg-muted text-muted-foreground border-zinc-500/30">Inactive</Badge>
           )}
         </CardTitle>
         <CardDescription>
@@ -31,7 +31,7 @@ export function GoogleOAuthPreview({ enabled, clientId, envClientId }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         {!configured && (
-          <div className="flex items-start gap-2 text-amber-400 text-sm">
+          <div className="flex items-start gap-2 text-amber-600 dark:text-amber-400 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <span>Set a Client ID below or configure <code className="text-xs">VITE_GOOGLE_CLIENT_ID</code> / <code className="text-xs">GOOGLE_CLIENT_ID</code> in server environment.</span>
           </div>

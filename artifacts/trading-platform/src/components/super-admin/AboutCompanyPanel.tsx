@@ -9,10 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit2, Trash2, RefreshCw, Award, Save, ExternalLink } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
+import { STAFF_HEADER_ROW, STAFF_FORM_GRID } from "@/lib/staff-dashboard-ui";
 
 type AboutCategory = "registration" | "affiliation" | "partner" | "recognition" | "license";
 
@@ -180,18 +181,18 @@ export function AboutCompanyPanel() {
     .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
+    <div className="space-y-4 min-w-0">
+      <div className={STAFF_HEADER_ROW}>
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Award className="h-5 w-5 text-amber-400" />
+            <Award className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
             About Kuber Quant
           </h2>
           <p className="text-sm text-muted-foreground">
             Edit company registration, affiliations, partners, recognitions, and licences shown on the home page.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col xs:flex-row gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load}>
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
@@ -203,7 +204,7 @@ export function AboutCompanyPanel() {
         </div>
       </div>
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
         <CardHeader>
           <CardTitle className="text-base">Section Copy</CardTitle>
           <CardDescription>Main heading, intro paragraph, and footer description on the home page.</CardDescription>
@@ -215,7 +216,7 @@ export function AboutCompanyPanel() {
               value={meta.sectionTitle}
               onChange={e => setMeta({ ...meta, sectionTitle: e.target.value })}
               placeholder="About Kuber Quant"
-              className="bg-white/5 border-white/10"
+              className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
             />
           </div>
           <div className="space-y-2">
@@ -224,7 +225,7 @@ export function AboutCompanyPanel() {
               value={meta.intro}
               onChange={e => setMeta({ ...meta, intro: e.target.value })}
               rows={4}
-              className="bg-white/5 border-white/10"
+              className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
             />
           </div>
           <div className="space-y-2">
@@ -233,7 +234,7 @@ export function AboutCompanyPanel() {
               value={meta.footerDescription}
               onChange={e => setMeta({ ...meta, footerDescription: e.target.value })}
               rows={3}
-              className="bg-white/5 border-white/10"
+              className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
             />
           </div>
           <Button onClick={saveMeta} disabled={savingMeta} className="bg-amber-500 text-black">
@@ -243,14 +244,14 @@ export function AboutCompanyPanel() {
         </CardContent>
       </Card>
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
         <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
           <div>
             <CardTitle className="text-base">Credentials & Details</CardTitle>
             <CardDescription>Registration numbers, licences, affiliations, awards, and partner credentials.</CardDescription>
           </div>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-52 bg-white/5 border-white/10">
+            <SelectTrigger className="w-52 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <SelectValue placeholder="Filter category" />
             </SelectTrigger>
             <SelectContent>
@@ -270,61 +271,107 @@ export function AboutCompanyPanel() {
           ) : filteredItems.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No entries yet. Add registration, licence, or affiliation details.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Issued By</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map(item => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px]">{categoryLabels[item.category]}</Badge>
-                    </TableCell>
-                    <TableCell>
+            <ResponsiveDataView
+              data={filteredItems}
+              rowKey={item => item.id}
+              mobileHeader={item => (
+                <div className="mb-2 flex items-start justify-between gap-2 min-w-0">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm">{item.title}</p>
+                    {item.subtitle && <p className="text-xs text-muted-foreground">{item.subtitle}</p>}
+                  </div>
+                  <Badge className={`shrink-0 text-xs ${item.isActive ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
+                    {item.isActive ? "Visible" : "Hidden"}
+                  </Badge>
+                </div>
+              )}
+              mobileFooter={item => (
+                <div className="mt-3 pt-3 border-t border-border/80 flex justify-end gap-2">
+                  {item.documentUrl && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={item.documentUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-red-400" onClick={() => remove(item.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+              columns={[
+                {
+                  key: "category",
+                  header: "Category",
+                  cell: item => <Badge variant="outline" className="text-[10px]">{categoryLabels[item.category]}</Badge>,
+                },
+                {
+                  key: "title",
+                  header: "Title",
+                  mobileTitle: true,
+                  hideOnMobile: true,
+                  cell: item => (
+                    <>
                       <p className="font-medium text-sm">{item.title}</p>
-                      {item.subtitle && <p className="text-xs text-muted-foreground">{item.subtitle}</p>}
-                    </TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground">{item.referenceNumber || "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{item.issuedBy || "—"}</TableCell>
-                    <TableCell>
-                      <Badge className={item.isActive ? "bg-green-500/20 text-green-400" : "bg-zinc-500/20 text-zinc-400"}>
-                        {item.isActive ? "Visible" : "Hidden"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {item.documentUrl && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={item.documentUrl} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
-                          <Edit2 className="h-3.5 w-3.5" />
+                      {item.subtitle && <p className="text-xs text-muted-foreground font-normal">{item.subtitle}</p>}
+                    </>
+                  ),
+                },
+                {
+                  key: "reference",
+                  header: "Reference",
+                  cell: item => <span className="text-xs font-mono text-muted-foreground">{item.referenceNumber || "—"}</span>,
+                },
+                {
+                  key: "issuedBy",
+                  header: "Issued By",
+                  hideOnMobile: true,
+                  cell: item => <span className="text-xs text-muted-foreground max-w-[160px] truncate block">{item.issuedBy || "—"}</span>,
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  hideOnMobile: true,
+                  cell: item => (
+                    <Badge className={item.isActive ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground"}>
+                      {item.isActive ? "Visible" : "Hidden"}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: "actions",
+                  header: "Actions",
+                  headerClassName: "text-right",
+                  hideOnMobile: true,
+                  cell: item => (
+                    <div className="flex justify-end gap-2">
+                      {item.documentUrl && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={item.documentUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-400" onClick={() => remove(item.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      )}
+                      <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-red-400" onClick={() => remove(item.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+            />
           )}
         </CardContent>
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[#0a1528] border-white/10 max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-[#0a1528] border-border dark:border-white/10 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Entry" : "Add Entry"}</DialogTitle>
           </DialogHeader>
@@ -332,7 +379,7 @@ export function AboutCompanyPanel() {
             <div className="space-y-2">
               <Label>Category</Label>
               <Select value={form.category} onValueChange={v => setForm({ ...form, category: v as AboutCategory })}>
-                <SelectTrigger className="bg-white/5 border-white/10">
+                <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -344,41 +391,41 @@ export function AboutCompanyPanel() {
             </div>
             <div className="space-y-2">
               <Label>Title</Label>
-              <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required className="bg-white/5 border-white/10" />
+              <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <div className="space-y-2">
               <Label>Subtitle (optional)</Label>
-              <Input value={form.subtitle} onChange={e => setForm({ ...form, subtitle: e.target.value })} className="bg-white/5 border-white/10" />
+              <Input value={form.subtitle} onChange={e => setForm({ ...form, subtitle: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <div className="space-y-2">
               <Label>Description (optional)</Label>
-              <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="bg-white/5 border-white/10" />
+              <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className={STAFF_FORM_GRID}>
               <div className="space-y-2">
                 <Label>Reference / Reg. No.</Label>
-                <Input value={form.referenceNumber} onChange={e => setForm({ ...form, referenceNumber: e.target.value })} className="bg-white/5 border-white/10 font-mono text-xs" />
+                <Input value={form.referenceNumber} onChange={e => setForm({ ...form, referenceNumber: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-xs" />
               </div>
               <div className="space-y-2">
                 <Label>Issued By</Label>
-                <Input value={form.issuedBy} onChange={e => setForm({ ...form, issuedBy: e.target.value })} className="bg-white/5 border-white/10" />
+                <Input value={form.issuedBy} onChange={e => setForm({ ...form, issuedBy: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
               </div>
               <div className="space-y-2">
                 <Label>Issued Date</Label>
-                <Input type="date" value={form.issuedDate} onChange={e => setForm({ ...form, issuedDate: e.target.value })} className="bg-white/5 border-white/10" />
+                <Input type="date" value={form.issuedDate} onChange={e => setForm({ ...form, issuedDate: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
               </div>
               <div className="space-y-2">
                 <Label>Expiry Date</Label>
-                <Input type="date" value={form.expiryDate} onChange={e => setForm({ ...form, expiryDate: e.target.value })} className="bg-white/5 border-white/10" />
+                <Input type="date" value={form.expiryDate} onChange={e => setForm({ ...form, expiryDate: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Document URL (optional)</Label>
-              <Input value={form.documentUrl} onChange={e => setForm({ ...form, documentUrl: e.target.value })} placeholder="https://..." className="bg-white/5 border-white/10" />
+              <Input value={form.documentUrl} onChange={e => setForm({ ...form, documentUrl: e.target.value })} placeholder="https://..." className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <div className="space-y-2">
               <Label>Display Order</Label>
-              <Input type="number" min={1} value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) || 1 })} className="bg-white/5 border-white/10" />
+              <Input type="number" min={1} value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) || 1 })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={form.isActive} onCheckedChange={checked => setForm({ ...form, isActive: checked })} />

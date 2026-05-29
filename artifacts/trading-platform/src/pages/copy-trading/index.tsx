@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListCopyTraders, useFollowCopyTrader, useUnfollowCopyTrader } from "@workspace/api-client-react";
+import { useListCopyTraders, useFollowCopyTrader, useUnfollowCopyTrader, useListInvestments } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,17 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { TrendingUp, Users, Zap, Info } from "lucide-react";
 import { MtAccountCredentialsForm, EMPTY_MT_ACCOUNT, type MtAccountFormValues } from "@/components/forms/MtAccountCredentialsForm";
+import { TradingServiceDepositBanner } from "@/components/wallet/TradingServiceDepositBanner";
+import { useAuth } from "@/hooks/use-auth";
+import { ProfitShareButton } from "@/components/profit/ProfitShareButton";
 
 export default function CopyTradingPage() {
   const { data: traders, isLoading, refetch } = useListCopyTraders();
+  const { data: investments } = useListInvestments();
+  const { user } = useAuth();
+  const referralCode = (user as any)?.referralCode as string | undefined;
+  const userName = user?.fullName || "Investor";
+  const copyProfits = (investments ?? []).filter(i => i.type === "copy" && Number(i.profit) > 0);
   const followMutation = useFollowCopyTrader();
   const unfollowMutation = useUnfollowCopyTrader();
   const { toast } = useToast();
@@ -68,8 +76,8 @@ export default function CopyTradingPage() {
           resetFollowForm();
           refetch();
         },
-        onError: () => {
-          toast({ title: "Action failed", variant: "destructive" });
+        onError: (err: any) => {
+          toast({ title: "Action failed", description: err?.message || "Could not follow trader", variant: "destructive" });
         }
       }
     );
@@ -88,22 +96,46 @@ export default function CopyTradingPage() {
   };
 
   return (
-    <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
+    <div className="page-stack">
+        <div className="min-w-0">
+          <h1 className="page-title bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
             Copy Trading
           </h1>
-          <p className="text-muted-foreground">Follow top-performing traders and automatically mirror their trades in real time.</p>
+          <p className="page-subtitle">Follow top-performing traders and automatically mirror their trades in real time.</p>
         </div>
 
+        <TradingServiceDepositBanner compact />
+
+        {copyProfits.length > 0 && (
+          <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-green-700 dark:text-green-400">Copy trading profits booked</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {copyProfits.map(p => `${p.planName}: +${p.profit} ${p.currency}`).join(" · ")}
+              </p>
+            </div>
+            <ProfitShareButton
+              userName={userName}
+              referralCode={referralCode}
+              payload={{
+                service: "copy_trading",
+                profitAmount: copyProfits.reduce((s, p) => s + Number(p.profit), 0),
+                currency: "USD",
+                detailLabel: copyProfits[0]?.planName || "Copy Trading",
+              }}
+              label="Share Profit"
+            />
+          </div>
+        )}
+
         {/* How it Works */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-w-0">
           {[
-            { icon: Users, title: "Choose a Trader", desc: "Browse vetted expert traders with verified track records.", color: "text-blue-400" },
-            { icon: Zap, title: "Set Profit Sharing", desc: "Agree on a profit-sharing percentage — only pay when you profit.", color: "text-amber-400" },
-            { icon: TrendingUp, title: "Mirror Automatically", desc: "Trades are copied to your MT5 account in real time, 24/5.", color: "text-green-400" },
+            { icon: Users, title: "Choose a Trader", desc: "Browse vetted expert traders with verified track records.", color: "text-blue-600 dark:text-blue-400" },
+            { icon: Zap, title: "Set Profit Sharing", desc: "Agree on a profit-sharing percentage — only pay when you profit.", color: "text-amber-600 dark:text-amber-400" },
+            { icon: TrendingUp, title: "Mirror Automatically", desc: "Trades are copied to your MT5 account in real time, 24/5.", color: "text-green-700 dark:text-green-400" },
           ].map(({ icon: Icon, title, desc, color }) => (
-            <Card key={title} className="bg-white/5 border-white/10">
+            <Card key={title} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <CardContent className="p-4 flex gap-3 items-start">
                 <Icon className={`h-5 w-5 mt-0.5 shrink-0 ${color}`} />
                 <div>
@@ -122,27 +154,27 @@ export default function CopyTradingPage() {
         ) : traders?.length ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {traders.map(trader => (
-              <Card key={trader.id} className="flex flex-col h-full bg-white/5 backdrop-blur-sm border-white/10 hover:border-amber-500/50 transition-colors">
-                <CardHeader>
-                  <div className="flex justify-between items-start mb-4">
-                    <Avatar className="h-12 w-12 border border-amber-500/20">
+              <Card key={trader.id} className="flex flex-col h-full bg-muted/60 dark:bg-white/5 backdrop-blur-sm border-border dark:border-white/10 hover:border-amber-500/50 transition-colors min-w-0 overflow-hidden">
+                <CardHeader className="min-w-0">
+                  <div className="flex justify-between items-start gap-2 mb-4 min-w-0">
+                    <Avatar className="h-12 w-12 border border-amber-500/20 shrink-0">
                       <AvatarImage src={trader.avatarUrl || undefined} />
                       <AvatarFallback className="bg-amber-500/10 text-amber-500">{trader.name.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <Badge className={trader.riskLevel === "high" ? "bg-red-500/20 text-red-400" : trader.riskLevel === "low" ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/20 text-amber-400"}>
+                    <Badge className={`shrink-0 text-[10px] sm:text-xs ${trader.riskLevel === "high" ? "bg-red-500/20 text-red-400" : trader.riskLevel === "low" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-amber-500/20 text-amber-600 dark:text-amber-400"}`}>
                       {trader.riskLevel} Risk
                     </Badge>
                   </div>
-                  <CardTitle className="text-xl font-bold">{trader.name}</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl font-bold truncate">{trader.name}</CardTitle>
                   <p className="text-sm text-muted-foreground line-clamp-2">{trader.bio}</p>
                 </CardHeader>
                 <CardContent className="flex-1">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-2 rounded bg-black/50 border border-white/5">
+                    <div className="p-2 rounded bg-black/50 border border-border/80 dark:border-white/5">
                       <p className="text-xs text-muted-foreground uppercase">Win Rate</p>
                       <p className="text-lg font-bold text-amber-500">{trader.winRate}%</p>
                     </div>
-                    <div className="p-2 rounded bg-black/50 border border-white/5">
+                    <div className="p-2 rounded bg-black/50 border border-border/80 dark:border-white/5">
                       <p className="text-xs text-muted-foreground uppercase">Monthly ROI</p>
                       <p className="text-lg font-bold text-green-500">+{trader.monthlyRoi}%</p>
                     </div>
@@ -159,12 +191,28 @@ export default function CopyTradingPage() {
                 <CardFooter>
                   {trader.isFollowing ? (
                     <div className="w-full space-y-2">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" /> Copying Active</span>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground gap-2">
+                        <span className="flex items-center gap-1 min-w-0"><span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block shrink-0" /> Copying Active</span>
+                        {(() => {
+                          const booked = copyProfits.find(p => p.planName?.includes(trader.name));
+                          if (!booked) return null;
+                          return (
+                            <ProfitShareButton
+                              userName={userName}
+                              referralCode={referralCode}
+                              payload={{
+                                service: "copy_trading",
+                                profitAmount: Number(booked.profit),
+                                currency: booked.currency,
+                                detailLabel: trader.name,
+                              }}
+                            />
+                          );
+                        })()}
                       </div>
                       <Button 
                         variant="outline" 
-                        className="w-full border-white/10 text-white hover:bg-white/5" 
+                        className="w-full border-border dark:border-white/10 text-foreground hover:bg-muted/80 dark:hover:bg-muted/60" 
                         onClick={() => handleUnfollow(trader.id)}
                         disabled={unfollowMutation.isPending}
                       >
@@ -179,11 +227,11 @@ export default function CopyTradingPage() {
                       <DialogTrigger asChild>
                         <Button className="w-full bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-semibold hover:opacity-90">Copy Trades</Button>
                       </DialogTrigger>
-                      <DialogContent className="bg-[#050A14] border-white/10 text-white max-w-md max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle className="text-amber-500 text-xl font-bold">Copy {trader.name}</DialogTitle>
+                      <DialogContent className="dialog-scroll-content bg-background border-border dark:border-white/10 max-w-md overflow-x-hidden p-0 gap-0">
+                        <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
+                          <DialogTitle className="text-amber-600 dark:text-amber-500 text-lg sm:text-xl font-bold break-words pr-8">Copy {trader.name}</DialogTitle>
                         </DialogHeader>
-                        <form onSubmit={handleFollow} className="space-y-5 pt-2">
+                        <form onSubmit={handleFollow} className="dialog-form-inner space-y-5 pt-1">
                           <MtAccountCredentialsForm
                             values={mtCreds}
                             onChange={(k, v) => setMtCreds(prev => ({ ...prev, [k]: v }))}
@@ -200,7 +248,7 @@ export default function CopyTradingPage() {
                               required 
                               min={trader.minInvestment || 0}
                               placeholder={`Min $${trader.minInvestment}`}
-                              className="bg-black/50 border-white/10 focus:ring-amber-500 focus:border-amber-500"
+                              className="bg-black/50 border-border dark:border-white/10 focus:ring-amber-500 focus:border-amber-500"
                               value={amount} 
                               onChange={(e) => setAmount(e.target.value)} 
                             />
@@ -211,12 +259,12 @@ export default function CopyTradingPage() {
                           <div className="space-y-3">
                             <div className="flex justify-between items-center">
                               <Label className="text-muted-foreground uppercase text-xs tracking-wider">Profit Sharing</Label>
-                              <span className="text-xl font-bold text-amber-400">{profitShare}%</span>
+                              <span className="text-xl font-bold text-amber-600 dark:text-amber-400">{profitShare}%</span>
                             </div>
                             <Slider
                               value={[profitShare]}
                               onValueChange={([v]) => setProfitShare(v)}
-                              min={10} max={40} step={5}
+                              min={10} max={40} step={1}
                               className="[&>span]:bg-amber-500"
                             />
                             <div className="flex justify-between text-xs text-muted-foreground">
@@ -226,16 +274,16 @@ export default function CopyTradingPage() {
 
                             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 space-y-1.5">
                               <div className="flex items-center gap-1.5 mb-2">
-                                <Info className="h-3.5 w-3.5 text-amber-400" />
-                                <p className="text-xs text-amber-300 font-medium">Profit Sharing Model</p>
+                                <Info className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Profit Sharing Model</p>
                               </div>
                               <div className="flex justify-between text-xs">
                                 <span className="text-muted-foreground">You keep</span>
-                                <span className="text-green-400 font-semibold">{100 - profitShare}% of profits</span>
+                                <span className="text-green-700 dark:text-green-400 font-semibold">{100 - profitShare}% of profits</span>
                               </div>
                               <div className="flex justify-between text-xs">
                                 <span className="text-muted-foreground">Trader earns</span>
-                                <span className="text-amber-400 font-semibold">{profitShare}% of profits</span>
+                                <span className="text-amber-600 dark:text-amber-400 font-semibold">{profitShare}% of profits</span>
                               </div>
                               <p className="text-[10px] text-muted-foreground pt-1">You only pay when you profit. No upfront fees.</p>
                             </div>

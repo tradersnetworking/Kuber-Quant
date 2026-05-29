@@ -15,7 +15,10 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      path.resolve(artifactDir, "src/worker.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",
@@ -55,6 +58,7 @@ async function buildAll() {
     "mailparser",
     "handlebars",
     "ioredis",
+    "bullmq",
       "knex",
       "typeorm",
       "protobufjs",
@@ -69,6 +73,7 @@ async function buildAll() {
       "@opentelemetry/*",
       "@google-cloud/*",
       "@google/*",
+      "@sentry/*",
       "googleapis",
       "firebase-admin",
       "@parcel/watcher",

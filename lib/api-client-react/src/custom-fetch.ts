@@ -20,6 +20,7 @@ export type TokenRefresher = () => Promise<string | null>;
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 let _tokenRefresher: TokenRefresher | null = null;
+let _sessionReplacedHandler: (() => void) | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -53,6 +54,11 @@ export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
  */
 export function setTokenRefresher(refresher: TokenRefresher | null): void {
   _tokenRefresher = refresher;
+}
+
+/** Invoked when the API returns code SESSION_REPLACED (signed in elsewhere). */
+export function setSessionReplacedHandler(handler: (() => void) | null): void {
+  _sessionReplacedHandler = handler;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -372,6 +378,15 @@ export async function customFetch<T = unknown>(
   const requestInfo = { method, url: resolveUrl(input) };
 
   let response = await fetch(input, { ...init, method, headers });
+
+  if (response.status === 401 && !requestInfo.url.includes("/auth/refresh")) {
+    const errorData = await parseErrorBody(response.clone(), method);
+    const code = (errorData as { code?: string } | null)?.code;
+    if (code === "SESSION_REPLACED") {
+      _sessionReplacedHandler?.();
+      throw new ApiError(response, errorData, requestInfo);
+    }
+  }
 
   if (response.status === 401 && _tokenRefresher && !requestInfo.url.includes("/auth/refresh")) {
     const newToken = await _tokenRefresher();

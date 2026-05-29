@@ -1,19 +1,34 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { FINANCE_POLL_MS, pollQueryOptions } from "@/lib/query-config";
 
 /** How often open dashboards poll wallet / transaction data. */
-export const FINANCE_QUERY_POLL_MS = 30_000;
+export const FINANCE_QUERY_POLL_MS = FINANCE_POLL_MS;
 
 const FINANCE_QUERY_KEYS = [
   ["/api/wallet"],
   ["/api/dashboard/summary"],
   ["/api/dashboard/recent-activity"],
   ["/api/dashboard/portfolio-chart"],
+  ["/api/dashboard/monthly-returns"],
+  ["/api/investments/maturity-payout/pending"],
   ["/api/wallet/history"],
+  ["/api/wallet/upcoming"],
   ["/api/manager/stats"],
   ["/api/manager/analytics"],
   ["/api/manager/transactions"],
+  ["/api/admin/transactions"],
+  ["/api/admin/transactions/upcoming"],
+  ["/api/admin/ledger"],
   ["/api/admin/stats"],
   ["/api/admin/analytics"],
+  ["/api/super-admin/stats"],
+  ["/api/support-team/transactions"],
+  ["/api/support-team/transactions/upcoming"],
+  ["/api/support-team/ledger"],
+  ["/api/support-team/investments"],
+  ["/api/support-team/roi/payouts"],
+  ["/api/support-team/algo-subscriptions"],
+  ["/api/support-team/ea-subscriptions"],
 ] as const;
 
 export function isFinanceNotification(category?: string, title?: string): boolean {
@@ -35,7 +50,4 @@ export function invalidateFinanceQueries(qc: QueryClient, userId?: number) {
   }
 }
 
-export const financeQueryOptions = {
-  refetchInterval: FINANCE_QUERY_POLL_MS,
-  staleTime: 10_000,
-} as const;
+export const financeQueryOptions = pollQueryOptions(FINANCE_QUERY_POLL_MS);

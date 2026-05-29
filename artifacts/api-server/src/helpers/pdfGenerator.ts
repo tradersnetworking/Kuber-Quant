@@ -1,10 +1,15 @@
 import PDFDocument from "pdfkit";
 import { createHash } from "crypto";
 import type { AgreementTemplateContent } from "./agreementTemplates";
+import { loadUploadImageBuffer } from "./agreementAssetHelper";
 
-const BRAND_GOLD = "#D4AF37";
-const MARGIN = 42;
-const FOOTER_Y_OFFSET = 28;
+const BRAND_GOLD = "#B8860B";
+const INK = "#1A1A1A";
+const MUTED = "#555555";
+const BORDER = "#CCCCCC";
+const MARGIN = 50;
+const FOOTER_H = 36;
+const HEADER_BODY_GAP = 10;
 
 export interface PDFGenerationResult {
   buffer: Buffer;
@@ -23,7 +28,9 @@ export async function generateAgreementPDF(opts: {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
-      margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+      margins: { top: MARGIN, bottom: MARGIN + FOOTER_H, left: MARGIN, right: MARGIN },
+      autoFirstPage: true,
+      bufferPages: true,
       info: {
         Title: template.title,
         Author: "Kuber Quant",
@@ -51,198 +58,261 @@ export async function generateAgreementPDF(opts: {
     }
 
     function bottomLimit() {
-      return doc.page.height - MARGIN - 20;
+      return doc.page.height - MARGIN - FOOTER_H;
+    }
+
+    /** Keep manual page counter aligned with PDFKit after auto-pagination. */
+    function syncPageCount() {
+      const range = doc.bufferedPageRange();
+      pageNum = range.start + range.count;
     }
 
     function addPageNumber() {
-      doc.font("Helvetica").fontSize(7).fillColor("#666666");
-      doc.text(`Page ${pageNum}`, 0, doc.page.height - FOOTER_Y_OFFSET, { width: pageWidth, align: "center" });
-    }
-
-    function ensureSpace(minHeight: number) {
-      if (doc.y + minHeight > bottomLimit()) {
-        addPageNumber();
-        doc.addPage();
-        pageNum++;
-        drawRunningHeader();
-      }
+      const y = doc.page.height - MARGIN - 10;
+      doc.font("Helvetica").fontSize(8).fillColor(MUTED);
+      doc.text(`Page ${pageNum}`, MARGIN, y, { width: contentWidth, align: "center", lineBreak: false });
     }
 
     function drawRunningHeader() {
-      doc.rect(0, 0, pageWidth, 36).fill("#050A14");
-      doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_GOLD);
-      doc.text("KUBER QUANT", MARGIN, 10, { width: contentWidth / 2 });
-      doc.font("Helvetica").fontSize(7).fillColor("#888888");
-      doc.text(`Ref: ${agreementUid}`, MARGIN, 22, { width: contentWidth / 2 });
+      const headerY = MARGIN - 8;
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(BRAND_GOLD);
+      doc.text("KUBER QUANT", MARGIN, headerY, { width: contentWidth / 2, lineBreak: false });
+      doc.font("Helvetica").fontSize(8).fillColor(MUTED);
       doc.text(
         filledData["AGREEMENT_DATE"] || new Date().toLocaleDateString("en-IN"),
         MARGIN,
-        10,
-        { width: contentWidth, align: "right" }
+        headerY,
+        { width: contentWidth, align: "right", lineBreak: false },
       );
-      doc.y = 48;
+      doc.font("Helvetica").fontSize(7).fillColor(MUTED);
+      doc.text(`Ref: ${agreementUid}`, MARGIN, headerY + 12, { width: contentWidth / 2, lineBreak: false });
+      doc.y = MARGIN + 22;
+      doc.moveTo(MARGIN, doc.y).lineTo(MARGIN + contentWidth, doc.y).lineWidth(0.5).stroke(BORDER);
+      doc.y += HEADER_BODY_GAP;
     }
 
-    function drawWatermark() {
-      doc.save();
-      doc.opacity(0.035);
-      doc.font("Helvetica-Bold").fontSize(56).fillColor(BRAND_GOLD);
-      doc.rotate(-45, { origin: [pageWidth / 2, doc.page.height / 2] });
-      doc.text("KUBER QUANT", 0, doc.page.height / 2 - 40, { width: pageWidth, align: "center" });
-      doc.restore();
+    function startNewPage() {
+      addPageNumber();
+      doc.addPage();
+      syncPageCount();
+      drawRunningHeader();
+    }
+
+    /** Reserve space for at least one line; never pre-reserve full multi-page block height. */
+    function ensureLineSpace(extra = 4) {
+      const lineH = doc.currentLineHeight(true);
+      if (doc.y + lineH + extra > bottomLimit()) {
+        startNewPage();
+      }
+    }
+
+    function writeFlow(text: string, opts: { font?: string; size?: number; color?: string; indent?: number; bold?: boolean; gap?: number } = {}) {
+      const {
+        font = "Helvetica",
+        size = 9,
+        color = INK,
+        indent = 0,
+        bold = false,
+        gap = 4,
+      } = opts;
+      const width = contentWidth - indent;
+      const fontName = bold ? `${font}-Bold` : font;
+      doc.font(fontName).fontSize(size).fillColor(color);
+      ensureLineSpace(gap);
+      doc.text(text, MARGIN + indent, doc.y, { width, align: "left", lineGap: 3 });
+      syncPageCount();
+      doc.y += gap;
+    }
+
+    function writeKeyValue(key: string, value: string) {
+      const label = `${key}:`;
+      const val = value || "—";
+      const labelW = 130;
+      doc.font("Helvetica").fontSize(8.5).fillColor(MUTED);
+      const valH = doc.heightOfString(val, { width: contentWidth - labelW - 8, lineGap: 2 });
+      const labelH = doc.heightOfString(label, { width: labelW, lineGap: 2 });
+      const rowH = Math.max(valH, labelH, 12) + 3;
+      ensureLineSpace(rowH);
+      const rowY = doc.y;
+      doc.font("Helvetica").fontSize(8.5).fillColor(MUTED);
+      doc.text(label, MARGIN, rowY, { width: labelW, lineGap: 2 });
+      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(INK);
+      doc.text(val, MARGIN + labelW + 8, rowY, { width: contentWidth - labelW - 8, lineGap: 2 });
+      syncPageCount();
+      doc.y = rowY + rowH;
     }
 
     function renderBodyLine(trimmed: string) {
       if (!trimmed) {
-        doc.moveDown(0.2);
+        doc.y += 4;
         return;
       }
-      ensureSpace(14);
 
-      if (trimmed.startsWith("(") && /^\([a-z0-9]\)/i.test(trimmed)) {
-        doc.font("Helvetica").fontSize(8).fillColor("#DDDDDD");
-        doc.text(trimmed, MARGIN + 10, doc.y, { width: contentWidth - 10, align: "justify", lineGap: 1 });
-      } else if (trimmed.startsWith("-")) {
-        doc.font("Helvetica").fontSize(8).fillColor("#DDDDDD");
-        doc.text("• " + trimmed.slice(1).trim(), MARGIN + 10, doc.y, { width: contentWidth - 10, lineGap: 1 });
-      } else if (/^\d+\.\s/.test(trimmed)) {
-        doc.font("Helvetica-Bold").fontSize(8).fillColor("#CCCCCC");
-        doc.text(trimmed, MARGIN, doc.y, { width: contentWidth, align: "justify", lineGap: 1 });
-      } else if (/^[A-Z][^:]+:$/.test(trimmed) || (trimmed.endsWith(":") && trimmed.length < 50)) {
-        doc.font("Helvetica-Bold").fontSize(8.5).fillColor(BRAND_GOLD);
-        doc.text(trimmed, MARGIN, doc.y, { width: contentWidth });
-      } else if (trimmed.includes(": ") && trimmed.split(":")[0].length < 36) {
-        const colonIdx = trimmed.indexOf(": ");
-        const key = trimmed.slice(0, colonIdx);
-        const val = trimmed.slice(colonIdx + 2);
-        const lineY = doc.y;
-        doc.font("Helvetica").fontSize(7.5).fillColor("#888888");
-        doc.text(key + ":", MARGIN, lineY, { width: 130, continued: false });
-        doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#EEEEEE");
-        doc.text(val || "—", MARGIN + 132, lineY - doc.currentLineHeight(), { width: contentWidth - 132 });
-      } else {
-        doc.font("Helvetica").fontSize(8).fillColor("#CCCCCC");
-        doc.text(trimmed, MARGIN, doc.y, { width: contentWidth, align: "justify", lineGap: 1 });
+      if (/^\([a-z0-9]\)/i.test(trimmed)) {
+        writeFlow(trimmed, { size: 8.5, color: INK, indent: 12, gap: 3 });
+        return;
       }
-      doc.moveDown(0.15);
+
+      if (trimmed.startsWith("-")) {
+        writeFlow("• " + trimmed.slice(1).trim(), { size: 8.5, indent: 12, gap: 3 });
+        return;
+      }
+
+      if (/^\d+\.\s/.test(trimmed)) {
+        writeFlow(trimmed, { size: 9, bold: true, color: INK, gap: 4 });
+        return;
+      }
+
+      if (trimmed.endsWith(":") && trimmed.length < 60 && !trimmed.includes(": ")) {
+        writeFlow(trimmed, { size: 9, bold: true, color: BRAND_GOLD, gap: 3 });
+        return;
+      }
+
+      if (trimmed.includes(": ") && trimmed.split(":")[0].length < 36) {
+        const colonIdx = trimmed.indexOf(": ");
+        writeKeyValue(trimmed.slice(0, colonIdx), trimmed.slice(colonIdx + 2));
+        return;
+      }
+
+      writeFlow(trimmed, { size: 9, color: INK, gap: 4 });
     }
 
-    // ── Page 1 header block ───────────────────────────────────────────────────
+    function ensureBlockSpace(height: number) {
+      if (doc.y + height > bottomLimit()) {
+        startNewPage();
+      }
+    }
+
+    // ── Page 1 ────────────────────────────────────────────────────────────────
     drawRunningHeader();
-    drawWatermark();
 
-    doc.font("Helvetica-Bold").fontSize(12).fillColor(BRAND_GOLD);
-    doc.text(template.title, MARGIN, doc.y, { width: contentWidth, align: "center" });
-    doc.moveDown(0.3);
-    doc.rect(MARGIN, doc.y, contentWidth, 1).fill(BRAND_GOLD);
-    doc.moveDown(0.5);
+    doc.font("Helvetica-Bold").fontSize(13).fillColor(BRAND_GOLD);
+    const titleH = doc.heightOfString(template.title, { width: contentWidth, align: "center" });
+    ensureBlockSpace(titleH + 16);
+    doc.text(template.title, MARGIN, doc.y, { width: contentWidth, align: "center", lineBreak: false });
+    syncPageCount();
+    doc.y += titleH + 8;
+    doc.moveTo(MARGIN, doc.y).lineTo(MARGIN + contentWidth, doc.y).lineWidth(1).stroke(BRAND_GOLD);
+    doc.y += 14;
 
-    // Compact investor summary — two columns
-    const colW = contentWidth / 2 - 6;
+    const photoPath = filledData["PASSPORT_PHOTO_PATH"] || filledData["AVATAR_PATH"] || "";
+    const photoBuffer = photoPath && photoPath !== "—" ? loadUploadImageBuffer(photoPath) : null;
     const summaryFields: [string, string][] = [
-      ["Full Name", filledData["FULL_NAME"]],
+      ["Full Name", filledData["FULL_NAME"] || userName],
       ["Email", filledData["EMAIL"]],
+      ["Mobile", filledData["MOBILE"] || filledData["PHONE"]],
       ["Investor ID", filledData["INVESTOR_ID"]],
-      ["Mobile", filledData["MOBILE"]],
+      ["Role", filledData["ROLE"]],
       ["KYC Status", filledData["KYC_STATUS"]],
+      ["Agreement Date", filledData["AGREEMENT_DATE"] || new Date().toLocaleDateString("en-IN")],
       ["Agreement Ref", agreementUid],
-    ].filter(([, v]) => v && v !== "—") as [string, string][];
+    ];
 
-    const startY = doc.y;
+    const summaryRows = Math.ceil(summaryFields.length / 2);
+    const photoBoxW = 70;
+    const photoBoxH = 86;
+    const summaryBoxH = Math.max(summaryRows * 26 + 16, photoBuffer ? photoBoxH + 16 : summaryRows * 26 + 16);
+    ensureBlockSpace(summaryBoxH + 12);
+    const boxY = doc.y;
+    doc.rect(MARGIN, boxY, contentWidth, summaryBoxH).lineWidth(0.5).stroke(BORDER);
+
+    const innerX = photoBuffer ? MARGIN + photoBoxW + 14 : MARGIN + 10;
+    const innerW = photoBuffer ? contentWidth - photoBoxW - 24 : contentWidth - 20;
+
+    if (photoBuffer) {
+      try {
+        doc.image(photoBuffer, MARGIN + 8, boxY + 8, {
+          width: photoBoxW - 4,
+          height: photoBoxH - 4,
+          fit: [photoBoxW - 4, photoBoxH - 4],
+        });
+      } catch { /* skip invalid image */ }
+    }
+
+    const colW = innerW / 2 - 6;
     summaryFields.forEach(([label, value], i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
-      const x = MARGIN + col * (colW + 12);
-      const y = startY + row * 22;
-      doc.font("Helvetica").fontSize(6.5).fillColor("#777777");
-      doc.text(label, x, y, { width: colW });
-      doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#EEEEEE");
-      doc.text(value, x, y + 9, { width: colW });
+      const x = innerX + col * (colW + 12);
+      const y = boxY + 10 + row * 26;
+      doc.font("Helvetica").fontSize(7.5).fillColor(MUTED);
+      doc.text(label, x, y, { width: colW, lineBreak: false });
+      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(INK);
+      doc.text(value, x, y + 10, { width: colW, lineBreak: false });
     });
-    doc.y = startY + Math.ceil(summaryFields.length / 2) * 22 + 6;
+    syncPageCount();
 
-    doc.font("Helvetica-Oblique").fontSize(6.5).fillColor("#666666");
-    doc.text(
+    doc.y = boxY + summaryBoxH + 12;
+    writeFlow(
       "This document is generated by the Kuber Quant legal agreement system and is binding upon signature.",
-      MARGIN,
-      doc.y,
-      { width: contentWidth, align: "justify", lineGap: 0.5 }
+      { size: 8, color: MUTED, gap: 10 },
     );
-    doc.moveDown(0.6);
 
-    // ── Sections (continuous flow) ────────────────────────────────────────────
     template.sections.forEach((section, sectionIndex) => {
-      ensureSpace(40);
-      doc.rect(MARGIN, doc.y, contentWidth, 20).fill("#0d1f3c");
-      doc.font("Helvetica-Bold").fontSize(9).fillColor(BRAND_GOLD);
-      doc.text(`${sectionIndex + 1}. ${section.heading}`, MARGIN + 6, doc.y - 14, { width: contentWidth - 12 });
-      doc.moveDown(0.6);
+      ensureLineSpace(28);
+      writeFlow(`${sectionIndex + 1}. ${section.heading}`, { size: 10, bold: true, color: BRAND_GOLD, gap: 4 });
+      doc.moveTo(MARGIN, doc.y).lineTo(MARGIN + contentWidth, doc.y).lineWidth(0.5).stroke(BORDER);
+      doc.y += 8;
 
       const bodyText = fillPlaceholders(section.body);
       bodyText.split("\n").forEach(line => renderBodyLine(line.trim()));
-      doc.moveDown(0.3);
+      doc.y += 6;
     });
 
-    // ── Signature block ─────────────────────────────────────────────────────────
-    ensureSpace(130);
-    doc.moveDown(0.3);
-    doc.font("Helvetica-Bold").fontSize(10).fillColor(BRAND_GOLD);
-    doc.text("DIGITAL SIGNATURE & ACCEPTANCE", MARGIN, doc.y, { width: contentWidth, align: "center" });
-    doc.moveDown(0.3);
-    doc.rect(MARGIN, doc.y, contentWidth, 1).fill(BRAND_GOLD);
-    doc.moveDown(0.5);
+    ensureLineSpace(140);
+    writeFlow("DIGITAL SIGNATURE & ACCEPTANCE", { size: 11, bold: true, color: BRAND_GOLD, gap: 6 });
+    doc.moveTo(MARGIN, doc.y).lineTo(MARGIN + contentWidth, doc.y).lineWidth(0.5).stroke(BRAND_GOLD);
+    doc.y += 10;
 
-    doc.font("Helvetica").fontSize(7.5).fillColor("#CCCCCC");
-    doc.text(
-      `By signing electronically, the undersigned confirms agreement to all terms above.\nRef: ${agreementUid} | Name: ${filledData["FULL_NAME"] || "—"} | Email: ${filledData["EMAIL"] || "—"}\nIP: ${filledData["IP_ADDRESS"] || "—"} | Device: ${filledData["DEVICE_INFO"] || "—"} | Timestamp: ${new Date().toISOString()}`,
-      MARGIN,
-      doc.y,
-      { width: contentWidth, lineGap: 1 }
+    writeFlow(
+      `By signing electronically, the undersigned confirms agreement to all terms above.\n` +
+      `Ref: ${agreementUid} | Name: ${filledData["FULL_NAME"] || "—"} | Email: ${filledData["EMAIL"] || "—"}\n` +
+      `IP: ${filledData["IP_ADDRESS"] || "—"} | Device: ${filledData["DEVICE_INFO"] || "—"} | Timestamp: ${new Date().toISOString()}`,
+      { size: 8, color: MUTED, gap: 12 },
     );
-    doc.moveDown(0.8);
 
     const sigBoxW = contentWidth / 2 - 8;
-    const sigBoxH = 72;
+    const sigBoxH = 70;
     const sigBoxY = doc.y;
-    const boxLeft = MARGIN;
-    const boxRight = MARGIN + sigBoxW + 16;
+    ensureBlockSpace(sigBoxH + 20);
 
-    doc.rect(boxLeft, sigBoxY, sigBoxW, sigBoxH).lineWidth(0.5).stroke("#333333");
-    doc.font("Helvetica-Bold").fontSize(7).fillColor(BRAND_GOLD);
-    doc.text("INVESTOR SIGNATURE", boxLeft + 6, sigBoxY + 4, { width: sigBoxW - 12 });
+    doc.rect(MARGIN, sigBoxY, sigBoxW, sigBoxH).lineWidth(0.5).stroke(BORDER);
+    doc.font("Helvetica-Bold").fontSize(8).fillColor(BRAND_GOLD);
+    doc.text("INVESTOR SIGNATURE", MARGIN + 8, sigBoxY + 6, { width: sigBoxW - 16, lineBreak: false });
     if (signatureBase64) {
       try {
         const sigBuffer = Buffer.from(signatureBase64.replace(/^data:image\/\w+;base64,/, ""), "base64");
-        doc.image(sigBuffer, boxLeft + 6, sigBoxY + 16, { width: sigBoxW - 12, height: 40, fit: [sigBoxW - 12, 40] });
+        doc.image(sigBuffer, MARGIN + 8, sigBoxY + 18, { width: sigBoxW - 16, height: 36, fit: [sigBoxW - 16, 36] });
       } catch { /* skip invalid signature */ }
     }
-    doc.font("Helvetica").fontSize(6.5).fillColor("#666666");
-    doc.text(filledData["FULL_NAME"] || userName || "Investor", boxLeft + 6, sigBoxY + sigBoxH - 14, { width: sigBoxW - 12 });
+    doc.font("Helvetica").fontSize(8).fillColor(MUTED);
+    doc.text(filledData["FULL_NAME"] || userName || "Investor", MARGIN + 8, sigBoxY + sigBoxH - 14, { width: sigBoxW - 16, lineBreak: false });
 
-    doc.rect(boxRight, sigBoxY, sigBoxW, sigBoxH).lineWidth(0.5).stroke("#333333");
-    doc.font("Helvetica-Bold").fontSize(7).fillColor(BRAND_GOLD);
-    doc.text("KUBER QUANT — Authorised Signatory", boxRight + 6, sigBoxY + 4, { width: sigBoxW - 12 });
-    doc.font("Helvetica-Bold").fontSize(10).fillColor(BRAND_GOLD);
-    doc.text("Kuber Quant", boxRight + 6, sigBoxY + 28, { width: sigBoxW - 12 });
+    const boxRight = MARGIN + sigBoxW + 16;
+    doc.rect(boxRight, sigBoxY, sigBoxW, sigBoxH).lineWidth(0.5).stroke(BORDER);
+    doc.font("Helvetica-Bold").fontSize(8).fillColor(BRAND_GOLD);
+    doc.text("KUBER QUANT — Authorised Signatory", boxRight + 8, sigBoxY + 6, { width: sigBoxW - 16, lineBreak: false });
+    doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_GOLD);
+    doc.text("Kuber Quant", boxRight + 8, sigBoxY + 30, { width: sigBoxW - 16, lineBreak: false });
+    syncPageCount();
 
-    doc.y = sigBoxY + sigBoxH + 10;
+    doc.y = sigBoxY + sigBoxH + 14;
 
-    doc.rect(MARGIN, doc.y, contentWidth, 28).fill("#070e1a");
-    const hashY = doc.y + 5;
-    doc.font("Helvetica-Bold").fontSize(6.5).fillColor(BRAND_GOLD);
-    doc.text("VERIFICATION HASH (SHA-256):", MARGIN + 6, hashY);
-    doc.font("Courier").fontSize(6.5).fillColor("#888888");
-    doc.text(filledData["PDF_HASH"] || "Generated upon signing", MARGIN + 6, hashY + 10, { width: contentWidth - 12 });
+    ensureBlockSpace(36);
+    const hashY = doc.y;
+    doc.rect(MARGIN, hashY, contentWidth, 32).lineWidth(0.5).stroke(BORDER);
+    doc.font("Helvetica-Bold").fontSize(7.5).fillColor(BRAND_GOLD);
+    doc.text("VERIFICATION HASH (SHA-256):", MARGIN + 8, hashY + 6, { width: contentWidth - 16, lineBreak: false });
+    doc.font("Courier").fontSize(7).fillColor(MUTED);
+    doc.text(filledData["PDF_HASH"] || "Generated upon signing", MARGIN + 8, hashY + 18, { width: contentWidth - 16, lineBreak: false });
+    doc.y = hashY + 40;
 
-    doc.moveDown(2.5);
-    doc.font("Helvetica").fontSize(6.5).fillColor("#555555");
-    doc.text(
+    writeFlow(
       "Tamper-evident digital document. Verify at support@kuberquant.com with reference above.",
-      MARGIN,
-      doc.y,
-      { width: contentWidth, align: "center" }
+      { size: 8, color: MUTED, gap: 0 },
     );
 
+    syncPageCount();
     addPageNumber();
     doc.end();
   });

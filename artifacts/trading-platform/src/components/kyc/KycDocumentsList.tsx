@@ -30,7 +30,7 @@ export function KycDocumentsList({ kyc, showMissing = false, compact }: Props) {
   }
 
   return (
-    <div className={`rounded-lg border border-white/10 bg-white/[0.02] divide-y divide-white/5 ${compact ? "text-xs" : "text-sm"}`}>
+    <div className={`rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02] divide-y divide-white/5 ${compact ? "text-xs" : "text-sm"}`}>
       {rows.map(row => (
         <div key={row.key} className={`flex items-center justify-between gap-3 ${compact ? "px-3 py-2" : "px-3 py-2.5"}`}>
           <div className="flex items-center gap-2 min-w-0">

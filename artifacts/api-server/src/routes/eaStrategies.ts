@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, eaStrategiesTable, eaSubscriptionsTable, usersTable } from "@workspace/db";
-import { eq, or, and } from "drizzle-orm";
+import { eq, or, and } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { randomBytes } from "crypto";
 import { linkMtTradingAccount, validateMtTradingCredentials } from "../helpers/mtAccountLink";
@@ -113,6 +113,9 @@ router.get("/subscriptions/my", requireAuth, async (req, res) => {
 
 router.post("/catalog/:catalogId/subscribe", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
+  const { respondIfServiceBlocked } = await import("../helpers/userAccessControl");
+  if (await respondIfServiceBlocked(userId, "ea", res)) return;
+
   const catalogId = parseInt(String(req.params.catalogId));
   const {
     mtAccountNumber,

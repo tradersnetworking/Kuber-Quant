@@ -13,10 +13,15 @@ import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Mail, RefreshCw, Send, Inbox, AlertTriangle, HelpCircle, ShieldAlert,
-  Archive, Ticket, Plus, Search, UserCircle2, Clock, MessageSquare, Users,
+  Archive, Ticket, Plus, Search, UserCircle2, Clock, MessageSquare, Users, Paperclip,
 } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
 import { cn } from "@/lib/utils";
+import { KpiStatCard } from "@/components/ui/KpiStatCard";
+import { STAFF_CARD, STAFF_HEADER_ROW, STAFF_PAGE_STACK, STAFF_STAT_GRID } from "@/lib/staff-dashboard-ui";
+import { APP_ACTION_ROW } from "@/lib/ui-system";
+import { MailAttachmentPicker, type MailAttachment } from "@/components/support/MailAttachmentPicker";
+import { SecureUploadPreviewDialog } from "@/components/SecureUploadPreviewDialog";
 
 export interface SupportMailMessage {
   id: number;
@@ -40,6 +45,7 @@ export interface SupportMailMessage {
   slaDueAt: string | null;
   slaStatus: string;
   receivedAt: string;
+  attachments?: MailAttachment[];
 }
 
 export interface SupportMailThread {
@@ -101,16 +107,16 @@ const CATEGORIES = [
 
 function slaBadge(status: string) {
   if (status === "breached") return "bg-red-500/20 text-red-400 border-red-500/30";
-  if (status === "due_soon") return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-  if (status === "met") return "bg-green-500/20 text-green-400 border-green-500/30";
-  return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
+  if (status === "due_soon") return "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30";
+  if (status === "met") return "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30";
+  return "bg-muted text-muted-foreground border-zinc-500/30";
 }
 
 function priorityBadge(priority: string) {
   if (priority === "urgent") return "bg-red-500/20 text-red-400";
-  if (priority === "high") return "bg-orange-500/20 text-orange-400";
-  if (priority === "medium") return "bg-blue-500/20 text-blue-400";
-  return "bg-zinc-500/20 text-zinc-400";
+  if (priority === "high") return "bg-orange-500/20 text-orange-600 dark:text-orange-400";
+  if (priority === "medium") return "bg-blue-500/20 text-blue-600 dark:text-blue-400";
+  return "bg-muted text-muted-foreground";
 }
 
 function categoryIcon(category: string) {
@@ -143,7 +149,11 @@ export function SupportMailInboxPanel({
   const [composeOpen, setComposeOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [compose, setCompose] = useState({ to: "", subject: "", body: "" });
+  const [composeAttachments, setComposeAttachments] = useState<MailAttachment[]>([]);
+  const [replyAttachments, setReplyAttachments] = useState<MailAttachment[]>([]);
+  const [previewAttachmentUrl, setPreviewAttachmentUrl] = useState<string | null>(null);
   const [logForm, setLogForm] = useState({ fromEmail: "", fromName: "", subject: "", body: "", category: "general" });
+  const [compactDialogOpen, setCompactDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -180,6 +190,8 @@ export function SupportMailInboxPanel({
   const openThread = async (thread: SupportMailThread) => {
     setSelectedThread(thread);
     setReply("");
+    setReplyAttachments([]);
+    if (compact) setCompactDialogOpen(true);
     try {
       const msgs = await staffFetch<SupportMailMessage[]>(`${apiBase}/threads/${encodeURIComponent(thread.threadId)}`);
       setConversation(msgs);
@@ -190,6 +202,7 @@ export function SupportMailInboxPanel({
       }
     } catch (e: any) {
       toast({ title: "Could not load conversation", description: e.message, variant: "destructive" });
+      if (compact) setCompactDialogOpen(false);
     }
   };
 
@@ -212,15 +225,19 @@ export function SupportMailInboxPanel({
 
   const sendReply = async () => {
     const latestInbound = [...conversation].reverse().find(m => m.direction === "inbound") || conversation[conversation.length - 1];
-    if (!latestInbound || !reply.trim()) return;
+    if (!latestInbound || (!reply.trim() && replyAttachments.length === 0)) return;
     setPending(true);
     try {
       await staffFetch(`${apiBase}/${latestInbound.id}/reply`, {
         method: "POST",
-        body: JSON.stringify({ body: reply.trim() }),
+        body: JSON.stringify({
+          body: reply.trim() || "(See attachments)",
+          attachmentIds: replyAttachments.map(a => a.id),
+        }),
       });
       toast({ title: "Reply sent to client" });
       setReply("");
+      setReplyAttachments([]);
       await load();
       if (selectedThread) await openThread(selectedThread);
     } catch (e: any) {
@@ -258,27 +275,166 @@ export function SupportMailInboxPanel({
   };
 
   const statCards = [
-    { label: "Unread", value: stats?.unread, color: "text-rose-400" },
-    { label: "Unassigned", value: stats?.unassigned, color: "text-amber-400" },
-    { label: "My Queue", value: stats?.myQueue, color: "text-sky-400" },
+    { label: "Unread", value: stats?.unread, color: "text-rose-600 dark:text-rose-400" },
+    { label: "Unassigned", value: stats?.unassigned, color: "text-amber-600 dark:text-amber-400" },
+    { label: "My Queue", value: stats?.myQueue, color: "text-sky-600 dark:text-sky-400" },
     { label: "SLA Breached", value: stats?.slaBreached, color: "text-red-400" },
-    { label: "Today", value: stats?.today, color: "text-green-400" },
+    { label: "Today", value: stats?.today, color: "text-green-700 dark:text-green-400" },
   ];
 
   const rootMessage = conversation.find(m => m.direction === "inbound") || conversation[0];
 
-  return (
-    <div className="space-y-4">
-      {!compact && title && (
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+  const conversationBody = selectedThread && conversation.length > 0 ? (
+    <>
+      <div className="space-y-3 border-b border-border dark:border-white/10 pb-3 mb-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
+            <p className="font-semibold text-sm">{selectedThread.subject}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {selectedThread.fromName || selectedThread.fromEmail}
+              {selectedThread.userName && ` · Platform: ${selectedThread.userName}`}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {rootMessage?.ticketId ? (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs">Ticket #{rootMessage.ticketId}</Badge>
+            ) : rootMessage ? (
+              <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pending} onClick={async () => {
+                setPending(true);
+                try {
+                  const r = await staffFetch<{ ticketId: number }>(`${apiBase}/${rootMessage.id}/create-ticket`, { method: "POST" });
+                  toast({ title: `Ticket #${r.ticketId} created` });
+                  await load();
+                  await openThread(selectedThread);
+                } catch (e: any) {
+                  toast({ title: "Failed", description: e.message, variant: "destructive" });
+                } finally { setPending(false); }
+              }}>
+                <Ticket className="h-3 w-3 mr-1" />Create Ticket
+              </Button>
+            ) : null}
+            {rootMessage && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={async () => {
+                await staffFetch(`${apiBase}/${rootMessage.id}`, { method: "PATCH", body: JSON.stringify({ status: "archived" }) });
+                toast({ title: "Archived" });
+                setSelectedThread(null);
+                setConversation([]);
+                setCompactDialogOpen(false);
+                load();
+              }}>
+                <Archive className="h-3 w-3 mr-1" />Archive
+              </Button>
+            )}
+          </div>
+        </div>
+        {rootMessage && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Assign to</Label>
+            <Select
+              value={rootMessage.assignedToUserId ? String(rootMessage.assignedToUserId) : "none"}
+              onValueChange={v => assignAgent(rootMessage.id, v)}
+            >
+              <SelectTrigger className="h-8 w-40 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 text-xs">
+                <SelectValue placeholder="Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Unassigned</SelectItem>
+                {agents.map(a => (
+                  <SelectItem key={a.id} value={String(a.id)}>{a.fullName || a.email}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {rootMessage.slaDueAt && (
+              <Badge variant="outline" className={cn("text-xs", slaBadge(rootMessage.slaStatus))}>
+                <Clock className="h-3 w-3 mr-1" />
+                SLA: {format(new Date(rootMessage.slaDueAt), "MMM d, HH:mm")}
+              </Badge>
+            )}
+          </div>
+        )}
+      </div>
+      <ScrollArea className={compact ? "max-h-[min(50vh,360px)]" : "flex-1 max-h-[280px]"}>
+        <div className="space-y-3 pr-2">
+          {conversation.map(msg => (
+            <div
+              key={msg.id}
+              className={cn(
+                "rounded-lg p-3 border max-w-[95%]",
+                msg.direction === "outbound"
+                  ? "ml-auto bg-amber-500/10 border-amber-500/20"
+                  : "mr-auto bg-muted/60 dark:bg-white/5 border-border dark:border-white/10",
+              )}
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-xs font-medium">
+                  {msg.direction === "outbound" ? "Support Team" : msg.fromName || msg.fromEmail}
+                </p>
+                <span className="text-[10px] text-muted-foreground">{format(new Date(msg.receivedAt), "PPp")}</span>
+              </div>
+              <p className="text-sm whitespace-pre-wrap">{msg.bodyText || "(No content)"}</p>
+              {!!msg.attachments?.length && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {msg.attachments.map(att => (
+                    <Button
+                      key={att.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setPreviewAttachmentUrl(att.url)}
+                    >
+                      <Paperclip className="h-3 w-3 mr-1" />
+                      {att.filename}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+      <div className="border-t border-border dark:border-white/10 pt-3 mt-3 space-y-2">
+        {templates.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {templates.slice(0, 4).map(t => (
+              <Button key={t.id} variant="outline" size="sm" className="text-xs h-7" onClick={() => applyTemplate(t)}>
+                {t.name}
+              </Button>
+            ))}
+          </div>
+        )}
+        <Textarea
+          value={reply}
+          onChange={e => setReply(e.target.value)}
+          placeholder="Reply to client..."
+          rows={3}
+          className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
+        />
+        <MailAttachmentPicker
+          apiBase={apiBase}
+          attachments={replyAttachments}
+          onChange={setReplyAttachments}
+          disabled={pending}
+        />
+        <Button size="sm" className="bg-amber-500 text-black w-full sm:w-auto" onClick={sendReply} disabled={pending || (!reply.trim() && replyAttachments.length === 0)}>
+          <Send className="h-4 w-4 mr-1" />Send Reply
+        </Button>
+      </div>
+    </>
+  ) : null;
+
+  return (
+    <div className={compact ? "space-y-4 min-w-0" : STAFF_PAGE_STACK}>
+      {!compact && title && (
+        <div className={STAFF_HEADER_ROW}>
+          <div className="min-w-0">
             <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Inbox className="h-5 w-5 text-sky-400" />
+              <Inbox className="h-5 w-5 text-sky-600 dark:text-sky-400 shrink-0" />
               {title}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">{description}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className={APP_ACTION_ROW}>
             <Button variant="outline" size="sm" onClick={() => setLogOpen(true)}><Plus className="h-4 w-4 mr-1" />Log Email</Button>
             <Button variant="outline" size="sm" onClick={() => setComposeOpen(true)}><Send className="h-4 w-4 mr-1" />Compose</Button>
             <Button variant="outline" size="sm" onClick={syncInbox} disabled={syncing}>
@@ -298,14 +454,16 @@ export function SupportMailInboxPanel({
       )}
 
       {!compact && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className={STAFF_STAT_GRID}>
           {statCards.map(c => (
-            <Card key={c.label} className="border-white/10 bg-white/5">
-              <CardContent className="p-3">
-                <p className={cn("text-xl font-bold", c.color)}>{loading ? "—" : c.value ?? 0}</p>
-                <p className="text-xs text-muted-foreground">{c.label}</p>
-              </CardContent>
-            </Card>
+            <KpiStatCard
+              key={c.label}
+              compact
+              label={c.label}
+              loading={loading}
+              value={c.value ?? 0}
+              iconClassName={c.color}
+            />
           ))}
         </div>
       )}
@@ -313,7 +471,7 @@ export function SupportMailInboxPanel({
       <div className={cn("grid gap-3", compact ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-12 min-h-[560px]")}>
         {/* Folders sidebar */}
         {!compact && (
-          <Card className="border-white/10 bg-white/5 xl:col-span-2">
+          <Card className={cn(STAFF_CARD, "xl:col-span-2")}>
             <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Mailboxes</CardTitle></CardHeader>
             <CardContent className="p-2 space-y-1">
               {FOLDERS.map(f => (
@@ -323,7 +481,7 @@ export function SupportMailInboxPanel({
                   onClick={() => setFolder(f.id)}
                   className={cn(
                     "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                    folder === f.id ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" : "hover:bg-white/5 text-muted-foreground",
+                    folder === f.id ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20" : "hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5 text-muted-foreground",
                   )}
                 >
                   <f.icon className="h-4 w-4 shrink-0" />
@@ -332,7 +490,7 @@ export function SupportMailInboxPanel({
                   {f.id === "unassigned" && stats?.unassigned ? <Badge className="ml-auto text-[10px]">{stats.unassigned}</Badge> : null}
                 </button>
               ))}
-              <div className="pt-3 border-t border-white/10 mt-2">
+              <div className="pt-3 border-t border-border dark:border-white/10 mt-2">
                 <p className="text-[10px] uppercase text-muted-foreground px-3 mb-2">Category</p>
                 {CATEGORIES.map(c => (
                   <button
@@ -341,7 +499,7 @@ export function SupportMailInboxPanel({
                     onClick={() => setCategory(c.id)}
                     className={cn(
                       "w-full text-left px-3 py-1.5 rounded text-xs",
-                      category === c.id ? "text-amber-400 bg-white/5" : "text-muted-foreground hover:bg-white/5",
+                      category === c.id ? "text-amber-600 dark:text-amber-400 bg-muted/60 dark:bg-white/5" : "text-muted-foreground hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5",
                     )}
                   >
                     {c.label}
@@ -353,7 +511,7 @@ export function SupportMailInboxPanel({
         )}
 
         {/* Thread list */}
-        <Card className={cn("border-white/10 bg-white/5", compact ? "col-span-1" : "xl:col-span-3")}>
+        <Card className={cn(STAFF_CARD, compact ? "col-span-1" : "xl:col-span-3")}>
           <CardHeader className="pb-2 space-y-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -361,7 +519,7 @@ export function SupportMailInboxPanel({
                 placeholder="Search conversations..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-9 bg-white/5 border-white/10 h-9"
+                className="pl-9 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-9"
               />
             </div>
           </CardHeader>
@@ -380,8 +538,8 @@ export function SupportMailInboxPanel({
                       type="button"
                       onClick={() => openThread(thread)}
                       className={cn(
-                        "w-full text-left p-3 border-b border-white/5 hover:bg-white/5",
-                        selectedThread?.threadId === thread.threadId && "bg-white/10 border-l-2 border-l-amber-500",
+                        "w-full text-left p-3 border-b border-border/80 dark:border-white/5 hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5 cursor-pointer transition-colors",
+                        selectedThread?.threadId === thread.threadId && "bg-muted dark:bg-white/10 border-l-2 border-l-amber-500",
                       )}
                     >
                       <div className="flex items-start gap-2">
@@ -416,7 +574,7 @@ export function SupportMailInboxPanel({
 
         {/* Conversation */}
         {!compact && (
-          <Card className="border-white/10 bg-white/5 xl:col-span-7 flex flex-col">
+          <Card className={cn(STAFF_CARD, "xl:col-span-7 flex flex-col min-w-0")}>
             {!selectedThread || !conversation.length ? (
               <CardContent className="flex flex-col items-center justify-center flex-1 py-24 text-muted-foreground">
                 <Mail className="h-12 w-12 mb-3 opacity-30" />
@@ -424,143 +582,78 @@ export function SupportMailInboxPanel({
                 <p className="text-xs mt-1">Auto-sync runs every 5 minutes when IMAP is configured</p>
               </CardContent>
             ) : (
-              <>
-                <CardHeader className="border-b border-white/10 space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-base">{selectedThread.subject}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {selectedThread.fromName || selectedThread.fromEmail}
-                        {selectedThread.userName && ` · Platform: ${selectedThread.userName}`}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {rootMessage?.ticketId ? (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-400">Ticket #{rootMessage.ticketId}</Badge>
-                      ) : rootMessage ? (
-                        <Button size="sm" variant="outline" disabled={pending} onClick={async () => {
-                          setPending(true);
-                          try {
-                            const r = await staffFetch<{ ticketId: number }>(`${apiBase}/${rootMessage.id}/create-ticket`, { method: "POST" });
-                            toast({ title: `Ticket #${r.ticketId} created` });
-                            await load();
-                            await openThread(selectedThread);
-                          } catch (e: any) {
-                            toast({ title: "Failed", description: e.message, variant: "destructive" });
-                          } finally { setPending(false); }
-                        }}>
-                          <Ticket className="h-3 w-3 mr-1" />Create Ticket
-                        </Button>
-                      ) : null}
-                      {rootMessage && (
-                        <Button size="sm" variant="ghost" onClick={async () => {
-                          await staffFetch(`${apiBase}/${rootMessage.id}`, { method: "PATCH", body: JSON.stringify({ status: "archived" }) });
-                          toast({ title: "Archived" });
-                          setSelectedThread(null);
-                          setConversation([]);
-                          load();
-                        }}>
-                          <Archive className="h-3 w-3 mr-1" />Archive
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  {rootMessage && (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs text-muted-foreground">Assign to</Label>
-                        <Select
-                          value={rootMessage.assignedToUserId ? String(rootMessage.assignedToUserId) : "none"}
-                          onValueChange={v => assignAgent(rootMessage.id, v)}
-                        >
-                          <SelectTrigger className="h-8 w-44 bg-white/5 border-white/10 text-xs">
-                            <SelectValue placeholder="Unassigned" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Unassigned</SelectItem>
-                            {agents.map(a => (
-                              <SelectItem key={a.id} value={String(a.id)}>{a.fullName || a.email}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {rootMessage.slaDueAt && (
-                        <Badge variant="outline" className={cn("text-xs", slaBadge(rootMessage.slaStatus))}>
-                          <Clock className="h-3 w-3 mr-1" />
-                          SLA: {format(new Date(rootMessage.slaDueAt), "MMM d, HH:mm")}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </CardHeader>
-                <CardContent className="flex flex-col flex-1 p-0 min-h-0">
-                  <ScrollArea className="flex-1 max-h-[280px] p-4">
-                    <div className="space-y-3">
-                      {conversation.map(msg => (
-                        <div
-                          key={msg.id}
-                          className={cn(
-                            "rounded-lg p-3 border max-w-[90%]",
-                            msg.direction === "outbound"
-                              ? "ml-auto bg-amber-500/10 border-amber-500/20"
-                              : "mr-auto bg-white/5 border-white/10",
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <p className="text-xs font-medium">
-                              {msg.direction === "outbound" ? "Support Team" : msg.fromName || msg.fromEmail}
-                            </p>
-                            <span className="text-[10px] text-muted-foreground">{format(new Date(msg.receivedAt), "PPp")}</span>
-                          </div>
-                          <p className="text-sm whitespace-pre-wrap">{msg.bodyText || "(No content)"}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                  <div className="border-t border-white/10 p-4 space-y-2 mt-auto">
-                    {templates.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {templates.slice(0, 4).map(t => (
-                          <Button key={t.id} variant="outline" size="sm" className="text-xs h-7" onClick={() => applyTemplate(t)}>
-                            {t.name}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                    <Textarea
-                      value={reply}
-                      onChange={e => setReply(e.target.value)}
-                      placeholder="Reply to client..."
-                      rows={3}
-                      className="bg-white/5 border-white/10"
-                    />
-                    <Button size="sm" className="bg-amber-500 text-black" onClick={sendReply} disabled={pending || !reply.trim()}>
-                      <Send className="h-4 w-4 mr-1" />Send Reply
-                    </Button>
-                  </div>
-                </CardContent>
-              </>
+              <CardContent className="flex flex-col flex-1 p-4 min-h-0">
+                {conversationBody}
+              </CardContent>
             )}
           </Card>
         )}
       </div>
 
-      <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-        <DialogContent className="bg-[#0a1628] border-white/10">
+      {compact && (
+        <Dialog
+          open={compactDialogOpen}
+          onOpenChange={open => {
+            setCompactDialogOpen(open);
+            if (!open) {
+              setSelectedThread(null);
+              setConversation([]);
+              setReply("");
+            }
+          }}
+        >
+          <DialogContent className="bg-background border-border dark:border-white/10 max-w-2xl max-h-[min(90dvh,720px)] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogHeader className="px-6 pt-6 pb-3 border-b border-border dark:border-white/10 shrink-0">
+              <DialogTitle className="flex items-center gap-2 text-left">
+                <MessageSquare className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+                Client Conversation
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+              {!selectedThread || !conversation.length ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                conversationBody
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <Dialog open={composeOpen} onOpenChange={open => {
+        setComposeOpen(open);
+        if (!open) setComposeAttachments([]);
+      }}>
+        <DialogContent className="bg-[#0a1628] border-border dark:border-white/10">
           <DialogHeader><DialogTitle>Compose Email</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>To</Label><Input value={compose.to} onChange={e => setCompose(c => ({ ...c, to: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-            <div><Label>Subject</Label><Input value={compose.subject} onChange={e => setCompose(c => ({ ...c, subject: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-            <div><Label>Message</Label><Textarea value={compose.body} onChange={e => setCompose(c => ({ ...c, body: e.target.value }))} rows={5} className="bg-white/5 border-white/10" /></div>
+            <div><Label>To</Label><Input value={compose.to} onChange={e => setCompose(c => ({ ...c, to: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <div><Label>Subject</Label><Input value={compose.subject} onChange={e => setCompose(c => ({ ...c, subject: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <div><Label>Message</Label><Textarea value={compose.body} onChange={e => setCompose(c => ({ ...c, body: e.target.value }))} rows={5} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <MailAttachmentPicker
+              apiBase={apiBase}
+              attachments={composeAttachments}
+              onChange={setComposeAttachments}
+              disabled={pending}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setComposeOpen(false)}>Cancel</Button>
             <Button className="bg-amber-500 text-black" disabled={pending} onClick={async () => {
               setPending(true);
               try {
-                await staffFetch(`${apiBase}/send`, { method: "POST", body: JSON.stringify(compose) });
+                await staffFetch(`${apiBase}/send`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    ...compose,
+                    attachmentIds: composeAttachments.map(a => a.id),
+                  }),
+                });
                 toast({ title: "Email sent" });
                 setComposeOpen(false);
+                setComposeAttachments([]);
                 load();
               } catch (e: any) {
                 toast({ title: "Send failed", description: e.message, variant: "destructive" });
@@ -571,12 +664,12 @@ export function SupportMailInboxPanel({
       </Dialog>
 
       <Dialog open={logOpen} onOpenChange={setLogOpen}>
-        <DialogContent className="bg-[#0a1628] border-white/10">
+        <DialogContent className="bg-[#0a1628] border-border dark:border-white/10">
           <DialogHeader><DialogTitle>Log Incoming Email</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>From Email</Label><Input value={logForm.fromEmail} onChange={e => setLogForm(f => ({ ...f, fromEmail: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-            <div><Label>Subject</Label><Input value={logForm.subject} onChange={e => setLogForm(f => ({ ...f, subject: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-            <div><Label>Message</Label><Textarea value={logForm.body} onChange={e => setLogForm(f => ({ ...f, body: e.target.value }))} rows={4} className="bg-white/5 border-white/10" /></div>
+            <div><Label>From Email</Label><Input value={logForm.fromEmail} onChange={e => setLogForm(f => ({ ...f, fromEmail: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <div><Label>Subject</Label><Input value={logForm.subject} onChange={e => setLogForm(f => ({ ...f, subject: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <div><Label>Message</Label><Textarea value={logForm.body} onChange={e => setLogForm(f => ({ ...f, body: e.target.value }))} rows={4} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLogOpen(false)}>Cancel</Button>
@@ -594,6 +687,13 @@ export function SupportMailInboxPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SecureUploadPreviewDialog
+        open={!!previewAttachmentUrl}
+        onOpenChange={open => { if (!open) setPreviewAttachmentUrl(null); }}
+        url={previewAttachmentUrl}
+        title="Mail attachment"
+      />
     </div>
   );
 }

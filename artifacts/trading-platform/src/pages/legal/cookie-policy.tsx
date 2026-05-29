@@ -14,30 +14,30 @@ export default function CookiePolicyPage() {
         <h2>2. How We Use Cookies</h2>
         <p>Kuber Quant uses cookies for the following purposes:</p>
 
-        <h3 className="text-base font-semibold text-white mt-4 mb-2">Strictly Necessary Cookies</h3>
+        <h3 className="text-base font-semibold text-foreground mt-4 mb-2">Strictly Necessary Cookies</h3>
         <p>These cookies are essential for the platform to function. They cannot be disabled.</p>
         <div className="overflow-x-auto mt-3">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b border-white/10">
+              <tr className="border-b border-border dark:border-white/10">
                 <th className="text-left py-2 pr-4 text-muted-foreground font-medium">Cookie</th>
                 <th className="text-left py-2 pr-4 text-muted-foreground font-medium">Purpose</th>
                 <th className="text-left py-2 text-muted-foreground font-medium">Duration</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-white/5">
-                <td className="py-2 pr-4 font-mono text-amber-400 text-xs">auth_token</td>
+              <tr className="border-b border-border/80 dark:border-white/5">
+                <td className="py-2 pr-4 font-mono text-amber-600 dark:text-amber-400 text-xs">auth_token</td>
                 <td className="py-2 pr-4">Maintains your authenticated session</td>
                 <td className="py-2">Session / 7 days</td>
               </tr>
-              <tr className="border-b border-white/5">
-                <td className="py-2 pr-4 font-mono text-amber-400 text-xs">csrf_token</td>
+              <tr className="border-b border-border/80 dark:border-white/5">
+                <td className="py-2 pr-4 font-mono text-amber-600 dark:text-amber-400 text-xs">csrf_token</td>
                 <td className="py-2 pr-4">Prevents cross-site request forgery attacks</td>
                 <td className="py-2">Session</td>
               </tr>
-              <tr className="border-b border-white/5">
-                <td className="py-2 pr-4 font-mono text-amber-400 text-xs">portal_type</td>
+              <tr className="border-b border-border/80 dark:border-white/5">
+                <td className="py-2 pr-4 font-mono text-amber-600 dark:text-amber-400 text-xs">portal_type</td>
                 <td className="py-2 pr-4">Identifies staff vs user portal routing</td>
                 <td className="py-2">Session</td>
               </tr>
@@ -45,30 +45,30 @@ export default function CookiePolicyPage() {
           </table>
         </div>
 
-        <h3 className="text-base font-semibold text-white mt-6 mb-2">Functional Cookies</h3>
+        <h3 className="text-base font-semibold text-foreground mt-6 mb-2">Functional Cookies</h3>
         <p>These cookies remember your preferences and improve your experience.</p>
         <div className="overflow-x-auto mt-3">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b border-white/10">
+              <tr className="border-b border-border dark:border-white/10">
                 <th className="text-left py-2 pr-4 text-muted-foreground font-medium">Cookie</th>
                 <th className="text-left py-2 pr-4 text-muted-foreground font-medium">Purpose</th>
                 <th className="text-left py-2 text-muted-foreground font-medium">Duration</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-white/5">
-                <td className="py-2 pr-4 font-mono text-amber-400 text-xs">theme_pref</td>
-                <td className="py-2 pr-4">Stores your display theme preference</td>
+              <tr className="border-b border-border/80 dark:border-white/5">
+                <td className="py-2 pr-4 font-mono text-amber-600 dark:text-amber-400 text-xs">kq-theme</td>
+                <td className="py-2 pr-4">Stores your light, dark, or system theme preference</td>
                 <td className="py-2">1 year</td>
               </tr>
-              <tr className="border-b border-white/5">
-                <td className="py-2 pr-4 font-mono text-amber-400 text-xs">lang_pref</td>
+              <tr className="border-b border-border/80 dark:border-white/5">
+                <td className="py-2 pr-4 font-mono text-amber-600 dark:text-amber-400 text-xs">lang_pref</td>
                 <td className="py-2 pr-4">Stores your language preference</td>
                 <td className="py-2">1 year</td>
               </tr>
-              <tr className="border-b border-white/5">
-                <td className="py-2 pr-4 font-mono text-amber-400 text-xs">sidebar_state</td>
+              <tr className="border-b border-border/80 dark:border-white/5">
+                <td className="py-2 pr-4 font-mono text-amber-600 dark:text-amber-400 text-xs">sidebar_state</td>
                 <td className="py-2 pr-4">Remembers sidebar collapsed/expanded state</td>
                 <td className="py-2">30 days</td>
               </tr>
@@ -76,25 +76,25 @@ export default function CookiePolicyPage() {
           </table>
         </div>
 
-        <h3 className="text-base font-semibold text-white mt-6 mb-2">Analytics Cookies</h3>
+        <h3 className="text-base font-semibold text-foreground mt-6 mb-2">Analytics Cookies</h3>
         <p>These cookies help us understand how users interact with the platform so we can improve it. All data is anonymised and aggregated.</p>
         <div className="overflow-x-auto mt-3">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b border-white/10">
+              <tr className="border-b border-border dark:border-white/10">
                 <th className="text-left py-2 pr-4 text-muted-foreground font-medium">Cookie</th>
                 <th className="text-left py-2 pr-4 text-muted-foreground font-medium">Purpose</th>
                 <th className="text-left py-2 text-muted-foreground font-medium">Duration</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-white/5">
-                <td className="py-2 pr-4 font-mono text-amber-400 text-xs">_session_id</td>
+              <tr className="border-b border-border/80 dark:border-white/5">
+                <td className="py-2 pr-4 font-mono text-amber-600 dark:text-amber-400 text-xs">_session_id</td>
                 <td className="py-2 pr-4">Tracks anonymised session behaviour</td>
                 <td className="py-2">Session</td>
               </tr>
-              <tr className="border-b border-white/5">
-                <td className="py-2 pr-4 font-mono text-amber-400 text-xs">_page_views</td>
+              <tr className="border-b border-border/80 dark:border-white/5">
+                <td className="py-2 pr-4 font-mono text-amber-600 dark:text-amber-400 text-xs">_page_views</td>
                 <td className="py-2 pr-4">Counts page views for usage analytics</td>
                 <td className="py-2">30 days</td>
               </tr>
@@ -147,7 +147,7 @@ export default function CookiePolicyPage() {
       <section>
         <h2>7. Contact Us</h2>
         <p>
-          For questions about our use of cookies, contact us at <span className="text-amber-400">privacy@kuberquant.com</span>.
+          For questions about our use of cookies, contact us at <span className="text-amber-600 dark:text-amber-400">privacy@kuberquant.com</span>.
         </p>
       </section>
     </LegalLayout>

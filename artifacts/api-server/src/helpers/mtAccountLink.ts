@@ -1,5 +1,5 @@
 import { db, mt5AccountsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc } from "@workspace/db/orm";
 import { encryptSensitive, decryptSensitive } from "./encryption";
 import { validateMtTradingCredentials, type MtTradingCredentials } from "./mtCredentialsValidation";
 

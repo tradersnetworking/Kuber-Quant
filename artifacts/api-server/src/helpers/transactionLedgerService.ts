@@ -6,11 +6,14 @@ import {
   siteSettingsTable,
   type Transaction,
 } from "@workspace/db";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, gte, lte } from "@workspace/db/orm";
 import { creditWallet, debitWallet, mapLedgerEntry, WalletError } from "./walletService";
 import { sendTransactionalEmail, buildTransactionEmail } from "./mailer";
 import { notifyUser } from "./notificationService";
 import { convertToUsd } from "./exchangeRateService";
+import { accrueReferralCommission } from "./referralCommissionService";
+import { emitN8nEvent } from "./n8nWebhookService";
+import { emitSiemEvent } from "./siemExportService";
 
 const CRYPTO = new Set(["BTC", "ETH", "USDT"]);
 
@@ -19,28 +22,52 @@ async function getSetting(key: string, fallback: string): Promise<string> {
   return row?.value ?? fallback;
 }
 
-export async function getLedgerEntriesForTransaction(transactionId: number) {
-  return db.select().from(walletLedgerTable).where(and(
-    eq(walletLedgerTable.referenceType, "transaction"),
-    eq(walletLedgerTable.referenceId, transactionId),
-  ));
+async function transactionAmountUsd(txn: typeof transactionsTable.$inferSelect): Promise<number> {
+  const isCrypto = CRYPTO.has(txn.currency.toUpperCase());
+  return isCrypto ? Number(txn.amount) : await convertToUsd(Number(txn.amount), txn.currency);
 }
 
-export async function hasLedgerHoldForTransaction(transactionId: number) {
-  const rows = await getLedgerEntriesForTransaction(transactionId);
-  return rows.some(r => r.type === "withdrawal" && Number(r.amount) < 0);
-}
+export type ApproveTransactionResult = Transaction & {
+  pendingSecondApproval?: boolean;
+  message?: string;
+};
 
 export async function approveTransaction(opts: {
   transactionId: number;
   reviewerUserId: number;
   adminNotes?: string;
-}): Promise<Transaction> {
+  skipDualApproval?: boolean;
+}): Promise<ApproveTransactionResult> {
   const [existing] = await db.select().from(transactionsTable)
     .where(eq(transactionsTable.id, opts.transactionId)).limit(1);
   if (!existing) throw new WalletError("Transaction not found", "NOT_FOUND");
   if (existing.status !== "pending") {
     throw new WalletError("Transaction is not pending", "INVALID_STATUS");
+  }
+
+  const dualThreshold = Number(await getSetting("dual_approval_threshold_usd", "10000"));
+  const amountUsd = await transactionAmountUsd(existing);
+  const needsDual = !opts.skipDualApproval && amountUsd >= dualThreshold;
+
+  if (needsDual) {
+    if (!existing.firstReviewedByUserId) {
+      const now = new Date();
+      const [updated] = await db.update(transactionsTable).set({
+        firstReviewedByUserId: opts.reviewerUserId,
+        firstReviewedAt: now,
+        adminNotes: opts.adminNotes || existing.adminNotes,
+        updatedAt: now,
+      }).where(eq(transactionsTable.id, opts.transactionId)).returning();
+      return {
+        ...updated,
+        pendingSecondApproval: true,
+        message: `First approval recorded. Requires second admin approval (≥ $${dualThreshold} USD).`,
+      };
+    }
+
+    if (existing.firstReviewedByUserId === opts.reviewerUserId) {
+      throw new WalletError("Second approval must be from a different admin", "DUAL_APPROVAL_SAME_ADMIN");
+    }
   }
 
   if (existing.type === "deposit") {
@@ -113,9 +140,55 @@ export async function approveTransaction(opts: {
       category: txn.type === "deposit" ? "deposit" : "withdrawal",
       actionUrl: "/transactions",
     });
+
+    if (txn.type === "deposit") {
+      await accrueReferralCommission({
+        referredUserId: txn.userId,
+        event: "deposit",
+        baseAmountUsd: amountUsd,
+        referenceId: txn.id,
+      }).catch(() => {});
+      emitN8nEvent("deposit.approved", {
+        transactionId: txn.id,
+        userId: txn.userId,
+        amount: txn.amount,
+        currency: txn.currency,
+        amountUsd,
+      });
+    } else if (txn.type === "withdrawal") {
+      emitN8nEvent("withdrawal.approved", {
+        transactionId: txn.id,
+        userId: txn.userId,
+        amount: txn.amount,
+        currency: txn.currency,
+        amountUsd,
+      });
+    }
+
+    emitSiemEvent({
+      category: "financial",
+      action: `${txn.type}.approved`,
+      severity: amountUsd >= 10000 ? "warning" : "info",
+      userId: txn.userId,
+      entity: "transaction",
+      entityId: txn.id,
+      metadata: { reviewerUserId: opts.reviewerUserId, amountUsd, currency: txn.currency },
+    });
   }
 
   return txn;
+}
+
+export async function getLedgerEntriesForTransaction(transactionId: number) {
+  return db.select().from(walletLedgerTable).where(and(
+    eq(walletLedgerTable.referenceType, "transaction"),
+    eq(walletLedgerTable.referenceId, transactionId),
+  ));
+}
+
+export async function hasLedgerHoldForTransaction(transactionId: number) {
+  const rows = await getLedgerEntriesForTransaction(transactionId);
+  return rows.some(r => r.type === "withdrawal" && Number(r.amount) < 0);
 }
 
 export async function rejectTransaction(opts: {
@@ -192,6 +265,8 @@ export async function getPlatformLedger(opts: {
   types?: ("deposit" | "withdrawal")[];
   limit?: number;
   offset?: number;
+  from?: Date | null;
+  to?: Date | null;
 }) {
   const limit = Math.min(opts.limit ?? 100, 500);
   const offset = opts.offset ?? 0;
@@ -203,6 +278,12 @@ export async function getPlatformLedger(opts: {
     conditions.push(inArray(walletLedgerTable.type, opts.types));
   } else {
     conditions.push(inArray(walletLedgerTable.type, ["deposit", "withdrawal", "adjustment"]));
+  }
+  if (opts.from) {
+    conditions.push(gte(walletLedgerTable.createdAt, opts.from));
+  }
+  if (opts.to) {
+    conditions.push(lte(walletLedgerTable.createdAt, opts.to));
   }
 
   const entries = await db.select().from(walletLedgerTable)

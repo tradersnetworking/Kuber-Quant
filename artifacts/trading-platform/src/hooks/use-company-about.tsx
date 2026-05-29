@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { publicFetchJson } from "@/lib/api-fetch";
 
 export type AboutCategory =
   | "registration"
@@ -60,11 +61,7 @@ export function useCompanyAbout() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/about")
-      .then(async res => {
-        if (!res.ok) throw new Error("Failed to load about content");
-        return res.json() as Promise<CompanyAboutSection>;
-      })
+    publicFetchJson<CompanyAboutSection>("/about")
       .then(json => {
         if (active) setData({ ...DEFAULT, ...json });
       })

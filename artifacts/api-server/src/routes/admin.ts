@@ -1,12 +1,12 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import {
   db, usersTable, transactionsTable, investmentsTable,
   kycRecordsTable, investmentPlansTable, mt5AccountsTable,
   ticketsTable, ticketRepliesTable, referralEarningsTable,
   paymentGatewaysTable, siteSettingsTable, notificationsTable,
-  userPaymentAccountsTable,
+  userPaymentAccountsTable, promoterApplicationsTable, documentValidationsTable,
 } from "@workspace/db";
-import { eq, desc, sql, asc, inArray, and } from "drizzle-orm";
+import { eq, desc, sql, asc, inArray, and } from "@workspace/db/orm";
 import bcrypt from "bcryptjs";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { mapUser } from "./auth";
@@ -23,28 +23,39 @@ import {
   countPlatformLedger,
   getLedgerQueueSummary,
 } from "../helpers/transactionLedgerService";
+import { screenKycWithProvider } from "../helpers/amlProviderService";
 import { logAudit } from "../helpers/audit";
+import { emitN8nEvent } from "../helpers/n8nWebhookService";
 import { mapTxn as mapTxnBase } from "./transactions";
 import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
-import { canViewRole, filterUsersByViewerRole, assignableRoles } from "../helpers/roleHierarchy";
+import { canViewRole, filterUsersByViewerRole, assignableRoles, visibleRolesFor } from "../helpers/roleHierarchy";
+import { invalidateUserSessions } from "../helpers/sessionService";
+import { mapAdminPaymentGateway, normalizeGatewayWrite } from "../helpers/paymentCredentialsService";
 import { mapPaymentAccount } from "../helpers/paymentAccountSync";
+import { toNumericColumn, toNumericColumnOrDefault } from "../lib/numericField";
+import { parseQueryDateRange, computePlatformFinancialStats, inDateRange, parseStaffStatsPeriod, resolveStatsDateRange } from "../helpers/platformStatsService";
+import { computePlatformLedgerAudit } from "../helpers/platformLedgerAuditService";
+import { getExchangeRates, usdToInr } from "../helpers/exchangeRateService";
+import {
+  handleGetReconciliation,
+  handleGetTreasury,
+  handlePostReconciliationRun,
+} from "../helpers/treasuryRouteHandlers";
+import { respondSchemaDrift } from "../helpers/schemaErrorUtil";
+import {
+  fetchVisibleUserRows,
+  fetchVisibleUserDetailRows,
+  fetchTransactionsForUserIds,
+  fetchInvestmentsForUserIds,
+  fetchRecentTransactionsForUserIds,
+  countActiveInvestmentsForUserIds,
+  sumInvestmentProfitForUserIds,
+  countPendingTransactionsForUserIds,
+  fetchOperationalCounts,
+} from "../helpers/platformDashboardCounts";
 
 const qrCodeUpload = createUploadMiddleware("qr_codes");
 const brandingUpload = createUploadMiddleware("branding");
-
-function mapGateway(g: any) {
-  return {
-    id: g.id, name: g.name, type: g.type, symbol: g.symbol || null,
-    network: g.network || null, description: g.description || null,
-    walletAddress: g.walletAddress || null, upiId: g.upiId || null,
-    qrCodeUrl: g.qrCodeUrl || null,
-    minAmount: Number(g.minAmount || 0),
-    maxAmount: g.maxAmount ? Number(g.maxAmount) : null,
-    isEnabled: g.isEnabled, sortOrder: g.sortOrder,
-    extraConfig: g.extraConfig || {},
-    createdAt: g.createdAt.toISOString(),
-  };
-}
 
 const router = Router();
 
@@ -63,20 +74,20 @@ function mapTxn(t: any, email?: string, userName?: string, reviewerEmail?: strin
 
 router.get("/analytics", requireAuth, requireAdmin, async (req, res) => {
   const viewerRole = (req as any).user.role as string;
-  const txns = await db.select().from(transactionsTable).orderBy(transactionsTable.createdAt);
-  const allUsers = await db.select().from(usersTable).orderBy(usersTable.createdAt);
-  const users = filterUsersByViewerRole(viewerRole, allUsers);
-  const visibleUserIds = new Set(users.map((u) => u.id));
-  const investments = await db.select().from(investmentsTable);
+  const visibleRoles = visibleRolesFor(viewerRole);
+  const users = await fetchVisibleUserDetailRows(visibleRoles);
+  const visibleIds = users.map((u) => u.id);
+  const visibleUserIds = new Set(visibleIds);
   const userMap = new Map(users.map(u => [u.id, u]));
+
+  const now = new Date();
+  const from12Months = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const monthLabel = (d: Date) => d.toLocaleString("en-US", { month: "short" });
 
   const revenueByMonth: Record<string, number> = {};
   const depositsByMonth: Record<string, number> = {};
   const withdrawalsByMonth: Record<string, number> = {};
   const usersByMonth: Record<string, number> = {};
-  const now = new Date();
-
-  const monthLabel = (d: Date) => d.toLocaleString("en-US", { month: "short" });
 
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -86,6 +97,12 @@ router.get("/analytics", requireAuth, requireAdmin, async (req, res) => {
     withdrawalsByMonth[key] = 0;
     usersByMonth[key] = 0;
   }
+
+  const [txns, activeInvestmentCount, recentTxns] = await Promise.all([
+    fetchTransactionsForUserIds(visibleIds, from12Months, now),
+    countActiveInvestmentsForUserIds(visibleIds),
+    fetchRecentTransactionsForUserIds(visibleIds, 20),
+  ]);
 
   for (const t of txns) {
     const key = `${t.createdAt.getFullYear()}-${String(t.createdAt.getMonth() + 1).padStart(2, "0")}`;
@@ -123,19 +140,19 @@ router.get("/analytics", requireAuth, requireAdmin, async (req, res) => {
     return { month: monthLabel(d), users: usersByMonth[key] };
   });
 
-  const activeInvestments = investments.filter(i => i.status === "active");
+  const investorCount = users.filter(u => u.role === "user").length;
   const subscriptionMix = [
-    { name: "Investment Plans", value: activeInvestments.length || 1, color: "#F59E0B" },
-    { name: "Copy Trading", value: users.filter(u => u.role === "user").length > 0 ? Math.ceil(users.length * 0.28) : 0, color: "#6366f1" },
-    { name: "Algo/EA", value: users.filter(u => u.role === "user").length > 0 ? Math.ceil(users.length * 0.18) : 0, color: "#22c55e" },
-    { name: "Account Handling", value: users.filter(u => u.role === "user").length > 0 ? Math.ceil(users.length * 0.09) : 0, color: "#f43f5e" },
+    { name: "Investment Plans", value: activeInvestmentCount || 1, color: "#F59E0B" },
+    { name: "Copy Trading", value: investorCount > 0 ? Math.ceil(users.length * 0.28) : 0, color: "#6366f1" },
+    { name: "Algo/EA", value: investorCount > 0 ? Math.ceil(users.length * 0.18) : 0, color: "#22c55e" },
+    { name: "Account Handling", value: investorCount > 0 ? Math.ceil(users.length * 0.09) : 0, color: "#f43f5e" },
   ].filter(s => s.value > 0);
 
   res.json({
     cashFlow,
     userGrowth,
     subscriptionMix: subscriptionMix.length ? subscriptionMix : [{ name: "Investment Plans", value: 1, color: "#F59E0B" }],
-    recentActivity: txns.slice(-20).reverse()
+    recentActivity: recentTxns
       .filter(t => visibleUserIds.has(t.userId))
       .map(t => {
       const u = userMap.get(t.userId);
@@ -149,39 +166,101 @@ router.get("/analytics", requireAuth, requireAdmin, async (req, res) => {
 });
 
 router.get("/stats", requireAuth, requireAdmin, async (req, res) => {
+  try {
   const viewerRole = (req as any).user.role as string;
-  const allUsers = await db.select().from(usersTable);
-  const users = filterUsersByViewerRole(viewerRole, allUsers);
-  const txns = await db.select().from(transactionsTable);
-  const investments = await db.select().from(investmentsTable);
-  const kycs = await db.select().from(kycRecordsTable);
-  const tickets = await db.select().from(ticketsTable);
+  const period = parseStaffStatsPeriod(String(req.query.period || "present"));
+  const fromParam = typeof req.query.from === "string" ? req.query.from : undefined;
+  const toParam = typeof req.query.to === "string" ? req.query.to : undefined;
+  const { from, to, label: periodLabel } = resolveStatsDateRange(period, fromParam, toParam);
+  const isPresent = period === "present";
 
-  const deposits = txns.filter(t => t.type === "deposit" && t.status === "approved");
-  const withdrawals = txns.filter(t => t.type === "withdrawal" && t.status === "approved");
-  const pending = txns.filter(t => t.status === "pending");
+  const visibleRoles = visibleRolesFor(viewerRole);
+  const users = await fetchVisibleUserRows(visibleRoles);
+  const visibleIds = users.map(u => u.id);
+  const investorIds = users.filter(u => u.role === "user").map(u => u.id);
+
+  const [
+    txns,
+    investments,
+    pendingTransactions,
+    operationalCounts,
+    totalProfitAllTime,
+    ledgerAudit,
+  ] = await Promise.all([
+    fetchTransactionsForUserIds(visibleIds, from, to),
+    fetchInvestmentsForUserIds(visibleIds, from, to),
+    countPendingTransactionsForUserIds(visibleIds),
+    fetchOperationalCounts(),
+    isPresent ? sumInvestmentProfitForUserIds(visibleIds) : Promise.resolve(0),
+    computePlatformLedgerAudit({ from, to, investorIds, mode: isPresent ? "present" : "period" }),
+  ]);
+
+  const financials = isPresent
+    ? { totalProfit: totalProfitAllTime }
+    : await computePlatformFinancialStats({ transactions: txns, investments, from, to });
+
+  const fx = await getExchangeRates();
+  const fiatAudit = ledgerAudit.fiat;
+  const safeNum = (n: number) => (Number.isFinite(n) ? n : 0);
+  const platformFiatBalance = safeNum(ledgerAudit.present.availableFiat);
+  const platformCryptoBalance = safeNum(ledgerAudit.present.availableCrypto);
+  const activeInvested = safeNum(ledgerAudit.present.activeInvested);
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const newUsers = users.filter(u => u.createdAt >= startOfMonth);
-  const pendingKyc = kycs.filter(k => k.status === "submitted").length;
-  const openTickets = tickets.filter(t => t.status === "open").length;
   const managers = users.filter(u => u.role === "manager").length;
 
   res.json({
+    period,
+    periodLabel,
+    platformFiatBalance,
+    platformFiatBalanceInr: usdToInr(platformFiatBalance, fx),
+    platformCryptoBalance,
+    platformCryptoBalanceInr: usdToInr(platformCryptoBalance, fx),
+    activeInvested,
+    activeInvestedInr: usdToInr(activeInvested, fx),
+    walletAvailable: safeNum(ledgerAudit.present.walletAvailable),
+    totalAssets: safeNum(ledgerAudit.present.totalAssets),
+    ledgerAudit,
+    fiatBalanceAudit: fiatAudit,
     totalUsers: users.length,
-    totalDeposits: deposits.reduce((s, t) => s + Number(t.amount), 0),
-    totalWithdrawals: withdrawals.reduce((s, t) => s + Number(t.amount), 0),
-    totalInvestments: investments.reduce((s, i) => s + Number(i.amount), 0),
-    pendingTransactions: pending.length,
+    totalDeposits: fiatAudit.periodDeposits + ledgerAudit.crypto.periodDeposits,
+    totalWithdrawals: fiatAudit.periodWithdrawals + ledgerAudit.crypto.periodWithdrawals,
+    netFunds: (fiatAudit.periodDeposits + ledgerAudit.crypto.periodDeposits)
+      - (fiatAudit.periodWithdrawals + ledgerAudit.crypto.periodWithdrawals),
+    totalFiatDeposits: fiatAudit.periodDeposits,
+    totalFiatWithdrawals: fiatAudit.periodWithdrawals,
+    totalCryptoDeposits: ledgerAudit.crypto.periodDeposits,
+    totalCryptoWithdrawals: ledgerAudit.crypto.periodWithdrawals,
+    totalInvestments: isPresent ? ledgerAudit.present.activeInvested : fiatAudit.periodInvestmentOut,
+    activeInvestmentCount: ledgerAudit.present.activeInvestmentCount,
+    pendingTransactions,
     activeUsers: users.filter(u => u.isActive).length,
-    totalProfit: investments.reduce((s, i) => s + Number(i.profit), 0),
+    totalProfit: isPresent ? totalProfitAllTime : (financials.totalProfit ?? 0),
     newUsersThisMonth: newUsers.length,
-    pendingKyc,
-    openTickets,
+    pendingKyc: operationalCounts.pendingKyc,
+    openTickets: operationalCounts.openTickets,
     totalManagers: managers,
   });
+  } catch (err) {
+    if (respondSchemaDrift(res, err)) return;
+    throw err;
+  }
 });
+
+function scopeAdminTreasuryUsers(req: Request, res: Response, next: NextFunction) {
+  const viewerRole = (req as { user?: { role?: string } }).user?.role as string;
+  void fetchVisibleUserRows(visibleRolesFor(viewerRole)).then((rows) => {
+    res.locals.treasuryUserIds = rows.map(u => u.id);
+    res.locals.treasuryInvestorIds = rows.filter(u => u.role === "user").map(u => u.id);
+    next();
+  }).catch(next);
+}
+
+router.get("/treasury", requireAuth, requireAdmin, scopeAdminTreasuryUsers, handleGetTreasury);
+router.get("/reconciliation", requireAuth, requireAdmin, scopeAdminTreasuryUsers, handleGetReconciliation);
+router.post("/reconciliation/run", requireAuth, requireAdmin, scopeAdminTreasuryUsers, handlePostReconciliationRun);
 
 router.get("/users", requireAuth, requireAdmin, async (req, res) => {
   const viewerRole = (req as any).user.role as string;
@@ -234,7 +313,7 @@ router.get("/users/:id/payment-accounts", requireAuth, requireAdmin, async (req,
 router.patch("/users/:id", requireAuth, requireAdmin, async (req, res) => {
   const viewerRole = (req as any).user.role as string;
   const id = parseInt(String(req.params.id));
-  const { role, kycStatus, balanceFiat, balanceCrypto, isActive, managerId } = req.body;
+  const { role, kycStatus, isActive, managerId } = req.body;
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!existing) { res.status(404).json({ error: "User not found" }); return; }
@@ -250,17 +329,102 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res) => {
   const updates: Record<string, any> = {};
   if (role !== undefined) updates.role = role;
   if (kycStatus !== undefined) updates.kycStatus = kycStatus;
-  if (balanceFiat !== undefined) updates.balanceFiat = String(balanceFiat);
-  if (balanceCrypto !== undefined) updates.balanceCrypto = String(balanceCrypto);
   if (isActive !== undefined) updates.isActive = isActive;
   if (managerId !== undefined) updates.managerId = managerId;
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const viewerId = (req as any).user.userId as number;
+  if (role !== undefined && role !== existing.role) {
+    await invalidateUserSessions(id);
+    await logAudit({
+      req,
+      userId: viewerId,
+      role: viewerRole,
+      action: "role_changed",
+      entity: "user",
+      entityId: id,
+      details: { from: existing.role, to: role },
+    });
+  }
+  if (isActive !== undefined && isActive !== existing.isActive && !isActive) {
+    await invalidateUserSessions(id);
+    await logAudit({
+      req,
+      userId: viewerId,
+      role: viewerRole,
+      action: "user_suspended",
+      entity: "user",
+      entityId: id,
+    });
+  }
+
   res.json(mapUser(user));
+});
+
+router.get("/transactions/upcoming", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
+  const limit = Math.min(Number(req.query.limit) || 200, 300);
+  const { listUpcomingForPlatform } = await import("../helpers/upcomingTransactionsService");
+  res.json(await listUpcomingForPlatform(viewerRole, limit));
+});
+
+router.get("/transactions/export", requireAuth, requireAdmin, async (_req, res) => {
+  const txns = await db.select().from(transactionsTable).orderBy(desc(transactionsTable.createdAt));
+  const allUsers = await db.select().from(usersTable);
+  const userMap = new Map(allUsers.map(u => [u.id, u]));
+  const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const header = "ID,User ID,Email,Name,Type,Amount,Currency,Status,Method,UTR,Proof,Date\n";
+  const rows = txns.map(t => {
+    const u = userMap.get(t.userId);
+    return [
+      t.id, t.userId, u?.email, u?.fullName, t.type, t.amount, t.currency,
+      t.status, t.paymentMethod, t.utrReference, t.proofUrl, t.createdAt.toISOString(),
+    ].map(escape).join(",");
+  }).join("\n");
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="transactions-${Date.now()}.csv"`);
+  res.send(header + rows);
+});
+
+router.get("/transactions/:id", requireAuth, requireAdmin, async (req, res) => {
+  const viewerRole = (req as any).user.role as string;
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid transaction id" }); return; }
+
+  const [txn] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id)).limit(1);
+  if (!txn) { res.status(404).json({ error: "Transaction not found" }); return; }
+
+  const [user] = await db.select({
+    id: usersTable.id,
+    email: usersTable.email,
+    fullName: usersTable.fullName,
+    role: usersTable.role,
+  }).from(usersTable).where(eq(usersTable.id, txn.userId)).limit(1);
+
+  if (!user || !canViewRole(viewerRole, user.role)) {
+    res.status(404).json({ error: "Transaction not found" });
+    return;
+  }
+
+  let reviewerEmail: string | null = null;
+  if (txn.reviewedByUserId) {
+    const [reviewer] = await db.select({ email: usersTable.email })
+      .from(usersTable).where(eq(usersTable.id, txn.reviewedByUserId)).limit(1);
+    reviewerEmail = reviewer?.email ?? null;
+  }
+
+  res.json(mapTxn(txn, user.email, user.fullName, reviewerEmail));
 });
 
 router.get("/transactions", requireAuth, requireAdmin, async (req, res) => {
   const viewerRole = (req as any).user.role as string;
+  const { from, to } = parseQueryDateRange({
+    period: req.query.period as string | undefined,
+    from: req.query.from as string | undefined,
+    to: req.query.to as string | undefined,
+  });
+
   const txns = await db.select().from(transactionsTable).orderBy(desc(transactionsTable.createdAt));
   const users = await db.select({
     id: usersTable.id,
@@ -279,6 +443,7 @@ router.get("/transactions", requireAuth, requireAdmin, async (req, res) => {
       const u = userMap.get(t.userId);
       return u ? canViewRole(viewerRole, u.role) : false;
     })
+    .filter(t => inDateRange(t.createdAt, from, to))
     .map(t => {
       const u = userMap.get(t.userId);
       return mapTxn(t, u?.email, u?.fullName, t.reviewedByUserId ? reviewerMap.get(t.reviewedByUserId) || null : null);
@@ -301,16 +466,31 @@ router.get("/ledger", requireAuth, requireAdmin, async (req, res) => {
   const types = typeParam && typeParam !== "all"
     ? typeParam.split(",").filter(Boolean) as ("deposit" | "withdrawal")[]
     : undefined;
+  const { from, to, label: periodLabel } = parseQueryDateRange({
+    period: req.query.period as string | undefined,
+    from: req.query.from as string | undefined,
+    to: req.query.to as string | undefined,
+  });
 
   const allUsers = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable);
   const visibleIds = allUsers.filter(u => canViewRole(viewerRole, u.role)).map(u => u.id);
 
   const [entries, total] = await Promise.all([
-    getPlatformLedger({ userIds: visibleIds, types, limit, offset }),
+    getPlatformLedger({ userIds: visibleIds, types, limit, offset, from, to }),
     countPlatformLedger(visibleIds),
   ]);
 
-  res.json({ entries, total, limit, offset });
+  res.json({ entries, total, limit, offset, periodLabel });
+});
+
+router.get("/transactions/:id/payout-account", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid transaction id" }); return; }
+
+  const { getTransactionPayoutAccount } = await import("../helpers/maturityPayoutService");
+  const data = await getTransactionPayoutAccount(id);
+  if (!data) { res.status(404).json({ error: "No payout account linked to this transaction" }); return; }
+  res.json(data);
 });
 
 router.get("/transactions/:id/blockchain-verify", requireAuth, requireAdmin, async (req, res) => {
@@ -351,6 +531,14 @@ router.post("/transactions/:id/approve", requireAuth, requireAdmin, async (req, 
     }
 
     const txn = await approveTransaction({ transactionId: id, reviewerUserId, adminNotes });
+    if ((txn as any).pendingSecondApproval) {
+      res.json({
+        ...mapTxn(txn, undefined, undefined, undefined),
+        pendingSecondApproval: true,
+        message: (txn as any).message,
+      });
+      return;
+    }
     await logAudit({
       req,
       userId: reviewerUserId,
@@ -426,6 +614,21 @@ router.get("/kyc", requireAuth, requireAdmin, async (req, res) => {
     role: usersTable.role,
   }).from(usersTable);
   const userMap = new Map(users.map(u => [u.id, u]));
+  const userIds = kycs.map(k => k.userId);
+  const validations = userIds.length
+    ? await db.select().from(documentValidationsTable)
+      .where(inArray(documentValidationsTable.userId, userIds))
+      .orderBy(desc(documentValidationsTable.createdAt))
+    : [];
+  const ocrByUser = new Map<number, { riskScore: number; passed: boolean; flags: string[] }>();
+  for (const v of validations) {
+    if (ocrByUser.has(v.userId)) continue;
+    ocrByUser.set(v.userId, {
+      riskScore: v.riskScore,
+      passed: v.passed,
+      flags: JSON.parse(v.flags || "[]") as string[],
+    });
+  }
   res.json(kycs
     .filter((k) => {
       const u = userMap.get(k.userId);
@@ -433,13 +636,38 @@ router.get("/kyc", requireAuth, requireAdmin, async (req, res) => {
     })
     .map(k => {
       const u = userMap.get(k.userId);
-      return mapKyc(k, u?.email, u?.fullName);
+      return {
+        ...mapKyc(k, u?.email, u?.fullName),
+        ocrValidation: ocrByUser.get(k.userId) || null,
+      };
     }));
 });
 
 router.post("/kyc/:id/approve", requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(String(req.params.id));
-  const [kyc] = await db.update(kycRecordsTable).set({ status: "verified" })
+  const [existing] = await db.select().from(kycRecordsTable).where(eq(kycRecordsTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "KYC not found" }); return; }
+
+  const [kycUser] = await db.select().from(usersTable).where(eq(usersTable.id, existing.userId)).limit(1);
+  const aml = await screenKycWithProvider({
+    userId: existing.userId,
+    fullName: kycUser?.fullName || existing.fullName || "",
+    country: existing.country,
+    panNumber: existing.panCard,
+    aadhaarNumber: existing.aadhaarNumber,
+  });
+  if (!aml.passed) {
+    res.status(400).json({
+      error: "AML screening failed — manual review required",
+      code: "AML_SCREEN_FAILED",
+      provider: aml.provider,
+      flags: aml.flags,
+      riskScore: aml.riskScore,
+    });
+    return;
+  }
+
+  const [kyc] = await db.update(kycRecordsTable).set({ status: "verified", verifiedAt: new Date() })
     .where(eq(kycRecordsTable.id, id)).returning();
   if (!kyc) { res.status(404).json({ error: "KYC not found" }); return; }
   const [user] = await db.update(usersTable).set({ kycStatus: "verified" }).where(eq(usersTable.id, kyc.userId)).returning();
@@ -451,6 +679,7 @@ router.post("/kyc/:id/approve", requireAuth, requireAdmin, async (req, res) => {
       html: buildKycEmail({ name: user.fullName, status: "approved" }),
     });
   }
+  emitN8nEvent("kyc.approved", { kycId: id, userId: kyc.userId });
   res.json(mapKyc(kyc));
 });
 
@@ -470,7 +699,14 @@ router.post("/kyc/:id/reject", requireAuth, requireAdmin, async (req, res) => {
       html: buildKycEmail({ name: user.fullName, status: "rejected", reason: reason || "Not approved" }),
     });
   }
+  emitN8nEvent("kyc.rejected", { kycId: id, userId: kyc.userId, reason: reason || "Not approved" });
   res.json(mapKyc(kyc));
+});
+
+router.get("/kyc/:userId/validations", requireAuth, requireAdmin, async (req, res) => {
+  const userId = Number(req.params.userId);
+  const { getDocumentValidationsForUser } = await import("../helpers/documentOcrService");
+  res.json(await getDocumentValidationsForUser(userId));
 });
 
 router.get("/plans", requireAuth, requireAdmin, async (_req, res) => {
@@ -541,12 +777,23 @@ router.post("/wallet-adjust", requireAuth, requireAdmin, async (req, res) => {
   }
   const numAmount = Number(amount);
   const currency = walletType === "fiat" ? "USD" : "USDT";
+  const reviewerId = (req as any).user.userId as number;
+  const reviewerRole = (req as any).user.role as string;
   try {
     if (numAmount >= 0) {
       await creditWallet({ userId, amount: numAmount, currency, type: "adjustment", description: reason });
     } else {
       await debitWallet({ userId, amount: Math.abs(numAmount), currency, type: "adjustment", description: reason });
     }
+    await logAudit({
+      req,
+      userId: reviewerId,
+      role: reviewerRole,
+      action: "wallet_adjust",
+      entity: "user",
+      entityId: Number(userId),
+      details: { amount: numAmount, currency, reason },
+    });
     res.json({ message: `Wallet adjusted by ${numAmount} for user ${userId}` });
   } catch (err) {
     if (err instanceof WalletError) {
@@ -745,37 +992,88 @@ router.get("/referral-stats", requireAuth, requireAdmin, async (_req, res) => {
 // ── Payment Gateways ───────────────────────────────────────────────────────
 router.get("/payment-gateways", requireAuth, requireAdmin, async (_req, res) => {
   const gateways = await db.select().from(paymentGatewaysTable).orderBy(asc(paymentGatewaysTable.sortOrder));
-  res.json(gateways.map(mapGateway));
+  const { ensurePaymentGatewayQrs } = await import("../helpers/qrCodeService");
+  await ensurePaymentGatewayQrs(gateways);
+  res.json(gateways.map(mapAdminPaymentGateway));
 });
 
 router.post("/payment-gateways", requireAuth, requireAdmin, async (req, res) => {
-  const { name, type, symbol, network, description, walletAddress, upiId, qrCodeUrl, minAmount, maxAmount, isEnabled, sortOrder, extraConfig } = req.body;
-  if (!name || !type) { res.status(400).json({ error: "name and type are required" }); return; }
-  const [gw] = await db.insert(paymentGatewaysTable).values({
-    name, type, symbol, network, description, walletAddress, upiId, qrCodeUrl,
-    minAmount: minAmount ? String(minAmount) : "10",
-    maxAmount: maxAmount ? String(maxAmount) : undefined,
-    isEnabled: isEnabled !== false, sortOrder: sortOrder || 0, extraConfig: extraConfig || {},
-  }).returning();
-  res.status(201).json(mapGateway(gw));
+  try {
+    const { assertCanManageCredentials } = await import("../helpers/credentialPolicy");
+    assertCanManageCredentials((req as any).user?.role ?? "");
+  } catch (err: any) {
+    res.status(403).json({ error: err.message });
+    return;
+  }
+  if (!req.body.name || !req.body.type) {
+    res.status(400).json({ error: "name and type are required" });
+    return;
+  }
+
+  const { values, identifierChanged } = normalizeGatewayWrite(req.body);
+  const { resolveGatewayQrCode } = await import("../helpers/qrCodeService");
+  values.qrCodeUrl = await resolveGatewayQrCode({
+    type: String(values.type),
+    name: String(values.name),
+    upiId: values.upiId as string | null,
+    walletAddress: values.walletAddress as string | null,
+    qrCodeUrl: req.body.qrCodeUrl || null,
+    identifierChanged: identifierChanged || true,
+  });
+  values.minAmount = toNumericColumnOrDefault(req.body.minAmount, "10");
+  values.maxAmount = toNumericColumn(req.body.maxAmount);
+
+  const [gw] = await db.insert(paymentGatewaysTable).values(values as any).returning();
+  if (gw.type === "crypto") {
+    const { syncExchangeRatesFromCryptoGateways } = await import("../helpers/exchangeService");
+    await syncExchangeRatesFromCryptoGateways().catch(() => {});
+  }
+  res.status(201).json(mapAdminPaymentGateway(gw));
 });
 
 router.patch("/payment-gateways/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { assertCanManageCredentials } = await import("../helpers/credentialPolicy");
+    assertCanManageCredentials((req as any).user?.role ?? "");
+  } catch (err: any) {
+    res.status(403).json({ error: err.message });
+    return;
+  }
   const id = parseInt(String(req.params.id));
-  const updates: any = {};
-  const fields = ["name","type","symbol","network","description","walletAddress","upiId","qrCodeUrl","isEnabled","sortOrder","extraConfig"];
-  for (const f of fields) if (req.body[f] !== undefined) updates[f] = req.body[f];
-  if (req.body.minAmount !== undefined) updates.minAmount = String(req.body.minAmount);
-  if (req.body.maxAmount !== undefined) updates.maxAmount = String(req.body.maxAmount);
-  const [gw] = await db.update(paymentGatewaysTable).set(updates).where(eq(paymentGatewaysTable.id, id)).returning();
+  const [existing] = await db.select().from(paymentGatewaysTable).where(eq(paymentGatewaysTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "Gateway not found" }); return; }
+
+  const { values, identifierChanged } = normalizeGatewayWrite(req.body, existing);
+  if (req.body.minAmount !== undefined) values.minAmount = toNumericColumnOrDefault(req.body.minAmount, "10");
+  if (req.body.maxAmount !== undefined) values.maxAmount = toNumericColumn(req.body.maxAmount);
+
+  const { resolveGatewayQrCode } = await import("../helpers/qrCodeService");
+  values.qrCodeUrl = await resolveGatewayQrCode({
+    type: String(values.type),
+    name: String(values.name),
+    upiId: values.upiId as string | null,
+    walletAddress: values.walletAddress as string | null,
+    qrCodeUrl: req.body.qrCodeUrl !== undefined ? req.body.qrCodeUrl : existing.qrCodeUrl,
+    identifierChanged,
+  });
+
+  const [gw] = await db.update(paymentGatewaysTable).set(values as any).where(eq(paymentGatewaysTable.id, id)).returning();
   if (!gw) { res.status(404).json({ error: "Gateway not found" }); return; }
-  res.json(mapGateway(gw));
+  if (gw.type === "crypto") {
+    const { syncExchangeRatesFromCryptoGateways } = await import("../helpers/exchangeService");
+    await syncExchangeRatesFromCryptoGateways().catch(() => {});
+  }
+  res.json(mapAdminPaymentGateway(gw));
 });
 
 router.delete("/payment-gateways/:id", requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(String(req.params.id));
   const [gw] = await db.delete(paymentGatewaysTable).where(eq(paymentGatewaysTable.id, id)).returning();
   if (!gw) { res.status(404).json({ error: "Gateway not found" }); return; }
+  if (gw.type === "crypto") {
+    const { syncExchangeRatesFromCryptoGateways } = await import("../helpers/exchangeService");
+    await syncExchangeRatesFromCryptoGateways().catch(() => {});
+  }
   res.json({ message: "Gateway deleted" });
 });
 
@@ -804,6 +1102,8 @@ const DEFAULT_SETTINGS = [
   { key: "announcement_text", value: "", label: "Announcement Text", category: "general", description: "Global banner shown to all users (leave empty to hide)" },
   { key: "announcement_enabled", value: "false", label: "Announcement Enabled", category: "general", description: "Show/hide the global announcement banner" },
   { key: "maintenance_mode", value: "false", label: "Maintenance Mode", category: "general", description: "Puts the platform in maintenance mode" },
+  { key: "maintenance_description", value: "We are performing scheduled maintenance to improve your experience.", label: "Maintenance Description", category: "general", description: "Main message shown on the maintenance page" },
+  { key: "maintenance_notice", value: "Please check back soon. Thank you for your patience.", label: "Maintenance Notice", category: "general", description: "Additional notice for users on the maintenance page" },
   { key: "support_email", value: "support@kuberquant.com", label: "Support Email", category: "contact", description: "Primary support email address" },
   { key: "support_phone", value: "", label: "Support Phone", category: "contact", description: "Support phone number" },
   { key: "support_telegram", value: "", label: "Telegram Handle", category: "contact", description: "Telegram username or link" },
@@ -811,6 +1111,8 @@ const DEFAULT_SETTINGS = [
   { key: "footer_text", value: "© 2025 Kuber Quant. All rights reserved.", label: "Footer Text", category: "general", description: "Footer copyright text" },
   { key: "referral_commission_rate", value: "5", label: "Referral Commission %", category: "financial", description: "Percentage commission paid on referral investments" },
   { key: "min_deposit_fiat", value: "100", label: "Min Fiat Deposit ($)", category: "financial", description: "Minimum fiat deposit amount" },
+  { key: "trading_service_min_deposit_usd", value: "100", label: "Trading Services Min Deposit ($ / USDT)", category: "financial", description: "Minimum initial deposit for copy trading, algo trading, account handling, and MT4/MT5 linking" },
+  { key: "trading_service_min_deposit_inr", value: "10000", label: "Trading Services Min Deposit (₹)", category: "financial", description: "Minimum initial INR deposit for trading services (live FX also applies)" },
   { key: "min_withdrawal_fiat", value: "50", label: "Min Fiat Withdrawal ($)", category: "financial", description: "Minimum fiat withdrawal amount" },
   { key: "withdrawal_fee_percent", value: "2", label: "Withdrawal Fee %", category: "financial", description: "Percentage fee deducted on withdrawals" },
   { key: "usd_inr_rate", value: "83.5", label: "USD → INR Rate", category: "financial", description: "1 USD in INR (auto-refreshed daily from live FX)" },
@@ -846,6 +1148,16 @@ router.get("/site-settings", requireAuth, requireAdmin, async (_req, res) => {
 
 router.patch("/site-settings", requireAuth, requireAdmin, async (req, res) => {
   const updates = req.body as Record<string, string>;
+  const viewerRole = (req as any).user?.role ?? "";
+  const { isCredentialSiteSetting, assertCanManageCredentials } = await import("../helpers/credentialPolicy");
+  try {
+    for (const key of Object.keys(updates)) {
+      if (isCredentialSiteSetting(key)) assertCanManageCredentials(viewerRole);
+    }
+  } catch (err: any) {
+    res.status(403).json({ error: err.message });
+    return;
+  }
   const { invalidateSiteSettingsCache } = await import("../helpers/siteSettings");
   for (const [key, value] of Object.entries(updates)) {
     const existing = DEFAULT_SETTINGS.find(s => s.key === key);
@@ -891,27 +1203,14 @@ router.delete("/managers/:id", requireAuth, requireAdmin, async (req, res) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  const [user] = await db.update(usersTable).set({ role: "user" }).where(eq(usersTable.id, id)).returning();
+  const { demoteManagerToUser } = await import("../helpers/userAccessControl");
+  const { user, clientsReleased } = await demoteManagerToUser(id);
   if (!user) { res.status(404).json({ error: "Manager not found" }); return; }
-  res.json({ message: "Manager demoted to user" });
-});
-
-router.get("/transactions/export", requireAuth, requireAdmin, async (_req, res) => {
-  const txns = await db.select().from(transactionsTable).orderBy(desc(transactionsTable.createdAt));
-  const allUsers = await db.select().from(usersTable);
-  const userMap = new Map(allUsers.map(u => [u.id, u]));
-  const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const header = "ID,User ID,Email,Name,Type,Amount,Currency,Status,Method,UTR,Proof,Date\n";
-  const rows = txns.map(t => {
-    const u = userMap.get(t.userId);
-    return [
-      t.id, t.userId, u?.email, u?.fullName, t.type, t.amount, t.currency,
-      t.status, t.paymentMethod, t.utrReference, t.proofUrl, t.createdAt.toISOString(),
-    ].map(escape).join(",");
-  }).join("\n");
-  res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="transactions-${Date.now()}.csv"`);
-  res.send(header + rows);
+  res.json({
+    message: `Manager demoted to user. ${clientsReleased} client(s) reassigned to super admin pool.`,
+    clientsReleased,
+    user: mapUser(user),
+  });
 });
 
 router.post("/broadcast", requireAuth, requireAdmin, async (req, res) => {
@@ -939,6 +1238,78 @@ router.post("/broadcast", requireAuth, requireAdmin, async (req, res) => {
     });
   }
   res.json({ sent, total: targets.length });
+});
+
+router.get("/promoter-applications", requireAuth, requireAdmin, async (_req, res) => {
+  const apps = await db.select().from(promoterApplicationsTable).orderBy(desc(promoterApplicationsTable.createdAt));
+  const userIds = [...new Set(apps.map(a => a.userId))];
+  const users = userIds.length
+    ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds))
+    : [];
+  const userMap = new Map(users.map(u => [u.id, u]));
+  res.json(apps.map(a => ({
+    id: a.id,
+    userId: a.userId,
+    user: userMap.get(a.userId) ? mapUser(userMap.get(a.userId)!) : null,
+    message: a.message,
+    status: a.status,
+    reviewedBy: a.reviewedBy,
+    reviewNotes: a.reviewNotes,
+    createdAt: a.createdAt.toISOString(),
+  })));
+});
+
+router.patch("/promoter-applications/:id", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const { status, reviewNotes } = req.body;
+  if (!["approved", "rejected"].includes(status)) {
+    res.status(400).json({ error: "status must be approved or rejected" });
+    return;
+  }
+  const [app] = await db.select().from(promoterApplicationsTable).where(eq(promoterApplicationsTable.id, id)).limit(1);
+  if (!app) { res.status(404).json({ error: "Application not found" }); return; }
+
+  const reviewerId = (req as any).user.userId as number;
+  const [updated] = await db.update(promoterApplicationsTable).set({
+    status,
+    reviewNotes: reviewNotes || null,
+    reviewedBy: reviewerId,
+    updatedAt: new Date(),
+  }).where(eq(promoterApplicationsTable.id, id)).returning();
+
+  if (status === "approved") {
+    await db.update(usersTable).set({ isPromoter: true, promoterCommissionType: "revenue_share" })
+      .where(eq(usersTable.id, app.userId));
+    await db.insert(notificationsTable).values({
+      userId: app.userId,
+      title: "Promoter Access Approved",
+      message: "Your promoter upgrade request has been approved. Visit the Promoter hub to get started.",
+      type: "success",
+      isRead: false,
+    });
+    emitN8nEvent("promoter.approved", { applicationId: id, userId: app.userId });
+  } else {
+    await db.insert(notificationsTable).values({
+      userId: app.userId,
+      title: "Promoter Request Declined",
+      message: reviewNotes || "Your promoter upgrade request was not approved at this time.",
+      type: "warning",
+      isRead: false,
+    });
+    emitN8nEvent("promoter.rejected", { applicationId: id, userId: app.userId, reviewNotes });
+  }
+
+  await logAudit({
+    req,
+    userId: reviewerId,
+    role: (req as any).user.role,
+    action: `promoter_application_${status}`,
+    entity: "promoter_application",
+    entityId: id,
+    details: { userId: app.userId },
+  });
+
+  res.json(updated);
 });
 
 export default router;

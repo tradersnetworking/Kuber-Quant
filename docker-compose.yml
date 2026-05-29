@@ -116,6 +116,21 @@ services:
       PAYU_MERCHANT_KEY: ${PAYU_MERCHANT_KEY:-}
       PAYU_MERCHANT_SALT: ${PAYU_MERCHANT_SALT:-}
       PAYU_ENV: ${PAYU_ENV:-test}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      S3_KEY_PREFIX: ${S3_KEY_PREFIX:-uploads}
+      AML_PROVIDER: ${AML_PROVIDER:-local}
+      SUMSUB_APP_TOKEN: ${SUMSUB_APP_TOKEN:-}
+      SUMSUB_SECRET_KEY: ${SUMSUB_SECRET_KEY:-}
+      SUMSUB_BASE_URL: ${SUMSUB_BASE_URL:-https://api.sumsub.com}
+      SUMSUB_LEVEL_NAME: ${SUMSUB_LEVEL_NAME:-basic-kyc-level}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+      ASYNC_EMAIL: ${ASYNC_EMAIL:-true}
     volumes:
       - uploads_data:/app/uploads
       - logs_data:/app/logs

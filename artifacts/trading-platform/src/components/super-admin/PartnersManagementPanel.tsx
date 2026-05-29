@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit2, Trash2, RefreshCw, Building2, Save } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
+import { STAFF_HEADER_ROW } from "@/lib/staff-dashboard-ui";
 
 type Partner = {
   id: number;
@@ -135,18 +136,18 @@ export function PartnersManagementPanel() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
+    <div className="space-y-4 min-w-0">
+      <div className={STAFF_HEADER_ROW}>
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-amber-400" />
+            <Building2 className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
             Institutional Partners & Brokers
           </h2>
           <p className="text-sm text-muted-foreground">
             Manage partner names shown on the home page footer section.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col xs:flex-row gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load}>
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
@@ -158,7 +159,7 @@ export function PartnersManagementPanel() {
         </div>
       </div>
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
         <CardHeader>
           <CardTitle className="text-base">Section Title</CardTitle>
           <CardDescription>Heading displayed above the partner logos on the home page.</CardDescription>
@@ -168,7 +169,7 @@ export function PartnersManagementPanel() {
             value={sectionTitle}
             onChange={(e) => setSectionTitle(e.target.value)}
             placeholder="Institutional Partners & Brokers"
-            className="bg-white/5 border-white/10"
+            className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
           />
           <Button onClick={saveTitle} disabled={savingTitle} className="bg-amber-500 text-black shrink-0">
             <Save className="h-4 w-4 mr-1" />
@@ -177,7 +178,7 @@ export function PartnersManagementPanel() {
         </CardContent>
       </Card>
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
         <CardHeader>
           <CardTitle className="text-base">Partners List</CardTitle>
         </CardHeader>
@@ -190,51 +191,83 @@ export function PartnersManagementPanel() {
           ) : config.items.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No partners configured yet.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Website</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[...config.items]
-                  .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
-                  .map((partner) => (
-                    <TableRow key={partner.id}>
-                      <TableCell className="font-black italic tracking-tighter">{partner.name}</TableCell>
-                      <TableCell>{partner.sortOrder}</TableCell>
-                      <TableCell>
-                        <Badge className={partner.isActive ? "bg-green-500/20 text-green-400" : "bg-zinc-500/20 text-zinc-400"}>
-                          {partner.isActive ? "Active" : "Hidden"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[180px] truncate text-muted-foreground">
-                        {partner.websiteUrl || "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEdit(partner)}>
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="text-red-400 hover:text-red-300" onClick={() => remove(partner.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+            <ResponsiveDataView
+              data={[...config.items].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)}
+              rowKey={partner => partner.id}
+              mobileFooter={partner => (
+                <div className="mt-3 pt-3 border-t border-border/80 flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => openEdit(partner)}>
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-400 hover:text-red-600 dark:text-red-300"
+                    onClick={() => remove(partner.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+              columns={[
+                {
+                  key: "name",
+                  header: "Name",
+                  mobileTitle: true,
+                  cell: partner => (
+                    <span className="font-black italic tracking-tighter">{partner.name}</span>
+                  ),
+                },
+                {
+                  key: "order",
+                  header: "Order",
+                  cell: partner => partner.sortOrder,
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  cell: partner => (
+                    <Badge className={partner.isActive ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground"}>
+                      {partner.isActive ? "Active" : "Hidden"}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: "website",
+                  header: "Website",
+                  cellClassName: "max-w-[180px] truncate text-muted-foreground",
+                  cell: partner => partner.websiteUrl || "—",
+                },
+                {
+                  key: "actions",
+                  header: "Actions",
+                  headerClassName: "text-right",
+                  cellClassName: "text-right",
+                  hideOnMobile: true,
+                  cell: partner => (
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => openEdit(partner)}>
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-400 hover:text-red-600 dark:text-red-300"
+                        onClick={() => remove(partner.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+            />
           )}
         </CardContent>
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[#0a1528] border-white/10">
+        <DialogContent className="bg-[#0a1528] border-border dark:border-white/10">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Partner" : "Add Partner"}</DialogTitle>
           </DialogHeader>
@@ -246,7 +279,7 @@ export function PartnersManagementPanel() {
                 onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
                 placeholder="BINANCE"
                 required
-                className="bg-white/5 border-white/10 font-black italic tracking-tighter"
+                className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-black italic tracking-tighter"
               />
             </div>
             <div className="space-y-2">
@@ -255,7 +288,7 @@ export function PartnersManagementPanel() {
                 value={form.logoUrl}
                 onChange={(e) => setForm({ ...form, logoUrl: e.target.value })}
                 placeholder="https://..."
-                className="bg-white/5 border-white/10"
+                className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
               />
             </div>
             <div className="space-y-2">
@@ -264,7 +297,7 @@ export function PartnersManagementPanel() {
                 value={form.websiteUrl}
                 onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })}
                 placeholder="https://..."
-                className="bg-white/5 border-white/10"
+                className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
               />
             </div>
             <div className="space-y-2">
@@ -274,7 +307,7 @@ export function PartnersManagementPanel() {
                 min={1}
                 value={form.sortOrder}
                 onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) || 1 })}
-                className="bg-white/5 border-white/10"
+                className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
               />
             </div>
             <div className="flex items-center gap-3">

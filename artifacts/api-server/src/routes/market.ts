@@ -10,7 +10,7 @@ import {
 import { fetchPublicMarketTicks } from "../helpers/publicMarketFeed";
 import { getExchangeRates, refreshExchangeRates } from "../helpers/exchangeRateService";
 import { handleGetWatchlist, handleSaveWatchlist } from "../helpers/watchlistHandlers";
-import { clearMarketTickerCache, getMarketTickerCache, setMarketTickerCache } from "../helpers/marketCache";
+import { clearMarketTickerCache, getMarketTickerCache, getSharedMarketTickerCache, setMarketTickerCache } from "../helpers/marketCache";
 
 const router = Router();
 
@@ -38,7 +38,7 @@ async function getCachedTicks(symbols: string[]) {
 
   const key = symbols.slice().sort().join(",");
   const now = Date.now();
-  const hit = getMarketTickerCache(key);
+  const hit = getMarketTickerCache(key) ?? await getSharedMarketTickerCache(key);
   if (hit && now - hit.fetchedAt < refreshSeconds * 1000) {
     return { ticks: hit.data as Awaited<ReturnType<typeof fetchLiveTicks>>, cached: true, updatedAt: new Date(hit.fetchedAt).toISOString() };
   }
@@ -49,7 +49,7 @@ async function getCachedTicks(symbols: string[]) {
   }
 
   if (ticks.some(t => t.price > 0)) {
-    setMarketTickerCache(key, ticks, now);
+    await setMarketTickerCache(key, ticks, now);
   }
   return { ticks, cached: false, updatedAt: new Date(now).toISOString() };
 }

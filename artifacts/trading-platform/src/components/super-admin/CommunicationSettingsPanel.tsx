@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
 import { useToast } from "@/hooks/use-toast";
 import {
   Mail, Plus, Trash2, Save, RefreshCw, Send, Settings2,
@@ -18,11 +18,15 @@ import { authFetchJson } from "@/lib/token-store";
 import { MailSettingsPanel } from "@/components/super-admin/MailSettingsPanel";
 import { SupportInboxSettingsPanel } from "@/components/super-admin/SupportInboxSettingsPanel";
 import { SupportMailDeskSettingsPanel } from "@/components/super-admin/SupportMailDeskSettingsPanel";
+import { OtpChannelsSettingsPanel } from "@/components/super-admin/OtpChannelsSettingsPanel";
 import {
   DEFAULT_EMAIL_COMM_CONFIG,
   DEFAULT_EMAIL_PURPOSE_META,
   DEFAULT_EMAIL_PURPOSES,
 } from "@/lib/email-communication-defaults";
+import { KpiStatCard } from "@/components/ui/KpiStatCard";
+import { STAFF_CARD, STAFF_HEADER_ROW, STAFF_PAGE_STACK, STAFF_STAT_GRID } from "@/lib/staff-dashboard-ui";
+import { cn } from "@/lib/utils";
 
 type MailIdentity = { id: string; label: string; name: string; address: string };
 type AutoEmailSetting = { enabled: boolean; subject: string };
@@ -186,18 +190,18 @@ export function CommunicationSettingsPanel() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+    <div className={STAFF_PAGE_STACK}>
+      <div className={STAFF_HEADER_ROW}>
+        <div className="min-w-0">
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Mail className="h-5 w-5 text-sky-400" />
+            <Mail className="h-5 w-5 text-sky-600 dark:text-sky-400 shrink-0" />
             Email &amp; Communication
           </h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
             Configure SMTP, manage sender mail IDs, and control automated user emails. All notification emails are sent from the No Reply address only.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="shrink-0">
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -205,82 +209,73 @@ export function CommunicationSettingsPanel() {
 
       {loadError && (
         <Card className="border-amber-500/30 bg-amber-500/10">
-          <CardContent className="pt-4 text-sm text-amber-300">{loadError}</CardContent>
+          <CardContent className="pt-4 text-sm text-amber-700 dark:text-amber-300">{loadError}</CardContent>
         </Card>
       )}
 
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Server className="h-4 w-4 text-sky-400" />
-                <span className="text-sm font-medium">SMTP Outbound</span>
-              </div>
-              <div className="flex flex-wrap gap-1 mb-1">
+        <div className={STAFF_STAT_GRID}>
+          <KpiStatCard
+            label="SMTP Outbound"
+            value={summary.smtp.from || "—"}
+            sub={
+              <span className="flex flex-wrap gap-1">
                 {summary.smtp.configured ? (
-                  <Badge className="bg-green-500/20 text-green-400 text-xs"><CheckCircle className="h-3 w-3 mr-1" />Configured</Badge>
+                  <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 text-[10px]"><CheckCircle className="h-3 w-3 mr-1" />Configured</Badge>
                 ) : (
-                  <Badge className="bg-orange-500/20 text-orange-400 text-xs"><AlertCircle className="h-3 w-3 mr-1" />Not configured</Badge>
+                  <Badge className="bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[10px]"><AlertCircle className="h-3 w-3 mr-1" />Not configured</Badge>
                 )}
-                {!summary.smtp.enabled && <Badge variant="outline" className="text-xs">Disabled</Badge>}
-                {summary.smtp.envFallback && <Badge variant="outline" className="text-xs text-blue-400">.env fallback</Badge>}
-              </div>
-              <p className="text-xs text-muted-foreground truncate">{summary.smtp.from}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Inbox className="h-4 w-4 text-violet-400" />
-                <span className="text-sm font-medium">Support Inbox</span>
-              </div>
-              <div className="flex flex-wrap gap-1 mb-1">
-                {summary.inbox.configured ? (
-                  <Badge className="bg-green-500/20 text-green-400 text-xs">IMAP configured</Badge>
-                ) : (
-                  <Badge className="bg-orange-500/20 text-orange-400 text-xs">Not configured</Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground truncate">{summary.inbox.address || "support@kuberquant.com"}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-4">
-              <p className="text-sm font-medium mb-1">Sender Mail IDs</p>
-              <p className="text-2xl font-bold text-amber-400">{summary.identities}</p>
-              <p className="text-xs text-muted-foreground">Custom + default identities</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-4">
-              <p className="text-sm font-medium mb-1">Auto Emails</p>
-              <p className="text-2xl font-bold text-green-400">
-                {summary.autoEmailsEnabled}/{summary.autoEmailsTotal}
-              </p>
-              <p className="text-xs text-muted-foreground">Enabled automated events</p>
-            </CardContent>
-          </Card>
+                {!summary.smtp.enabled && <Badge variant="outline" className="text-[10px]">Disabled</Badge>}
+                {summary.smtp.envFallback && <Badge variant="outline" className="text-[10px] text-blue-600 dark:text-blue-400">.env fallback</Badge>}
+              </span>
+            }
+            icon={<Server className="h-4 w-4" />}
+            iconClassName="text-sky-600 dark:text-sky-400"
+            compact
+          />
+          <KpiStatCard
+            label="Support Inbox"
+            value={summary.inbox.address || "support@kuberquant.com"}
+            sub={summary.inbox.configured ? "IMAP configured" : "Not configured"}
+            icon={<Inbox className="h-4 w-4" />}
+            iconClassName="text-violet-600 dark:text-violet-400"
+            compact
+          />
+          <KpiStatCard
+            label="Sender Mail IDs"
+            value={summary.identities}
+            sub="Custom + default identities"
+            compact
+          />
+          <KpiStatCard
+            label="Auto Emails"
+            value={`${summary.autoEmailsEnabled}/${summary.autoEmailsTotal}`}
+            sub="Enabled automated events"
+            iconClassName="text-green-700 dark:text-green-400"
+            compact
+          />
         </div>
       )}
 
       <Tabs defaultValue="smtp" className="space-y-4">
-        <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto">
+        <TabsList className="bg-muted/60 dark:bg-white/5 border border-border dark:border-white/10 flex-wrap h-auto">
           <TabsTrigger value="smtp">SMTP Server</TabsTrigger>
           <TabsTrigger value="identities">Mail Addresses</TabsTrigger>
           <TabsTrigger value="routing">Purpose Routing</TabsTrigger>
           <TabsTrigger value="automation">
             Auto Emails ({enabledCount}/{purposes.length || DEFAULT_EMAIL_PURPOSES.length})
           </TabsTrigger>
+          <TabsTrigger value="otp">OTP Channels</TabsTrigger>
           <TabsTrigger value="inbox">Support Inbox (IMAP)</TabsTrigger>
           <TabsTrigger value="desk">Mail Desk (SaaS)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="smtp" className="space-y-4">
           <MailSettingsPanel />
+        </TabsContent>
+
+        <TabsContent value="otp" className="space-y-4">
+          <OtpChannelsSettingsPanel />
         </TabsContent>
 
         <TabsContent value="inbox">
@@ -295,8 +290,8 @@ export function CommunicationSettingsPanel() {
           {loading || !config ? (
             <ConfigTabSkeleton />
           ) : (
-            <Card className="bg-white/5 border-white/10">
-              <CardHeader className="flex flex-row items-center justify-between gap-4">
+            <Card className={cn(STAFF_CARD, "bg-muted/60 dark:bg-white/5")}>
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-base">Sender Mail IDs</CardTitle>
                   <CardDescription>
@@ -314,18 +309,18 @@ export function CommunicationSettingsPanel() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {config.identities.map(identity => (
-                  <div key={identity.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3 rounded-lg border border-white/10 bg-white/[0.02] items-end">
+                  <div key={identity.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3 rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02] items-end min-w-0">
                     <div className="md:col-span-2">
                       <Label className="text-xs">ID</Label>
-                      <Input value={identity.id} disabled className="bg-white/5 border-white/10 font-mono text-xs" />
+                      <Input value={identity.id} disabled className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-xs" />
                     </div>
                     <div className="md:col-span-2">
                       <Label className="text-xs">Label</Label>
-                      <Input value={identity.label} onChange={e => updateIdentity(identity.id, { label: e.target.value })} className="bg-white/5 border-white/10" />
+                      <Input value={identity.label} onChange={e => updateIdentity(identity.id, { label: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                     </div>
                     <div className="md:col-span-3">
                       <Label className="text-xs">Display Name</Label>
-                      <Input value={identity.name} onChange={e => updateIdentity(identity.id, { name: e.target.value })} className="bg-white/5 border-white/10" />
+                      <Input value={identity.name} onChange={e => updateIdentity(identity.id, { name: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                     </div>
                     <div className="md:col-span-4">
                       <Label className="text-xs">Email Address</Label>
@@ -334,7 +329,7 @@ export function CommunicationSettingsPanel() {
                         onChange={e => updateIdentity(identity.id, { address: e.target.value })}
                         placeholder={identity.id === "default" ? "Uses SMTP From address" : "mail@domain.com"}
                         disabled={identity.id === "default"}
-                        className="bg-white/5 border-white/10"
+                        className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
                       />
                     </div>
                     <div className="md:col-span-1 flex justify-end">
@@ -355,7 +350,7 @@ export function CommunicationSettingsPanel() {
           {loading || !config ? (
             <ConfigTabSkeleton />
           ) : (
-            <Card className="bg-white/5 border-white/10">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <CardHeader className="flex flex-row items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-base">Notification Sender (No Reply Only)</CardTitle>
@@ -369,35 +364,46 @@ export function CommunicationSettingsPanel() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-white/10">
-                      <TableHead>Purpose</TableHead>
-                      <TableHead>Group</TableHead>
-                      <TableHead>Sender Mail ID</TableHead>
-                      <TableHead>Resolved From</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {purposes.map(purpose => (
-                      <TableRow key={purpose} className="border-white/10">
-                        <TableCell>
+                <ResponsiveDataView
+                  data={purposes}
+                  rowKey={purpose => purpose}
+                  rowClassName="border-border dark:border-white/10"
+                  mobileHeader={purpose => (
+                    <div className="mb-2 min-w-0">
+                      <p className="font-semibold text-sm">{purposeMeta[purpose]?.label || purpose}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{purposeMeta[purpose]?.description}</p>
+                    </div>
+                  )}
+                  columns={[
+                    {
+                      key: "purpose",
+                      header: "Purpose",
+                      mobileTitle: true,
+                      hideOnMobile: true,
+                      cell: purpose => (
+                        <>
                           <p className="font-medium text-sm">{purposeMeta[purpose]?.label || purpose}</p>
-                          <p className="text-xs text-muted-foreground">{purposeMeta[purpose]?.description}</p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">{purposeMeta[purpose]?.group}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="bg-zinc-500/20 text-zinc-300">No Reply (fixed)</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-[10px] text-muted-foreground break-all">{previewFrom(purpose)}</code>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          <p className="text-xs text-muted-foreground font-normal">{purposeMeta[purpose]?.description}</p>
+                        </>
+                      ),
+                    },
+                    {
+                      key: "group",
+                      header: "Group",
+                      cell: purpose => <Badge variant="outline" className="text-xs">{purposeMeta[purpose]?.group}</Badge>,
+                    },
+                    {
+                      key: "sender",
+                      header: "Sender Mail ID",
+                      cell: () => <Badge className="bg-muted text-muted-foreground">No Reply (fixed)</Badge>,
+                    },
+                    {
+                      key: "resolved",
+                      header: "Resolved From",
+                      cell: purpose => <code className="text-[10px] text-muted-foreground break-all">{previewFrom(purpose)}</code>,
+                    },
+                  ]}
+                />
               </CardContent>
             </Card>
           )}
@@ -408,11 +414,11 @@ export function CommunicationSettingsPanel() {
             <ConfigTabSkeleton />
           ) : (
             <>
-              <Card className="bg-white/5 border-white/10">
+              <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                 <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
-                      <Send className="h-4 w-4 text-amber-400" />
+                      <Send className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       Automated User Communications
                     </CardTitle>
                     <CardDescription>
@@ -435,7 +441,7 @@ export function CommunicationSettingsPanel() {
                         {items.map(purpose => {
                           const auto = config.autoEmails[purpose] || { enabled: true, subject: "" };
                           return (
-                            <div key={purpose} className="flex flex-col md:flex-row md:items-center gap-3 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
+                            <div key={purpose} className="flex flex-col md:flex-row md:items-center gap-3 p-3 rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02]">
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium">{purposeMeta[purpose]?.label}</p>
                                 <p className="text-xs text-muted-foreground">{purposeMeta[purpose]?.description}</p>
@@ -455,7 +461,7 @@ export function CommunicationSettingsPanel() {
                                     autoEmails: { ...config.autoEmails, [purpose]: { ...auto, subject: e.target.value } },
                                   })}
                                   placeholder="Email subject line"
-                                  className="bg-white/5 border-white/10 w-full md:w-72"
+                                  className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 w-full md:w-72"
                                 />
                               </div>
                             </div>
@@ -467,7 +473,7 @@ export function CommunicationSettingsPanel() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/5 border-white/10">
+              <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                 <CardHeader>
                   <CardTitle className="text-base">Send Test Email by Purpose</CardTitle>
                   <CardDescription>
@@ -476,7 +482,7 @@ export function CommunicationSettingsPanel() {
                 </CardHeader>
                 <CardContent className="flex flex-col sm:flex-row gap-3">
                   <Select value={testPurpose} onValueChange={setTestPurpose}>
-                    <SelectTrigger className="bg-white/5 border-white/10 sm:w-56">
+                    <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 sm:w-56">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -489,7 +495,7 @@ export function CommunicationSettingsPanel() {
                     value={testTo}
                     onChange={e => setTestTo(e.target.value)}
                     placeholder="you@company.com"
-                    className="bg-white/5 border-white/10 flex-1"
+                    className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 flex-1"
                   />
                   <Button onClick={sendPurposeTest} disabled={testing} className="bg-amber-500 text-black shrink-0">
                     {testing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 mr-2" />Send test</>}
@@ -497,7 +503,7 @@ export function CommunicationSettingsPanel() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/5 border-white/10">
+              <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                 <CardContent className="pt-6 text-sm text-muted-foreground space-y-2">
                   <p className="flex items-center gap-2 font-medium text-foreground">
                     <Settings2 className="h-4 w-4" /> Covered events

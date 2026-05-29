@@ -7,6 +7,7 @@
  */
 
 export * from './activityItem';
+export * from './activityItemStatus';
 export * from './activityItemType';
 export * from './adminReferralStats';
 export * from './adminReferralStatsTopReferrersItem';
@@ -66,6 +67,7 @@ export * from './kycRejectInput';
 export * from './loginInput';
 export * from './managerStats';
 export * from './messageResponse';
+export * from './monthlyReturnPoint';
 export * from './mt5Account';
 export * from './mt5AccountInput';
 export * from './mt5AccountStatus';
@@ -81,6 +83,7 @@ export * from './paymentGatewayExtraConfig';
 export * from './paymentGatewayInput';
 export * from './paymentGatewayInputExtraConfig';
 export * from './paymentGatewayType';
+export * from './portfolioAllocationSlice';
 export * from './referralEarning';
 export * from './referralEarningStatus';
 export * from './referralStats';
@@ -88,6 +91,7 @@ export * from './registerInput';
 export * from './siteSetting';
 export * from './siteSettingsUpdate';
 export * from './strategySubscription';
+export * from './strategySubscriptionPlan';
 export * from './strategySubscriptionPlatform';
 export * from './superAdminRoleInput';
 export * from './superAdminStats';

@@ -28,10 +28,10 @@ export function UserPayoutAccountsCard({ userId }: { userId: number }) {
   });
 
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <CreditCard className="h-4 w-4 text-amber-400" /> Payout Accounts
+          <CreditCard className="h-4 w-4 text-amber-600 dark:text-amber-400" /> Payout Accounts
         </CardTitle>
         <CardDescription>Personal bank, UPI, and crypto accounts registered for withdrawals</CardDescription>
       </CardHeader>
@@ -43,11 +43,11 @@ export function UserPayoutAccountsCard({ userId }: { userId: number }) {
         ) : (
           <div className="space-y-3">
             {data.map(a => (
-              <div key={a.id} className="p-3 rounded-lg border border-white/10 bg-white/5">
+              <div key={a.id} className="p-3 rounded-lg border border-border dark:border-white/10 bg-muted/60 dark:bg-white/5">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <span className="font-medium text-sm">{a.label}</span>
                   <Badge variant="outline" className="text-[10px] capitalize">{a.accountType}</Badge>
-                  {a.isDefault && <Badge className="text-[10px] bg-amber-500/20 text-amber-400">Default</Badge>}
+                  {a.isDefault && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400">Default</Badge>}
                 </div>
                 {a.accountType === "bank" && (
                   <p className="text-xs text-muted-foreground">

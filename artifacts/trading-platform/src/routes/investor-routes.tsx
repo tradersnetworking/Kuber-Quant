@@ -15,6 +15,8 @@ import AlgoTradingPage from "@/pages/algo-trading/index";
 import CopyTradingPage from "@/pages/copy-trading/index";
 import EAStrategiesPage from "@/pages/ea-strategies/index";
 import EAStrategyDetailPage from "@/pages/ea-strategies/[id]";
+import ExchangePage from "@/pages/exchange/index";
+import MoneyHubPage from "@/pages/money/index";
 import TransactionsPage from "@/pages/transactions/index";
 import SettingsPage from "@/pages/settings/index";
 import Mt5RelayPage from "@/pages/mt5-relay/index";
@@ -33,7 +35,9 @@ export function InvestorAccountRoutes({
 }): ReactElement[] {
   return [
     <Route key="/dashboard" path="/dashboard"><Wrap component={DashboardPage} /></Route>,
+    <Route key="/money" path="/money"><Wrap component={MoneyHubPage} /></Route>,
     <Route key="/wallet" path="/wallet"><Wrap component={WalletPage} /></Route>,
+    <Route key="/exchange" path="/exchange"><Wrap component={ExchangePage} /></Route>,
     <Route key="/plans" path="/plans"><Wrap component={PlansPage} /></Route>,
     <Route key="/kyc" path="/kyc"><Wrap component={KycPage} /></Route>,
     <Route key="/referral" path="/referral"><Wrap component={ReferralPage} /></Route>,

@@ -1,11 +1,19 @@
 import { Router } from "express";
 import { db, transactionsTable, usersTable, siteSettingsTable, promoCodesTable, promoUsagesTable } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
-import { creditWallet, debitWallet, WalletError } from "../helpers/walletService";
+import { creditWallet, WalletError } from "../helpers/walletService";
 import { notifyUser } from "../helpers/notificationService";
 import { sendTransactionalEmail, buildTransactionEmail, buildKycEmail } from "../helpers/mailer";
+import { assertUpiDepositWithinLimit } from "../helpers/paymentLimits";
+import { emitN8nEvent } from "../helpers/n8nWebhookService";
+import { validateDepositProofAsync } from "../helpers/documentOcrService";
+import { assertKycVerified } from "../helpers/kycGateService";
+import { validateBody, getValidatedBody } from "../middlewares/validate";
+import { CreateTransactionBody } from "@workspace/api-zod";
+import { ManualDepositBody, type ManualDepositInput } from "../lib/routeBodySchemas";
+import { normalizeProofUrl } from "../helpers/proofUrlUtil";
 
 async function notifyTransactionSubmitted(userId: number, type: string, amount: number, currency: string) {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -40,11 +48,12 @@ export function mapTxn(t: any, userEmail?: string) {
     paymentMethod: t.paymentMethod,
     txHash: t.txHash,
     notes: t.notes,
-    proofUrl: t.proofUrl || null,
+    proofUrl: normalizeProofUrl(t.proofUrl),
     utrReference: t.utrReference || null,
     gatewayProvider: t.gatewayProvider || null,
     gatewayOrderId: t.gatewayOrderId || null,
     gatewayPaymentId: t.gatewayPaymentId || null,
+    paymentAccountId: t.paymentAccountId ?? null,
     adminNotes: t.adminNotes || null,
     reviewedByUserId: t.reviewedByUserId || null,
     reviewedAt: t.reviewedAt ? t.reviewedAt.toISOString() : null,
@@ -58,12 +67,7 @@ async function getSetting(key: string, fallback: string): Promise<string> {
 }
 
 async function checkKycRequired(userId: number) {
-  const kycRequired = await getSetting("kyc_required", "true");
-  if (kycRequired !== "true") return;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (user && user.kycStatus !== "verified") {
-    throw new WalletError("KYC verification required before transactions", "KYC_REQUIRED");
-  }
+  await assertKycVerified(userId);
 }
 
 router.get("/", requireAuth, async (req, res) => {
@@ -74,13 +78,18 @@ router.get("/", requireAuth, async (req, res) => {
   res.json(txns.map(t => mapTxn(t)));
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, validateBody(CreateTransactionBody), async (req, res) => {
   const { userId } = (req as any).user;
-  const { type, amount, currency, paymentMethod, txHash, notes, utrReference, gatewayProvider } = req.body;
-  if (!type || !amount || !currency) {
-    res.status(400).json({ error: "type, amount, currency are required" });
-    return;
-  }
+  const { type, amount, currency, paymentMethod, txHash, notes } = getValidatedBody<{
+    type: "deposit" | "withdrawal";
+    amount: number;
+    currency: string;
+    paymentMethod?: string;
+    txHash?: string;
+    notes?: string;
+  }>(req);
+  const utrReference = typeof req.body.utrReference === "string" ? req.body.utrReference : undefined;
+  const gatewayProvider = typeof req.body.gatewayProvider === "string" ? req.body.gatewayProvider : undefined;
   const numAmount = Number(amount);
   if (numAmount <= 0) {
     res.status(400).json({ error: "Amount must be positive" });
@@ -91,52 +100,22 @@ router.post("/", requireAuth, async (req, res) => {
     await checkKycRequired(userId);
 
     if (type === "withdrawal") {
-      const minWithdraw = Number(await getSetting("min_withdrawal_fiat", "50"));
-      if (numAmount < minWithdraw && !["BTC", "ETH", "USDT"].includes(currency)) {
-        res.status(400).json({ error: `Minimum withdrawal is ${minWithdraw}` });
-        return;
-      }
-      const feePercent = Number(await getSetting("withdrawal_fee_percent", "2"));
-      const fee = numAmount * (feePercent / 100);
-      const totalDebit = numAmount + fee;
-
-      const [txn] = await db.insert(transactionsTable).values({
-        userId,
-        type,
-        amount: String(numAmount),
-        currency,
-        paymentMethod,
-        txHash,
-        notes,
-        utrReference,
-        gatewayProvider: gatewayProvider || "manual",
-        status: "pending",
-      }).returning();
-
-      await debitWallet({
-        userId,
-        amount: totalDebit,
-        currency,
-        type: "withdrawal",
-        referenceType: "transaction",
-        referenceId: txn.id,
-        description: `Withdrawal request #${txn.id} (fee: ${fee.toFixed(2)})`,
+      res.status(400).json({
+        error: "Withdrawals must be submitted via POST /api/wallet/payment-accounts/withdraw with password, 2FA, and email confirmation.",
+        code: "WITHDRAWAL_USE_SECURE_ENDPOINT",
       });
-
-      await notifyUser({
-        userId,
-        title: "Withdrawal Requested",
-        message: `Your withdrawal of ${numAmount} ${currency} is pending review.`,
-        type: "info",
-        category: "withdrawal",
-        actionUrl: "/transactions",
-      });
-
-      await notifyTransactionSubmitted(userId, "withdrawal", numAmount, currency);
-
-      res.status(201).json(mapTxn(txn));
       return;
     } else if (type === "deposit") {
+      const { assertUserServiceEnabled, UserAccessError } = await import("../helpers/userAccessControl");
+      try {
+        await assertUserServiceEnabled(userId, "deposits");
+      } catch (err) {
+        if (err instanceof UserAccessError) {
+          res.status(403).json({ error: err.message, code: err.code });
+          return;
+        }
+        throw err;
+      }
       const minDeposit = Number(await getSetting("min_deposit_fiat", "100"));
       if (numAmount < minDeposit && !["BTC", "ETH", "USDT"].includes(currency)) {
         res.status(400).json({ error: `Minimum deposit is ${minDeposit}` });
@@ -148,7 +127,7 @@ router.post("/", requireAuth, async (req, res) => {
       userId,
       type,
       amount: String(numAmount),
-      currency,
+      currency: currency as typeof transactionsTable.$inferInsert.currency,
       paymentMethod,
       txHash,
       notes,
@@ -168,6 +147,16 @@ router.post("/", requireAuth, async (req, res) => {
 
     await notifyTransactionSubmitted(userId, type, numAmount, currency);
 
+    if (type === "deposit") {
+      emitN8nEvent("deposit.submitted", {
+        transactionId: txn.id,
+        userId,
+        amount: numAmount,
+        currency,
+        paymentMethod: paymentMethod || "manual",
+      });
+    }
+
     res.status(201).json(mapTxn(txn));
   } catch (err) {
     if (err instanceof WalletError) {
@@ -178,13 +167,18 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/manual-deposit", requireAuth, upload.single("proof"), async (req, res) => {
+router.post("/manual-deposit", requireAuth, upload.single("proof"), validateBody(ManualDepositBody), async (req, res) => {
   const { userId } = (req as any).user;
-  const { amount, currency, paymentMethod, utrReference, txHash, notes, promoCode } = req.body;
-  if (!amount || !currency || !paymentMethod) {
-    res.status(400).json({ error: "amount, currency, paymentMethod are required" });
-    return;
-  }
+  const {
+    amount,
+    currency,
+    paymentMethod,
+    utrReference,
+    txHash,
+    notes,
+    promoCode,
+    depositMethodType,
+  } = getValidatedBody<ManualDepositInput>(req);
   if (!utrReference && !txHash && !req.file) {
     res.status(400).json({ error: "Provide UTR/reference number, transaction hash, or payment proof" });
     return;
@@ -192,7 +186,10 @@ router.post("/manual-deposit", requireAuth, upload.single("proof"), async (req, 
 
   try {
     await checkKycRequired(userId);
-    const numAmount = Number(amount);
+    const numAmount = amount;
+    if (String(depositMethodType || "").toLowerCase() === "upi") {
+      await assertUpiDepositWithinLimit(numAmount, currency);
+    }
     let depositNotes = notes || "";
     let promoId: number | null = null;
 
@@ -273,6 +270,19 @@ router.post("/manual-deposit", requireAuth, upload.single("proof"), async (req, 
     });
 
     await notifyTransactionSubmitted(userId, "deposit", numAmount, currency);
+
+    emitN8nEvent("deposit.submitted", {
+      transactionId: txn.id,
+      userId,
+      amount: numAmount,
+      currency,
+      paymentMethod,
+      utrReference: utrReference || null,
+    });
+
+    if (proofUrl) {
+      void validateDepositProofAsync({ userId, transactionId: txn.id, proofUrl });
+    }
 
     res.status(201).json(mapTxn(txn));
   } catch (err) {

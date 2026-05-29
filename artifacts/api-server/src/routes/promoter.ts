@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { db, usersTable, referralEarningsTable, transactionsTable } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { db, usersTable, referralEarningsTable, transactionsTable, promoterApplicationsTable, notificationsTable } from "@workspace/db";
+import { eq, desc, and } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { mapUser } from "./auth";
+import { emitN8nEvent } from "../helpers/n8nWebhookService";
 
 const router = Router();
 
@@ -52,10 +53,46 @@ router.get("/dashboard", requireAuth, async (req, res) => {
 
 router.post("/upgrade-request", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
+  const { message } = req.body;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   if (user.isPromoter) { res.json({ message: "Already a promoter" }); return; }
-  res.json({ message: "Promoter upgrade request submitted. An admin will review your account." });
+
+  const [existing] = await db.select().from(promoterApplicationsTable)
+    .where(and(eq(promoterApplicationsTable.userId, userId), eq(promoterApplicationsTable.status, "pending")))
+    .limit(1);
+  if (existing) {
+    res.json({ message: "Your promoter upgrade request is already pending review." });
+    return;
+  }
+
+  const [app] = await db.insert(promoterApplicationsTable).values({
+    userId,
+    message: message || null,
+    status: "pending",
+  }).returning();
+
+  const admins = await db.select({ id: usersTable.id }).from(usersTable)
+    .where(eq(usersTable.role, "superadmin"));
+  for (const admin of admins) {
+    await db.insert(notificationsTable).values({
+      userId: admin.id,
+      title: "Promoter Upgrade Request",
+      message: `${user.fullName} (${user.email}) requested promoter access.`,
+      type: "info",
+      isRead: false,
+    });
+  }
+
+  emitN8nEvent("promoter.application", {
+    applicationId: app.id,
+    userId,
+    email: user.email,
+    fullName: user.fullName,
+    message: message || null,
+  });
+
+  res.status(201).json({ message: "Promoter upgrade request submitted.", applicationId: app.id });
 });
 
 router.post("/commission-withdraw", requireAuth, async (req, res) => {

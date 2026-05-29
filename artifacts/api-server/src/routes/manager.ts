@@ -3,12 +3,27 @@ import {
   db, usersTable, ticketsTable, ticketRepliesTable, kycRecordsTable, transactionsTable,
   investmentsTable, walletLedgerTable, referralEarningsTable, roiPayoutsTable,
 } from "@workspace/db";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray } from "@workspace/db/orm";
 import { requireAuth, requireManagerOrAdmin } from "../middlewares/auth";
 import { mapUser } from "./auth";
 import { canViewRole, filterUsersByViewerRole } from "../helpers/roleHierarchy";
 import { mapKyc } from "./kyc";
 import { mapTicket } from "./tickets";
+import { getUserFullDetail } from "../helpers/userFullDetailService";
+import { createStaffEscalation, STAFF_ESCALATION_CATEGORY } from "../helpers/staffEscalationService";
+import { computePlatformFinancialStats, parseQueryDateRange } from "../helpers/platformStatsService";
+import { getExchangeRates, usdToInr } from "../helpers/exchangeRateService";
+import {
+  fetchTransactionsForUserIds,
+  fetchInvestmentsForUserIds,
+  fetchRecentTransactionsForUserIds,
+  countPendingTransactionsForUserIds,
+  countKycSubmittedForUserIds,
+  countOpenTicketsForUserIds,
+  sumTransactionVolumeForUserIds,
+} from "../helpers/platformDashboardCounts";
+import { validateBody, getValidatedBody } from "../middlewares/validate";
+import { ManagerReportBody } from "../lib/routeBodySchemas";
 
 const router = Router();
 
@@ -48,26 +63,65 @@ async function getManagerClient(req: any, clientId: number) {
 
 router.get("/stats", requireAuth, requireManagerOrAdmin, async (req, res) => {
   const { userId, role } = (req as any).user;
+  const { from, to, label: periodLabel } = parseQueryDateRange({
+    period: req.query.period as string | undefined,
+    from: req.query.from as string | undefined,
+    to: req.query.to as string | undefined,
+  });
+
   const allClients = await db.select().from(usersTable).where(eq(usersTable.managerId, userId));
   const clients = filterUsersByViewerRole(role, allClients);
   const clientIds = clients.map(c => c.id);
 
-  let pendingKyc = 0;
-  let pendingTxns = 0;
-  let openTickets = 0;
-  let totalVolume = 0;
-
-  for (const clientId of clientIds) {
-    const kycs = await db.select().from(kycRecordsTable).where(eq(kycRecordsTable.userId, clientId));
-    pendingKyc += kycs.filter(k => k.status === "submitted").length;
-
-    const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.userId, clientId));
-    pendingTxns += txns.filter(t => t.status === "pending").length;
-    totalVolume += txns.reduce((s, t) => s + Number(t.amount), 0);
-
-    const tickets = await db.select().from(ticketsTable).where(eq(ticketsTable.userId, clientId));
-    openTickets += tickets.filter(t => t.status === "open").length;
+  if (clientIds.length === 0) {
+    const fx = await getExchangeRates();
+    res.json({
+      totalClients: 0,
+      pendingTickets: 0,
+      pendingKyc: 0,
+      pendingTransactions: 0,
+      totalClientVolume: 0,
+      periodLabel,
+      fiatBalance: 0,
+      fiatBalanceInr: 0,
+      periodFiatDeposits: 0,
+      periodFiatWithdrawals: 0,
+      periodCryptoDeposits: 0,
+      periodCryptoWithdrawals: 0,
+      periodFiatDepositsInr: 0,
+      periodFiatWithdrawalsInr: 0,
+      periodCryptoDepositsInr: 0,
+      periodCryptoWithdrawalsInr: 0,
+      periodInvested: 0,
+      periodInvestedInr: 0,
+    });
+    return;
   }
+
+  const [
+    pendingKyc,
+    pendingTxns,
+    openTickets,
+    totalVolume,
+    clientTxns,
+    clientInvestments,
+  ] = await Promise.all([
+    countKycSubmittedForUserIds(clientIds),
+    countPendingTransactionsForUserIds(clientIds),
+    countOpenTicketsForUserIds(clientIds),
+    sumTransactionVolumeForUserIds(clientIds),
+    fetchTransactionsForUserIds(clientIds, from, to),
+    fetchInvestmentsForUserIds(clientIds, from, to),
+  ]);
+
+  const financials = await computePlatformFinancialStats({
+    transactions: clientTxns,
+    investments: clientInvestments,
+    from,
+    to,
+  });
+  const fiatBalance = clients.reduce((s, c) => s + Number(c.balanceFiat || 0), 0);
+  const fx = await getExchangeRates();
 
   res.json({
     totalClients: clients.length,
@@ -75,6 +129,19 @@ router.get("/stats", requireAuth, requireManagerOrAdmin, async (req, res) => {
     pendingKyc,
     pendingTransactions: pendingTxns,
     totalClientVolume: totalVolume,
+    periodLabel,
+    fiatBalance,
+    fiatBalanceInr: usdToInr(fiatBalance, fx),
+    periodFiatDeposits: financials.totalFiatDeposits,
+    periodFiatWithdrawals: financials.totalFiatWithdrawals,
+    periodCryptoDeposits: financials.totalCryptoDeposits,
+    periodCryptoWithdrawals: financials.totalCryptoWithdrawals,
+    periodFiatDepositsInr: usdToInr(financials.totalFiatDeposits, fx),
+    periodFiatWithdrawalsInr: usdToInr(financials.totalFiatWithdrawals, fx),
+    periodCryptoDepositsInr: usdToInr(financials.totalCryptoDeposits, fx),
+    periodCryptoWithdrawalsInr: usdToInr(financials.totalCryptoWithdrawals, fx),
+    periodInvested: financials.totalInvestments,
+    periodInvestedInr: usdToInr(financials.totalInvestments, fx),
   });
 });
 
@@ -103,6 +170,67 @@ router.get("/clients", requireAuth, requireManagerOrAdmin, async (req, res) => {
   res.json(clients.map(c => ({
     ...mapUser(c),
     ...txSummary.get(c.id)!,
+  })));
+});
+
+router.get("/clients/:id/full", requireAuth, requireManagerOrAdmin, async (req, res) => {
+  const clientId = parseInt(String(req.params.id));
+  if (isNaN(clientId)) { res.status(400).json({ error: "Invalid client id" }); return; }
+  const client = await getManagerClient(req, clientId);
+  if (!client) { res.status(404).json({ error: "Client not found" }); return; }
+  const detail = await getUserFullDetail(clientId, { transactionLimit: 200, investmentLimit: 100 });
+  if (!detail) { res.status(404).json({ error: "Client not found" }); return; }
+  res.json(detail);
+});
+
+router.post("/reports", requireAuth, requireManagerOrAdmin, validateBody(ManagerReportBody), async (req, res) => {
+  const { userId: reporterUserId, role } = (req as any).user;
+  const { subjectUserId, issueType, subject, message, priority } = getValidatedBody<{
+    subjectUserId: number;
+    issueType?: string;
+    subject: string;
+    message: string;
+    priority?: "low" | "medium" | "high" | "urgent";
+  }>(req);
+  const clientId = subjectUserId;
+  const client = await getManagerClient(req, clientId);
+  if (!client) { res.status(403).json({ error: "Client not assigned to you" }); return; }
+  const [reporter] = await db.select().from(usersTable).where(eq(usersTable.id, reporterUserId)).limit(1);
+  try {
+    const result = await createStaffEscalation({
+      reporterUserId,
+      reporterRole: role,
+      reporterName: reporter?.fullName || reporter?.email || "Manager",
+      subjectUserId: clientId,
+      issueType: issueType?.trim() || "Client Issue",
+      subject: subject.trim(),
+      message: message.trim(),
+      priority,
+    });
+    res.status(201).json(result);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || "Failed to submit report" });
+  }
+});
+
+router.get("/reports", requireAuth, requireManagerOrAdmin, async (req, res) => {
+  const { userId } = (req as any).user;
+  const myReplies = await db.select({ ticketId: ticketRepliesTable.ticketId })
+    .from(ticketRepliesTable)
+    .where(eq(ticketRepliesTable.userId, userId));
+  const ticketIds = [...new Set(myReplies.map(r => r.ticketId))];
+  if (ticketIds.length === 0) { res.json([]); return; }
+
+  const tickets = await db.select().from(ticketsTable)
+    .where(inArray(ticketsTable.id, ticketIds))
+    .orderBy(desc(ticketsTable.createdAt));
+  const escalations = tickets.filter(t => t.category === STAFF_ESCALATION_CATEGORY);
+
+  const users = await db.select().from(usersTable);
+  const userMap = new Map(users.map(u => [u.id, u]));
+  res.json(await Promise.all(escalations.map(t => {
+    const u = userMap.get(t.userId);
+    return mapTicket(t, u?.email, u?.fullName);
   })));
 });
 
@@ -209,6 +337,13 @@ router.get("/tickets", requireAuth, requireManagerOrAdmin, async (req, res) => {
   res.json(allTickets);
 });
 
+router.get("/transactions/upcoming", requireAuth, requireManagerOrAdmin, async (req, res) => {
+  const { userId, role } = (req as any).user;
+  const limit = Math.min(Number(req.query.limit) || 100, 200);
+  const { listUpcomingForManagerClients } = await import("../helpers/upcomingTransactionsService");
+  res.json(await listUpcomingForManagerClients(userId, role, limit));
+});
+
 router.get("/transactions", requireAuth, requireManagerOrAdmin, async (req, res) => {
   const { userId, role } = (req as any).user;
   const allClients = await db.select().from(usersTable).where(eq(usersTable.managerId, userId));
@@ -232,7 +367,7 @@ router.get("/analytics", requireAuth, requireManagerOrAdmin, async (req, res) =>
   const { userId, role } = (req as any).user;
   const allClients = await db.select().from(usersTable).where(eq(usersTable.managerId, userId));
   const clients = filterUsersByViewerRole(role, allClients);
-  const clientIds = new Set(clients.map(c => c.id));
+  const clientIds = clients.map(c => c.id);
   const clientMap = new Map(clients.map(c => [c.id, c]));
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -243,20 +378,21 @@ router.get("/analytics", requireAuth, requireManagerOrAdmin, async (req, res) =>
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     d.setHours(0, 0, 0, 0);
-    const next = new Date(d);
-    next.setDate(next.getDate() + 1);
     cashFlow.push({ day: dayNames[d.getDay()], deposits: 0, withdrawals: 0 });
   }
 
-  const allTxns: any[] = [];
-  for (const clientId of clientIds) {
-    const txns = await db.select().from(transactionsTable)
-      .where(eq(transactionsTable.userId, clientId))
-      .orderBy(desc(transactionsTable.createdAt));
-    allTxns.push(...txns.map(t => ({ ...t, client: clientMap.get(clientId) })));
-  }
+  const weekStart = new Date(now);
+  weekStart.setDate(weekStart.getDate() - 6);
+  weekStart.setHours(0, 0, 0, 0);
 
-  for (const t of allTxns) {
+  const [weekTxns, recentTxns] = clientIds.length
+    ? await Promise.all([
+      fetchTransactionsForUserIds(clientIds, weekStart, now),
+      fetchRecentTransactionsForUserIds(clientIds, 8),
+    ])
+    : [[], []];
+
+  for (const t of weekTxns) {
     if (t.status !== "approved") continue;
     const daysAgo = Math.floor((now.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60 * 24));
     if (daysAgo < 0 || daysAgo > 6) continue;
@@ -268,24 +404,24 @@ router.get("/analytics", requireAuth, requireManagerOrAdmin, async (req, res) =>
 
   const investorGrowth: { week: string; investors: number }[] = [];
   for (let w = 3; w >= 0; w--) {
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - (w + 1) * 7);
-    const weekEnd = new Date(now);
-    weekEnd.setDate(weekEnd.getDate() - w * 7);
-    const count = clients.filter(c => c.createdAt >= weekStart && c.createdAt < weekEnd).length;
+    const rangeStart = new Date(now);
+    rangeStart.setDate(rangeStart.getDate() - (w + 1) * 7);
+    const rangeEnd = new Date(now);
+    rangeEnd.setDate(rangeEnd.getDate() - w * 7);
+    const count = clients.filter(c => c.createdAt >= rangeStart && c.createdAt < rangeEnd).length;
     investorGrowth.push({ week: `Wk${4 - w}`, investors: count });
   }
 
-  const recentActivity = allTxns
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, 8)
-    .map(t => ({
+  const recentActivity = recentTxns.map(t => {
+    const client = clientMap.get(t.userId);
+    return {
       type: t.type,
-      user: t.client?.fullName || t.client?.email || "Client",
+      user: client?.fullName || client?.email || "Client",
       amount: t.type === "deposit" || t.type === "withdrawal" ? `$${Number(t.amount).toLocaleString()}` : null,
       status: t.status,
       time: t.createdAt.toISOString(),
-    }));
+    };
+  });
 
   res.json({ cashFlow, investorGrowth, recentActivity });
 });

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, promoCodesTable, promoUsagesTable, usersTable } from "@workspace/db";
-import { eq, and, lte, gt } from "drizzle-orm";
+import { eq, and, lte, gt } from "@workspace/db/orm";
 import { requireAuth, requireAdmin, requirePermission } from "../middlewares/auth";
 import { logAudit } from "../helpers/audit";
 

@@ -19,13 +19,13 @@ export function resolveSecureUploadUrl(storedUrl: string): string {
   let path = storedUrl.trim();
 
   // Bare filename or nested path without leading slash
-  const folderMatch = path.match(/(?:^|\/)(payment_proofs|kyc_documents)\/([^/?#]+)$/);
+  const folderMatch = path.match(/(?:^|\/)(payment_proofs|kyc_documents|mail_attachments)\/([^/?#]+)$/);
   if (folderMatch && !path.startsWith("/api/") && !path.startsWith("http")) {
     return `${base}/api/uploads-secure/${folderMatch[1]}/${folderMatch[2]}`.replace(/([^:]\/)\/+/g, "$1");
   }
 
   path = path.replace(
-    /^\/uploads\/(payment_proofs|kyc_documents)\//,
+    /^\/uploads\/(payment_proofs|kyc_documents|mail_attachments)\//,
     "/uploads-secure/$1/",
   );
 

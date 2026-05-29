@@ -1,0 +1,20 @@
+name: Staging Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Staging base URL (e.g. https://staging.example.com)
+        required: true
+        type: string
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run smoke test
+        run: node scripts/smoke-test.mjs "${{ inputs.url }}"
+        env:
+          SMOKE_TEST_TIMEOUT_MS: 20000

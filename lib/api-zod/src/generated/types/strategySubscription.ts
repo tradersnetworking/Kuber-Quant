@@ -5,11 +5,13 @@
  * Kuber Capital Trading Platform API
  * OpenAPI spec version: 0.2.0
  */
+import type { StrategySubscriptionPlan } from './strategySubscriptionPlan';
 import type { StrategySubscriptionPlatform } from './strategySubscriptionPlatform';
 
 export interface StrategySubscription {
   amount: number;
   currency?: string;
+  plan?: StrategySubscriptionPlan;
   accountNumber: string;
   brokerName: string;
   serverName: string;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { db, paymentOrdersTable, transactionsTable, notificationsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 import { requireAuth } from "../../middlewares/auth";
 
 const router = Router();
@@ -77,6 +77,15 @@ router.post("/callback", async (req, res) => {
     return;
   }
 
+  const xVerify = req.headers["x-verify"] as string | undefined;
+  if (cfg.saltKey) {
+    const expectedChecksum = sha256(response + cfg.saltKey) + "###" + cfg.saltIndex;
+    if (!xVerify || xVerify !== expectedChecksum) {
+      res.status(400).json({ error: "Invalid PhonePe callback signature" });
+      return;
+    }
+  }
+
   const decoded = JSON.parse(Buffer.from(response, "base64").toString("utf8"));
   const merchantTransactionId = decoded?.data?.merchantTransactionId;
   const transactionId = decoded?.data?.transactionId;
@@ -96,11 +105,12 @@ router.post("/callback", async (req, res) => {
 
   if (success && order.status !== "paid") {
     const amount = Number(order.amount);
+    const orderCurrency = (order.currency || "INR").toUpperCase() as "USD" | "EUR" | "INR" | "BTC" | "ETH" | "USDT" | "TRX" | "BNB";
     const [txn] = await db.insert(transactionsTable).values({
       userId: order.userId,
       type: "deposit",
       amount: String(amount),
-      currency: "USD",
+      currency: orderCurrency,
       status: "pending",
       paymentMethod: "PhonePe",
       gatewayProvider: "phonepe",

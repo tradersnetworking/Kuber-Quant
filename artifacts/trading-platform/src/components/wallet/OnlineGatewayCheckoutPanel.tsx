@@ -3,22 +3,27 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FinanceFieldLabel, financeInputClass } from "@/components/wallet/PaymentMethodField";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { authFetchJson } from "@/lib/token-store";
 import {
   enrichDepositAccount,
   getOnlineGatewayLabel,
   getOnlineGatewayMeta,
-  ONLINE_GATEWAY_CATALOG,
+  isLiveCheckoutGateway,
   type DepositAccount,
   type DepositAccountsResponse,
 } from "./deposit-account-utils";
 import { processOnlinePayment } from "./online-payment";
 import { CreditCard, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { mobileBtnWrap } from "@/lib/mobile-ui";
+import { DEPOSIT_BUTTON_CLASS } from "@/lib/wallet-action-styles";
+import { PaymentMethodSelect, PaymentMethodTabsTrigger } from "@/components/wallet/PaymentMethodField";
+import { GATEWAY_BRANDS } from "@/lib/payment-method-catalog";
+import { PaymentMethodBrandTile } from "@/components/wallet/PaymentMethodBrandIcon";
 
 export function OnlineGatewayCheckoutPanel({
   onSuccess,
@@ -44,7 +49,9 @@ export function OnlineGatewayCheckoutPanel({
     queryFn: () => authFetchJson<Record<string, boolean>>("/payments/online/status"),
   });
 
-  const gateways = (depositAccounts?.online || []).map(enrichDepositAccount);
+  const gateways = (depositAccounts?.online || [])
+    .map(enrichDepositAccount)
+    .filter(g => isLiveCheckoutGateway(g.type));
 
   useEffect(() => {
     if (initialGatewayId && gateways.some(g => String(g.id) === initialGatewayId)) {
@@ -85,16 +92,16 @@ export function OnlineGatewayCheckoutPanel({
 
   if (!gateways.length) {
     return (
-      <Card className="bg-black/20 border-white/10 border-dashed">
+      <Card className="bg-muted/80 dark:bg-black/20 border-border dark:border-white/10 border-dashed">
         <CardContent className={`text-center text-sm text-muted-foreground ${compact ? "py-6" : "py-10"}`}>
           <CreditCard className="h-8 w-8 mx-auto mb-2 text-amber-400/50" />
           <p className="font-medium text-foreground/80">Payment gateways not enabled yet</p>
           <p className="mt-1 max-w-sm mx-auto">
             Admin can enable Razorpay, PhonePe, Paytm, PayU, Cashfree, Stripe, Instamojo, Pine Labs, Easebuzz in Super Admin → Payments.
           </p>
-          <div className="flex flex-wrap justify-center gap-1.5 mt-4">
-            {ONLINE_GATEWAY_CATALOG.map(g => (
-              <Badge key={g.type} variant="outline" className="text-[10px]">{g.label}</Badge>
+          <div className="flex flex-wrap justify-center gap-1.5 mt-4 max-w-lg mx-auto">
+            {GATEWAY_BRANDS.map(g => (
+              <PaymentMethodBrandTile key={g.id} item={g} compact className="w-[4.5rem] sm:w-auto" />
             ))}
           </div>
         </CardContent>
@@ -103,32 +110,37 @@ export function OnlineGatewayCheckoutPanel({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 min-w-0">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        {GATEWAY_BRANDS.slice(0, 8).map(g => (
+          <PaymentMethodBrandTile key={g.id} item={g} compact />
+        ))}
+      </div>
       {gateways.length > 1 && (
         <>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Select payment gateway</Label>
-            <Select value={selectedId} onValueChange={setSelectedId}>
-              <SelectTrigger className="bg-white/5 border-white/10">
-                <SelectValue placeholder="-- Select Gateway --" />
-              </SelectTrigger>
-              <SelectContent>
-                {gateways.map(g => (
-                  <SelectItem key={g.id} value={String(g.id)}>
-                    {g.name || getOnlineGatewayLabel(g.type)}
-                    {onlineStatus?.[g.type] ? " ✓" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <PaymentMethodSelect
+            tone="gateway"
+            label="Select payment gateway"
+            value={selectedId}
+            onValueChange={setSelectedId}
+            placeholder="-- Select Gateway --"
+            options={gateways.map(g => ({
+              value: String(g.id),
+              label: `${g.name || getOnlineGatewayLabel(g.type)}${onlineStatus?.[g.type] ? " ✓" : ""}`,
+            }))}
+          />
           <Tabs value={selectedId} onValueChange={setSelectedId}>
-            <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1 p-1">
+            <TabsList className="bg-violet-500/5 border border-violet-500/25 flex-wrap h-auto gap-1 p-1">
               {gateways.map(g => (
-                <TabsTrigger key={g.id} value={String(g.id)} className="text-xs whitespace-nowrap gap-1">
-                  {getOnlineGatewayLabel(g.type)}
-                  {onlineStatus?.[g.type] && <Zap className="h-3 w-3 text-green-400" />}
-                </TabsTrigger>
+                <PaymentMethodTabsTrigger
+                  key={g.id}
+                  value={String(g.id)}
+                  tone="gateway"
+                  className="text-xs gap-1 min-w-0"
+                >
+                  <span className="truncate">{getOnlineGatewayLabel(g.type)}</span>
+                  {onlineStatus?.[g.type] && <Zap className="h-3 w-3 text-green-700 dark:text-green-400" />}
+                </PaymentMethodTabsTrigger>
               ))}
             </TabsList>
           </Tabs>
@@ -136,22 +148,22 @@ export function OnlineGatewayCheckoutPanel({
       )}
 
       {active && (
-        <Card className="bg-black/20 border-white/10">
+        <Card className="bg-muted/80 dark:bg-black/20 border-border dark:border-white/10">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2 flex-wrap">
               <CardTitle className="text-base flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-amber-400" />
+                <CreditCard className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 {active.name || getOnlineGatewayLabel(active.type)}
               </CardTitle>
-              {active.badge && <Badge variant="outline" className="border-amber-500/40 text-amber-400 text-[10px]">{active.badge}</Badge>}
-              {configured && <Badge className="bg-green-500/20 text-green-400 text-[10px]">Live</Badge>}
+              {active.badge && <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 text-[10px]">{active.badge}</Badge>}
+              {configured && <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 text-[10px]">Live</Badge>}
             </div>
             <CardDescription>{active.description || meta?.description || "Instant card / UPI checkout"}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handlePay} className="space-y-3">
               <div className="space-y-1">
-                <Label>Amount (INR)</Label>
+                <FinanceFieldLabel tone="amount">Amount (INR)</FinanceFieldLabel>
                 <Input
                   type="number"
                   required
@@ -159,11 +171,11 @@ export function OnlineGatewayCheckoutPanel({
                   placeholder="e.g. 5000"
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
-                  className="bg-white/5 border-white/10"
+                  className={financeInputClass()}
                 />
                 <p className="text-[11px] text-muted-foreground">Min ₹{active.minAmount || 100}</p>
               </div>
-              <Button type="submit" disabled={loading} className="w-full bg-amber-500 hover:bg-amber-600 text-black font-semibold">
+              <Button type="submit" size="wrap" disabled={loading} className={cn("w-full", DEPOSIT_BUTTON_CLASS, mobileBtnWrap)}>
                 {loading ? "Processing..." : `Pay with ${getOnlineGatewayLabel(active.type)}`}
               </Button>
               {!configured && (

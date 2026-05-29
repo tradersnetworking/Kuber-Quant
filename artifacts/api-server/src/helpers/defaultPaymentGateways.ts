@@ -109,8 +109,8 @@ function matchesCryptoGateway(
 }
 
 /** Insert missing crypto gateways (e.g. USDT BEP20) without overwriting admin-configured wallets. */
-export async function ensureDefaultCryptoGateways(): Promise<void> {
-  if (process.env.BOOTSTRAP_PAYMENT_GATEWAYS === "false") return;
+export async function ensureDefaultCryptoGateways(force = false): Promise<void> {
+  if (!force && process.env.BOOTSTRAP_PAYMENT_GATEWAYS === "false") return;
 
   try {
     const existing = await db.select().from(paymentGatewaysTable);

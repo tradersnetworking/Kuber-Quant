@@ -17,6 +17,13 @@ export const investmentsTable = pgTable("investments", {
   profitPercent: numeric("profit_percent", { precision: 10, scale: 4 }).notNull().default("0"),
   status: investmentStatusEnum("status").notNull().default("pending"),
   maturityDate: timestamp("maturity_date", { withTimezone: true }),
+  /** wallet | personal — chosen before maturity */
+  maturityPayoutDestination: text("maturity_payout_destination"),
+  maturityPayoutAccountId: integer("maturity_payout_account_id"),
+  /** upi | bank | crypto */
+  maturityPayoutMethod: text("maturity_payout_method"),
+  maturityPayoutConsentAt: timestamp("maturity_payout_consent_at", { withTimezone: true }),
+  maturityPayoutAcknowledgedAt: timestamp("maturity_payout_acknowledged_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

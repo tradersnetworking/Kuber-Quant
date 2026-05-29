@@ -1,6 +1,8 @@
 import { pgTable, text, serial, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
 
-export const otpPurposeEnum = pgEnum("otp_purpose", ["password_reset", "email_verify", "login", "registration", "mobile_verify"]);
+export const otpPurposeEnum = pgEnum("otp_purpose", [
+  "password_reset", "email_verify", "login", "registration", "mobile_verify", "withdrawal_confirm",
+]);
 
 export const refreshTokensTable = pgTable("refresh_tokens", {
   id: serial("id").primaryKey(),
@@ -8,6 +10,9 @@ export const refreshTokensTable = pgTable("refresh_tokens", {
   tokenHash: text("token_hash").notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  deviceLabel: text("device_label"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

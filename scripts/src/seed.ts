@@ -2,10 +2,14 @@ import {
   db, investmentPlansTable, usersTable, notificationsTable,
   mt5RequestsTable, mt5AccountsTable, copyTradersTable, siteSettingsTable,
   paymentGatewaysTable, supportInboxTable, supportMailTemplatesTable,
-  userPaymentAccountsTable, userProfilesTable,
+  userPaymentAccountsTable, userProfilesTable, algoStrategiesTable, tradesTable, investmentsTable, transactionsTable,
+  eaSubscriptionsTable,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { migrateLegacyEmails, upsertDefaultUsers } from "../../artifacts/api-server/src/helpers/defaultUsers";
+import { EA_CATALOG } from "../../artifacts/api-server/src/routes/eaStrategies";
+import { SAMPLE_ALGO_STRATEGIES } from "../../lib/db/src/seed-data/algo-strategies";
+import { buildDemoEaSubscriptionsForUser } from "../../lib/db/src/seed-data/ea-subscriptions";
 
 async function seed() {
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED !== "true") {
@@ -451,6 +455,62 @@ async function seed() {
     console.log("MT5 relay requests seeded.");
   }
 
+  console.log("Seeding demo trade history for investor...");
+  if (investor) {
+    const [existingTrade] = await db.select().from(tradesTable).where(eq(tradesTable.userId, investor.id)).limit(1);
+    if (!existingTrade) {
+      const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      await db.insert(tradesTable).values([
+        { userId: investor.id, symbol: "XAUUSD", type: "buy", amount: "0.10", entryPrice: "2345.20", exitPrice: "2368.40", profitLoss: "232.00", status: "closed", strategy: "Golden Scalper Pro", createdAt: daysAgo(28), updatedAt: daysAgo(28) },
+        { userId: investor.id, symbol: "EURUSD", type: "sell", amount: "1.00", entryPrice: "1.0842", exitPrice: "1.0797", profitLoss: "85.00", status: "closed", strategy: "FX Trend Hunter", createdAt: daysAgo(25), updatedAt: daysAgo(25) },
+        { userId: investor.id, symbol: "GBPUSD", type: "buy", amount: "0.50", entryPrice: "1.2710", exitPrice: "1.2666", profitLoss: "-42.00", status: "closed", strategy: "FX Neural Net", createdAt: daysAgo(22), updatedAt: daysAgo(22) },
+        { userId: investor.id, symbol: "BTCUSD", type: "buy", amount: "0.05", entryPrice: "61250.00", exitPrice: "64370.00", profitLoss: "156.00", status: "closed", strategy: "Crypto Wave Rider", createdAt: daysAgo(19), updatedAt: daysAgo(19) },
+        { userId: investor.id, symbol: "US30", type: "sell", amount: "0.20", entryPrice: "39240.00", exitPrice: "38690.00", profitLoss: "310.00", status: "closed", strategy: "Index Momentum Pro", createdAt: daysAgo(16), updatedAt: daysAgo(16) },
+        { userId: investor.id, symbol: "XAUUSD", type: "sell", amount: "0.15", entryPrice: "2388.50", exitPrice: "2393.70", profitLoss: "-78.00", status: "closed", strategy: "Golden Scalper Pro", createdAt: daysAgo(14), updatedAt: daysAgo(14) },
+        { userId: investor.id, symbol: "EURJPY", type: "buy", amount: "0.80", entryPrice: "162.45", exitPrice: "163.25", profitLoss: "64.00", status: "closed", strategy: "Alpha Arbitrage", createdAt: daysAgo(12), updatedAt: daysAgo(12) },
+        { userId: investor.id, symbol: "NAS100", type: "buy", amount: "0.30", entryPrice: "17842.00", exitPrice: null, profitLoss: null, status: "open", strategy: "Index Momentum Pro", createdAt: daysAgo(5), updatedAt: daysAgo(5) },
+        { userId: investor.id, symbol: "ETHUSD", type: "buy", amount: "0.20", entryPrice: "3180.00", exitPrice: "3640.00", profitLoss: "92.00", status: "closed", strategy: "Crypto Wave Rider", createdAt: daysAgo(10), updatedAt: daysAgo(10) },
+        { userId: investor.id, symbol: "USDJPY", type: "sell", amount: "1.20", entryPrice: "151.80", exitPrice: "152.09", profitLoss: "-35.00", status: "closed", strategy: "Mean Reversion Bot", createdAt: daysAgo(8), updatedAt: daysAgo(8) },
+        { userId: investor.id, symbol: "XAUUSD", type: "buy", amount: "0.08", entryPrice: "2412.30", exitPrice: null, profitLoss: null, status: "open", strategy: "Gold Pulse AI", createdAt: daysAgo(2), updatedAt: daysAgo(2) },
+        { userId: investor.id, symbol: "EURUSD", type: "buy", amount: "2.00", entryPrice: "1.0765", exitPrice: "1.0825", profitLoss: "120.00", status: "closed", strategy: "Quantum Momentum", createdAt: daysAgo(6), updatedAt: daysAgo(6) },
+        { userId: investor.id, symbol: "GBPJPY", type: "sell", amount: "0.40", entryPrice: "191.20", exitPrice: "191.55", profitLoss: "-28.00", status: "cancelled", strategy: "Volatility Breakout", createdAt: daysAgo(4), updatedAt: daysAgo(4) },
+        { userId: investor.id, symbol: "USOIL", type: "buy", amount: "0.50", entryPrice: "78.40", exitPrice: "79.36", profitLoss: "48.00", status: "closed", strategy: "Volatility Breakout", createdAt: daysAgo(3), updatedAt: daysAgo(3) },
+        { userId: investor.id, symbol: "AUDUSD", type: "buy", amount: "1.50", entryPrice: "0.6580", exitPrice: "0.6624", profitLoss: "66.00", status: "closed", strategy: "FX Trend Hunter", createdAt: daysAgo(1), updatedAt: daysAgo(1) },
+      ]);
+      console.log("Demo trade history seeded (15 trades).");
+    } else {
+      console.log("Demo trade history already present.");
+    }
+
+    const demoInvestments = [
+      { type: "manual" as const, planName: "Growth Plan", amount: "5000", currency: "USD" as const, profit: "450.00", profitPercent: "9.0", status: "active" as const },
+      { type: "copy" as const, planName: "Copy: Alex Mercer", amount: "2500", currency: "USD" as const, profit: "280.00", profitPercent: "11.2", status: "active" as const },
+      { type: "algo" as const, planName: "Quantum Momentum", amount: "500", currency: "USD" as const, profit: "192.50", profitPercent: "38.5", status: "active" as const },
+      { type: "ea" as const, planName: "Golden Scalper Pro", amount: "1000", currency: "USD" as const, profit: "156.00", profitPercent: "15.6", status: "active" as const },
+      { type: "manual" as const, planName: "Starter Plan", amount: "2000", currency: "USD" as const, profit: "170.00", profitPercent: "8.5", status: "completed" as const },
+      { type: "manual" as const, planName: "Premium Plan", amount: "30000", currency: "USD" as const, profit: "7200.00", profitPercent: "24.0", status: "completed" as const },
+    ];
+    let insertedInv = 0;
+    for (const inv of demoInvestments) {
+      const [existing] = await db.select().from(investmentsTable)
+        .where(and(eq(investmentsTable.userId, investor.id), eq(investmentsTable.planName, inv.planName)))
+        .limit(1);
+      if (!existing) {
+        await db.insert(investmentsTable).values({ userId: investor.id, ...inv });
+        insertedInv++;
+      }
+    }
+    if (insertedInv > 0) {
+      console.log(`Demo investments seeded (${insertedInv} records).`);
+    } else {
+      console.log("Demo investments already present.");
+    }
+
+    const { refreshSampleTransactionHistory } = await import("../../artifacts/api-server/src/helpers/sampleTransactionHistory");
+    const { txnsInserted, usersSeeded, txnsRemoved, pendingCount } = await refreshSampleTransactionHistory();
+    console.log(`Sample transactions refreshed: removed ${txnsRemoved}, inserted ${txnsInserted} across ${usersSeeded} investors (${pendingCount} pending).`);
+  }
+
   console.log("Seeding copy traders...");
   const existingCopy = await db.select().from(copyTradersTable).limit(1);
   if (existingCopy.length === 0) {
@@ -462,23 +522,62 @@ async function seed() {
     console.log("Copy traders seeded.");
   }
 
-  console.log("Seeding EA strategy catalog preview...");
+  console.log("Seeding EA strategy catalog...");
+  const eaCatalogSeed = EA_CATALOG.slice(0, 12);
   const [eaSetting] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, "ea_catalog_json")).limit(1);
   if (!eaSetting) {
-    const eaPreview = [
-      { id: 1001, name: "Golden Scalper Pro", type: "scalping", description: "High-frequency scalping on XAUUSD.", backtestRoi: 84.2, winRate: 73.5, pairs: "XAUUSD", platform: "mt5", priceMonthly: 49, riskLevel: "High", category: "Gold" },
-      { id: 1002, name: "FX Trend Hunter", type: "trend", description: "Multi-timeframe trend following on majors.", backtestRoi: 62.1, winRate: 68.2, pairs: "EURUSD, GBPUSD", platform: "mt5", priceMonthly: 39, riskLevel: "Medium", category: "Forex" },
-      { id: 1003, name: "Grid Master Elite", type: "grid", description: "Adaptive grid for ranging markets.", backtestRoi: 71.8, winRate: 81.3, pairs: "EURUSD, GBPUSD", platform: "mt5", priceMonthly: 55, riskLevel: "Medium", category: "Grid" },
-      { id: 1005, name: "Crypto Algo Trader", type: "trend", description: "BTC/ETH trend following with volume confirmation.", backtestRoi: 112.3, winRate: 61.2, pairs: "BTCUSD, ETHUSD", platform: "mt5", priceMonthly: 69, riskLevel: "Very High", category: "Crypto" },
-    ];
     await db.insert(siteSettingsTable).values({
       key: "ea_catalog_json",
-      value: JSON.stringify(eaPreview),
+      value: JSON.stringify(eaCatalogSeed),
       label: "EA Strategy Catalog",
       category: "trading",
       description: "JSON catalog of EA strategies for the platform",
     });
     console.log("EA catalog seeded.");
+  } else {
+    let needsUpdate = false;
+    try {
+      const parsed = JSON.parse(eaSetting.value) as Array<{ priceQuarterly?: number; priceBiannual?: number; priceAnnual?: number }>;
+      needsUpdate = !Array.isArray(parsed) || parsed.length === 0 || parsed.some(item => !item.priceQuarterly || !item.priceBiannual || !item.priceAnnual);
+    } catch {
+      needsUpdate = true;
+    }
+    if (needsUpdate) {
+      await db.update(siteSettingsTable)
+        .set({ value: JSON.stringify(eaCatalogSeed) })
+        .where(eq(siteSettingsTable.key, "ea_catalog_json"));
+      console.log("EA catalog updated with full subscription pricing.");
+    } else {
+      console.log("EA catalog already present.");
+    }
+  }
+
+  console.log("Seeding algo strategies...");
+  const existingAlgo = await db.select().from(algoStrategiesTable).limit(1);
+  if (existingAlgo.length === 0) {
+    await db.insert(algoStrategiesTable).values(SAMPLE_ALGO_STRATEGIES);
+    console.log(`Algo strategies seeded (${SAMPLE_ALGO_STRATEGIES.length}).`);
+  } else {
+    for (const sample of SAMPLE_ALGO_STRATEGIES) {
+      await db.update(algoStrategiesTable)
+        .set({
+          priceMonthly: sample.priceMonthly,
+          priceQuarterly: sample.priceQuarterly,
+          priceBiannual: sample.priceBiannual,
+          priceAnnual: sample.priceAnnual,
+        })
+        .where(eq(algoStrategiesTable.name, sample.name));
+    }
+    console.log("Algo strategy subscription pricing refreshed.");
+  }
+
+  console.log("Seeding demo EA subscriptions...");
+  const existingEaSubs = await db.select().from(eaSubscriptionsTable).limit(1);
+  if (existingEaSubs.length === 0 && investor) {
+    await db.insert(eaSubscriptionsTable).values(buildDemoEaSubscriptionsForUser(investor.id));
+    console.log("Demo EA subscriptions seeded (8 records).");
+  } else if (existingEaSubs.length > 0) {
+    console.log("EA subscriptions already present.");
   }
 
   console.log("Updating existing users...");

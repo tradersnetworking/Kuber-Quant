@@ -1,24 +1,31 @@
 import { WalletHistoryPanel } from "@/components/wallet/WalletHistoryPanel";
 import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
+import { InvestorUpcomingTransactionsSection } from "@/components/transactions/UpcomingTransactionsPanel";
+import { AppPage } from "@/components/layout/AppPage";
+import { useTranslation } from "react-i18next";
+import { APP_HEADER_ROW, APP_PAGE_STACK } from "@/lib/ui-system";
+import { cn } from "@/lib/utils";
 
 export default function TransactionsPage() {
-  return (
-    <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-              Transactions
-            </h1>
-            <p className="text-muted-foreground">
-              Deposit and withdrawal requests, plus the immutable wallet ledger showing every balance change.
-            </p>
-          </div>
-          <div className="w-full md:w-64">
-            <WalletQuickActions layout="row" />
-          </div>
-        </div>
+  const { t } = useTranslation();
 
-        <WalletHistoryPanel />
-      </div>
-);
+  return (
+    <AppPage
+      stackClassName={APP_PAGE_STACK}
+      title={
+        <h1 className="page-title bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
+          {t("transactions.title")}
+        </h1>
+      }
+      subtitle={t("transactions.subtitle")}
+      actions={
+        <div className={cn(APP_HEADER_ROW, "w-full md:w-auto")}>
+          <WalletQuickActions layout="row" />
+        </div>
+      }
+    >
+      <InvestorUpcomingTransactionsSection />
+      <WalletHistoryPanel />
+    </AppPage>
+  );
 }

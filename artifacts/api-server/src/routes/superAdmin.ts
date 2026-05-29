@@ -5,14 +5,71 @@ import {
   kycRecordsTable, ticketsTable, algoSubscriptionsTable, algoStrategiesTable,
   mt5AccountsTable,
 } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and } from "@workspace/db/orm";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
-import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
+import { requireAuth, requirePlatformAdmin } from "../middlewares/auth";
+import { forbidAdminCredentialWrites } from "../middlewares/platformAdminGuard";
 import { mapPlan } from "./plans";
 import { mapUser } from "./auth";
 import { linkMtTradingAccount } from "../helpers/mtAccountLink";
 import { mapAccount } from "./mt5";
+import {
+  parseStatsPeriod,
+  parseStaffStatsPeriod,
+  resolveStatsDateRange,
+  computePlatformFinancialStats,
+  computeTodayPayments,
+} from "../helpers/platformStatsService";
+import {
+  fetchUserRoleCounts,
+  fetchOperationalCounts,
+  fetchTransactionsForStats,
+  fetchInvestmentsForStats,
+  fetchTodayWithdrawalTransactions,
+  fetchInvestmentsMaturingBetween,
+  sumInvestmentProfit,
+} from "../helpers/platformDashboardCounts";
+import { computePlatformLedgerAudit } from "../helpers/platformLedgerAuditService";
+import { getExchangeRates, usdToInr } from "../helpers/exchangeRateService";
+import superAdminBackupRouter from "./superAdminBackup";
+import { EA_CATALOG } from "./eaStrategies";
+import {
+  listPartnerApiKeys,
+  createPartnerApiKey,
+  updatePartnerApiKey,
+  deletePartnerApiKey,
+  PARTNER_SCOPES,
+} from "../helpers/partnerApiKeyService";
+import { N8nEventType } from "../helpers/n8nWebhookService";
+import {
+  handleGetReconciliation,
+  handleGetTreasury,
+  handlePostReconciliationRun,
+} from "../helpers/treasuryRouteHandlers";
+import { respondSchemaDrift } from "../helpers/schemaErrorUtil";
+import { validateBody, getValidatedBody } from "../middlewares/validate";
+import {
+  CreateStaffUserBody,
+  CreateSupportAgentBody,
+  BulkUserUpdatesBody,
+  PatchUserRoleBody,
+  BanLoginBody,
+  SettingsJsonBody,
+  Mt5EndpointBody,
+  TradeCopierSettingsBody,
+  VpsBridgeSettingsBody,
+  MarketDataSettingsBody,
+  SmtpSettingsBody,
+  SmtpTestBody,
+  SupportInboxSettingsBody,
+  EmailCommunicationTestBody,
+  Mt5RequestStatusBody,
+  ExchangeOrderAdminNotesBody,
+  ExchangeOrderRejectBody,
+} from "../lib/routeBodySchemas";
+
+const EA_CATALOG_NAMES = new Map(EA_CATALOG.map(item => [item.id, item.name]));
 
 const router = Router();
 
@@ -20,7 +77,25 @@ function generateReferralCode(): string {
   return "KQ" + randomBytes(3).toString("hex").toUpperCase();
 }
 
-router.use(requireAuth, requireSuperAdmin);
+router.use(requireAuth, requirePlatformAdmin, forbidAdminCredentialWrites);
+
+router.use("/backup", superAdminBackupRouter);
+
+router.get("/treasury", handleGetTreasury);
+
+router.get("/reconciliation", handleGetReconciliation);
+
+router.post("/reconciliation/run", handlePostReconciliationRun);
+
+router.post("/backup/run", async (_req, res) => {
+  const { runDatabaseBackup } = await import("../helpers/databaseBackup");
+  const result = await runDatabaseBackup();
+  if (!result.ok) {
+    res.status(result.message?.includes("not configured") ? 503 : 500).json(result);
+    return;
+  }
+  res.json(result);
+});
 
 // ── Dashboard overview (home page samples) ───────────────────────────────────
 router.get("/overview", async (_req, res) => {
@@ -81,45 +156,117 @@ router.get("/overview", async (_req, res) => {
 });
 
 // ── Dashboard Stats ──────────────────────────────────────────────────────────
-router.get("/stats", async (_req, res) => {
-  const [users, mt5Requests, eaSubs, txns, investments, kycs, tickets, algoSubs] = await Promise.all([
-    db.select().from(usersTable),
-    db.select().from(mt5RequestsTable).orderBy(desc(mt5RequestsTable.createdAt)),
-    db.select().from(eaSubscriptionsTable),
-    db.select().from(transactionsTable),
-    db.select().from(investmentsTable),
-    db.select().from(kycRecordsTable),
-    db.select().from(ticketsTable),
-    db.select().from(algoSubscriptionsTable),
+router.get("/stats", async (req, res) => {
+  try {
+  const period = parseStaffStatsPeriod(String(req.query.period || "present"));
+  const fromParam = typeof req.query.from === "string" ? req.query.from : undefined;
+  const toParam = typeof req.query.to === "string" ? req.query.to : undefined;
+  const { from, to, label: periodLabel } = resolveStatsDateRange(period, fromParam, toParam);
+  const isPresent = period === "present";
+  const todayRange = resolveStatsDateRange("day");
+  const investorIds = (await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "user"))).map(u => u.id);
+
+  const [
+    roleCounts,
+    operationalCounts,
+    txns,
+    investments,
+    todayWithdrawalTxns,
+    todayMaturityInvestments,
+    totalProfitAllTime,
+    ledgerAudit,
+  ] = await Promise.all([
+    fetchUserRoleCounts(),
+    fetchOperationalCounts(),
+    fetchTransactionsForStats(from, to),
+    fetchInvestmentsForStats(from, to),
+    fetchTodayWithdrawalTransactions(todayRange.from!, todayRange.to!),
+    fetchInvestmentsMaturingBetween(todayRange.from!, todayRange.to!),
+    isPresent ? sumInvestmentProfit() : Promise.resolve(0),
+    computePlatformLedgerAudit({ from, to, investorIds, mode: isPresent ? "present" : "period" }),
   ]);
 
-  const superAdmins = users.filter(u => u.role === "superadmin").length;
-  const supportAgents = users.filter(u => u.role === "support").length;
-  const managers  = users.filter(u => u.role === "manager").length;
-  const investors = users.filter(u => u.role === "user").length;
-  const pending   = mt5Requests.filter(r => r.status === "pending").length;
-  const forwarded = mt5Requests.filter(r => r.status === "forwarded").length;
-  const activeEA  = eaSubs.filter(s => s.status === "active").length;
+  const financials = isPresent
+    ? { totalProfit: totalProfitAllTime }
+    : await computePlatformFinancialStats({ transactions: txns, investments, from, to });
 
-  const deposits = txns.filter(t => t.type === "deposit" && t.status === "approved");
-  const withdrawals = txns.filter(t => t.type === "withdrawal" && t.status === "approved");
-  const pendingTxns = txns.filter(t => t.status === "pending");
-  const activeInvestments = investments.filter(i => i.status === "active");
+  const todayPayments = await computeTodayPayments({
+    transactions: todayWithdrawalTxns,
+    investments: todayMaturityInvestments,
+  });
+
+  const fx = await getExchangeRates();
+  const todayPaymentsInr = todayPayments.todayPaymentsUsd * fx.USD_INR;
+  const fiatAudit = ledgerAudit.fiat;
+  const safeNum = (n: number) => (Number.isFinite(n) ? n : 0);
+  const platformFiatBalance = safeNum(ledgerAudit.present.availableFiat);
+  const platformCryptoBalance = safeNum(ledgerAudit.present.availableCrypto);
+  const activeInvested = safeNum(ledgerAudit.present.activeInvested);
 
   res.json({
-    totalUsers: users.length, superAdmins, supportAgents, managers, investors,
-    pendingMt5Requests: pending, forwardedMt5Requests: forwarded, activeEASubscriptions: activeEA,
-    totalDeposits: deposits.reduce((s, t) => s + Number(t.amount), 0),
-    totalWithdrawals: withdrawals.reduce((s, t) => s + Number(t.amount), 0),
-    netFunds: deposits.reduce((s, t) => s + Number(t.amount), 0) - withdrawals.reduce((s, t) => s + Number(t.amount), 0),
-    totalInvestments: investments.reduce((s, i) => s + Number(i.amount), 0),
-    activeInvestmentCount: activeInvestments.length,
-    totalProfit: investments.reduce((s, i) => s + Number(i.profit), 0),
-    pendingTransactions: pendingTxns.length,
-    pendingKyc: kycs.filter(k => k.status === "submitted").length,
-    openTickets: tickets.filter(t => t.status === "open").length,
-    activeAlgoSubscriptions: algoSubs.filter(s => s.active).length,
+    period,
+    periodLabel,
+    periodFrom: from?.toISOString() ?? null,
+    periodTo: to?.toISOString() ?? null,
+    platformFiatBalance,
+    platformFiatBalanceInr: usdToInr(platformFiatBalance, fx),
+    platformCryptoBalance,
+    platformCryptoBalanceInr: usdToInr(platformCryptoBalance, fx),
+    activeInvested,
+    activeInvestedInr: usdToInr(activeInvested, fx),
+    walletAvailable: ledgerAudit.present.walletAvailable,
+    walletAvailableInr: usdToInr(ledgerAudit.present.walletAvailable, fx),
+    totalAssets: ledgerAudit.present.totalAssets,
+    totalAssetsInr: usdToInr(ledgerAudit.present.totalAssets, fx),
+    ledgerAudit,
+    fiatBalanceAudit: {
+      ...fiatAudit,
+      periodNetFlowInr: usdToInr(fiatAudit.periodNetFlow, fx),
+      periodDepositsInr: usdToInr(fiatAudit.periodDeposits, fx),
+      periodWithdrawalsInr: usdToInr(fiatAudit.periodWithdrawals, fx),
+      periodMaturityProfitsInr: usdToInr(fiatAudit.periodMaturityProfits, fx),
+    },
+    totalUsers: roleCounts.totalUsers,
+    superAdmins: roleCounts.superAdmins,
+    supportAgents: roleCounts.supportAgents,
+    managers: roleCounts.managers,
+    investors: roleCounts.investors,
+    pendingMt5Requests: operationalCounts.pendingMt5Requests,
+    forwardedMt5Requests: operationalCounts.forwardedMt5Requests,
+    activeEASubscriptions: operationalCounts.activeEASubscriptions,
+    totalDeposits: fiatAudit.periodDeposits + ledgerAudit.crypto.periodDeposits,
+    totalWithdrawals: fiatAudit.periodWithdrawals + ledgerAudit.crypto.periodWithdrawals,
+    netFunds: (fiatAudit.periodDeposits + ledgerAudit.crypto.periodDeposits)
+      - (fiatAudit.periodWithdrawals + ledgerAudit.crypto.periodWithdrawals),
+    totalFiatDeposits: fiatAudit.periodDeposits,
+    totalFiatWithdrawals: fiatAudit.periodWithdrawals,
+    totalCryptoDeposits: ledgerAudit.crypto.periodDeposits,
+    totalCryptoWithdrawals: ledgerAudit.crypto.periodWithdrawals,
+    totalInvestments: isPresent ? activeInvested : fiatAudit.periodInvestmentOut,
+    activeInvestmentCount: ledgerAudit.present.activeInvestmentCount,
+    totalProfit: financials.totalProfit,
+    todayLabel: todayPayments.todayLabel,
+    todayPaymentsUsd: todayPayments.todayPaymentsUsd,
+    todayPaymentsInr,
+    todayWithdrawalRequestsUsd: todayPayments.todayWithdrawalRequestsUsd,
+    todayWithdrawalRequestsCount: todayPayments.todayWithdrawalRequestsCount,
+    todayMaturityPayoutsUsd: todayPayments.todayMaturityPayoutsUsd,
+    todayMaturityCount: todayPayments.todayMaturityCount,
+    pendingTransactions: operationalCounts.pendingTransactions,
+    pendingKyc: operationalCounts.pendingKyc,
+    openTickets: operationalCounts.openTickets,
+    activeAlgoSubscriptions: operationalCounts.activeAlgoSubscriptions,
+    exchangeRates: {
+      USD_INR: fx.USD_INR,
+      USD_EUR: fx.USD_EUR,
+      updatedAt: fx.updatedAt,
+      source: fx.source,
+    },
   });
+  } catch (err) {
+    if (respondSchemaDrift(res, err)) return;
+    throw err;
+  }
 });
 
 router.get("/investments", async (_req, res) => {
@@ -192,25 +339,31 @@ router.get("/users/:id", async (req, res) => {
 router.get("/users/:id/full", async (req, res) => {
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
+  const full = req.query.full === "true" || req.query.full === "1";
   const { getUserFullDetail } = await import("../helpers/userFullDetailService");
-  const detail = await getUserFullDetail(id);
+  const detail = await getUserFullDetail(id, { full });
   if (!detail) { res.status(404).json({ error: "User not found" }); return; }
   res.json(detail);
 });
 
-router.post("/users", async (req, res) => {
-  const { email, password, fullName, phone, role, managerId, kycStatus } = req.body;
-  if (!email || !password || !fullName) {
-    res.status(400).json({ error: "email, password, and fullName are required" });
-    return;
-  }
-  if (password.length < 8) {
-    res.status(400).json({ error: "Password must be at least 8 characters" });
-    return;
-  }
+router.post("/users", validateBody(CreateStaffUserBody), async (req, res) => {
+  const { email, password, fullName, phone, role, managerId, kycStatus } = getValidatedBody<{
+    email: string;
+    password: string;
+    fullName: string;
+    phone?: string;
+    role?: "user" | "manager" | "support" | "admin" | "superadmin";
+    managerId?: number;
+    kycStatus?: "pending" | "submitted" | "verified" | "rejected";
+  }>(req);
   const userRole = role || "user";
-  if (!["user", "manager", "support", "superadmin"].includes(userRole)) {
-    res.status(400).json({ error: "Invalid role" });
+  try {
+    const { assertCanAssignRole, assertCanSetPassword } = await import("../helpers/credentialPolicy");
+    const viewerRole = (req as any).user?.role ?? "";
+    assertCanAssignRole(viewerRole, userRole);
+    assertCanSetPassword(viewerRole);
+  } catch (err: any) {
+    res.status(403).json({ error: err.message });
     return;
   }
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);
@@ -254,15 +407,18 @@ router.get("/support-team/candidates", async (req, res) => {
   res.json(eligible.map(mapUser));
 });
 
-router.post("/support-team", async (req, res) => {
-  const { userId, email, password, fullName, phone } = req.body;
+router.post("/support-team", validateBody(CreateSupportAgentBody), async (req, res) => {
+  const body = getValidatedBody<{
+    userId?: number;
+    email?: string;
+    password?: string;
+    fullName?: string;
+    phone?: string;
+  }>(req);
+  const { userId, email, password, fullName, phone } = body;
 
-  if (userId != null && userId !== "") {
-    const id = parseInt(String(userId));
-    if (isNaN(id)) {
-      res.status(400).json({ error: "Invalid user id" });
-      return;
-    }
+  if (userId != null) {
+    const id = userId;
     const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
     if (!existing) {
       res.status(404).json({ error: "User not found" });
@@ -326,16 +482,111 @@ router.delete("/support-team/:id", async (req, res) => {
   res.json({ message: "Support agent demoted to user" });
 });
 
+router.post("/users/:id/ban-login", validateBody(BanLoginBody), async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const { reason } = getValidatedBody<{ reason?: string }>(req);
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "User not found" }); return; }
+  if (existing.role === "superadmin") {
+    res.status(400).json({ error: "Cannot ban a super admin account" });
+    return;
+  }
+  const [user] = await db.update(usersTable).set({
+    isActive: false,
+    suspendReason: (reason && String(reason).trim()) || "Login banned by super admin",
+  }).where(eq(usersTable.id, id)).returning();
+  const actor = (req as any).user;
+  const { logAudit } = await import("../helpers/audit");
+  await logAudit({
+    req,
+    userId: actor.userId,
+    role: actor.role,
+    action: "user_ban_login",
+    entity: "user",
+    entityId: id,
+    details: { targetEmail: existing.email },
+  });
+  res.json({ message: "User banned from login", user: mapUser(user!) });
+});
+
+router.post("/users/:id/unban-login", async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "User not found" }); return; }
+  const [user] = await db.update(usersTable).set({
+    isActive: true,
+    suspendReason: null,
+  }).where(eq(usersTable.id, id)).returning();
+  const actor = (req as any).user;
+  const { logAudit } = await import("../helpers/audit");
+  await logAudit({
+    req,
+    userId: actor.userId,
+    role: actor.role,
+    action: "user_unban_login",
+    entity: "user",
+    entityId: id,
+    details: { targetEmail: existing.email },
+  });
+  res.json({ message: "User login restored", user: mapUser(user!) });
+});
+
+router.patch("/users/bulk", validateBody(BulkUserUpdatesBody), async (req, res) => {
+  const { userIds, updates } = getValidatedBody<{
+    userIds: number[];
+    updates?: Record<string, unknown>;
+  }>(req);
+  try {
+    const { bulkUpdateUsers } = await import("../helpers/userBulkUpdate");
+    const { mapUser } = await import("./auth");
+    const result = await bulkUpdateUsers(userIds.map(Number), updates ?? {});
+    res.json({
+      message: `Updated ${result.updated} user(s)`,
+      updated: result.updated,
+      clientsReleased: result.clientsReleased,
+      users: result.users.map(mapUser),
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Bulk update failed" });
+  }
+});
+
+router.post("/users/:id/promote-manager", async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
+  try {
+    const { promoteUserToManager } = await import("../helpers/userAccessControl");
+    const { mapUser } = await import("./auth");
+    const user = await promoteUserToManager(id);
+    res.json({ message: "User promoted to manager", user: mapUser(user) });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Promotion failed" });
+  }
+});
+
+router.post("/users/:id/demote-manager", async (req, res) => {
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
+  try {
+    const { demoteManagerToUser } = await import("../helpers/userAccessControl");
+    const { mapUser } = await import("./auth");
+    const { user, clientsReleased } = await demoteManagerToUser(id);
+    res.json({
+      message: `Manager demoted. ${clientsReleased} client(s) reassigned to super admin pool.`,
+      clientsReleased,
+      user: mapUser(user),
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Demotion failed" });
+  }
+});
+
 router.patch("/users/:id", async (req, res) => {
   const id = parseInt(String(req.params.id));
-  const {
-    email, fullName, phone, role, kycStatus, balanceFiat, balanceCrypto,
-    isActive, managerId, password, isPromoter, promoterCommissionType, suspendReason,
-  } = req.body;
-
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!existing) { res.status(404).json({ error: "User not found" }); return; }
 
+  const { email } = req.body;
   if (email && email.toLowerCase() !== existing.email) {
     const dup = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);
     if (dup.length > 0 && dup[0]!.id !== id) {
@@ -344,38 +595,25 @@ router.patch("/users/:id", async (req, res) => {
     }
   }
 
-  const updates: Record<string, unknown> = {};
-  if (email !== undefined) updates.email = email.toLowerCase();
-  if (fullName !== undefined) updates.fullName = fullName;
-  if (phone !== undefined) updates.phone = phone || null;
-  if (role !== undefined) {
-    if (!["user", "manager", "support", "superadmin"].includes(role)) {
-      res.status(400).json({ error: "Invalid role" });
+  if (existing.role === "superadmin" && req.body.role && req.body.role !== "superadmin") {
+    const superAdmins = await db.select().from(usersTable).where(eq(usersTable.role, "superadmin"));
+    if (superAdmins.length <= 1) {
+      res.status(400).json({ error: "Cannot demote the only super admin account" });
       return;
     }
-    updates.role = role;
-  }
-  if (kycStatus !== undefined) updates.kycStatus = kycStatus;
-  if (balanceFiat !== undefined) updates.balanceFiat = String(balanceFiat);
-  if (balanceCrypto !== undefined) updates.balanceCrypto = String(balanceCrypto);
-  if (isActive !== undefined) updates.isActive = isActive;
-  if (isPromoter !== undefined) {
-    updates.isPromoter = !!isPromoter;
-    if (isPromoter && !existing.isPromoter) updates.promoterEnabledAt = new Date();
-  }
-  if (promoterCommissionType !== undefined) updates.promoterCommissionType = promoterCommissionType || null;
-  if (suspendReason !== undefined) updates.suspendReason = suspendReason || null;
-  if (managerId !== undefined) updates.managerId = managerId;
-  if (password) {
-    if (password.length < 8) {
-      res.status(400).json({ error: "Password must be at least 8 characters" });
-      return;
-    }
-    updates.passwordHash = await bcrypt.hash(password, 10);
   }
 
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
-  res.json(mapUser(user));
+  try {
+    const viewerRole = (req as any).user?.role ?? "";
+    const { assertCanAssignRole, assertCanSetPassword } = await import("../helpers/credentialPolicy");
+    if (req.body.role) assertCanAssignRole(viewerRole, String(req.body.role));
+    if (req.body.password) assertCanSetPassword(viewerRole);
+    const { applyUserPatch } = await import("../helpers/userBulkUpdate");
+    const { user, clientsReleased } = await applyUserPatch(id, req.body, existing);
+    res.json({ ...mapUser(user), clientsReleased });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Update failed" });
+  }
 });
 
 router.delete("/users/:id", async (req, res) => {
@@ -394,11 +632,16 @@ router.delete("/users/:id", async (req, res) => {
 });
 
 /** @deprecated use PATCH /users/:id with role field */
-router.patch("/users/:id/role", async (req, res) => {
+router.patch("/users/:id/role", validateBody(PatchUserRoleBody), async (req, res) => {
   const id = parseInt(String(req.params.id));
-  const { role } = req.body;
-  if (!["user", "manager", "superadmin"].includes(role)) {
-    res.status(400).json({ error: "Invalid role" }); return;
+  const { role } = getValidatedBody<{ role: "user" | "manager" | "support" | "admin" | "superadmin" }>(req);
+  const viewerRole = (req as any).user?.role ?? "";
+  try {
+    const { assertCanAssignRole } = await import("../helpers/credentialPolicy");
+    assertCanAssignRole(viewerRole, role);
+  } catch (err: any) {
+    res.status(403).json({ error: err.message });
+    return;
   }
   await db.update(usersTable).set({ role }).where(eq(usersTable.id, id));
   res.json({ message: "Role updated" });
@@ -418,9 +661,12 @@ router.post("/mt5-requests/:id/forward", async (req, res) => {
   res.json({ message: "Request forwarded" });
 });
 
-router.patch("/mt5-requests/:id/status", async (req, res) => {
+router.patch("/mt5-requests/:id/status", validateBody(Mt5RequestStatusBody), async (req, res) => {
   const id = parseInt(String(req.params.id));
-  const { status, externalResponse } = req.body;
+  const { status, externalResponse } = getValidatedBody<{
+    status: "pending" | "forwarded" | "accepted" | "rejected" | "completed";
+    externalResponse?: string;
+  }>(req);
   const { updateMt5RequestStatus } = await import("../helpers/mtLinkedAccountsService");
   await updateMt5RequestStatus(id, status, externalResponse);
   res.json({ message: "Status updated" });
@@ -432,8 +678,8 @@ router.get("/settings/mt5-endpoint", async (_req, res) => {
   res.json({ endpoint: setting?.value || "" });
 });
 
-router.post("/settings/mt5-endpoint", async (req, res) => {
-  const endpoint = String(req.body.endpoint ?? "");
+router.post("/settings/mt5-endpoint", validateBody(Mt5EndpointBody), async (req, res) => {
+  const { endpoint = "" } = getValidatedBody<{ endpoint?: string }>(req);
   const existing = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, "mt5_external_endpoint")).limit(1);
   if (existing.length > 0) {
     await db.update(siteSettingsTable).set({ value: endpoint }).where(eq(siteSettingsTable.key, "mt5_external_endpoint"));
@@ -449,7 +695,7 @@ router.get("/settings/mt5-relay-form", async (_req, res) => {
   res.json(await getMt5RelayFormConfig());
 });
 
-router.post("/settings/mt5-relay-form", async (req, res) => {
+router.post("/settings/mt5-relay-form", validateBody(SettingsJsonBody), async (req, res) => {
   const { saveMt5RelayFormConfig } = await import("../helpers/mt5RelayFormSettings");
   const saved = await saveMt5RelayFormConfig(req.body);
   res.json(saved);
@@ -462,7 +708,7 @@ router.get("/settings/trade-copier", async (_req, res) => {
   res.json({ ...cfg, password: cfg.password ? "••••••••" : "", apiKey: cfg.apiKey ? "••••••••" : "" });
 });
 
-router.post("/settings/trade-copier", async (req, res) => {
+router.post("/settings/trade-copier", validateBody(TradeCopierSettingsBody), async (req, res) => {
   const { saveTradeCopierConfig, getTradeCopierConfig } = await import("../helpers/tradeCopier");
   const existing = await getTradeCopierConfig();
   const { baseUrl, authType, apiKey, username, password, masterAccountId } = req.body;
@@ -496,7 +742,7 @@ router.get("/settings/vps-bridge", async (_req, res) => {
   res.json({ ...cfg, apiKey: cfg.apiKey ? "••••••••" : "" });
 });
 
-router.post("/settings/vps-bridge", async (req, res) => {
+router.post("/settings/vps-bridge", validateBody(VpsBridgeSettingsBody), async (req, res) => {
   const { getVpsBridgeConfig, saveVpsBridgeConfig } = await import("../helpers/vpsBridge");
   const existing = await getVpsBridgeConfig();
   const body = req.body || {};
@@ -526,7 +772,7 @@ router.get("/settings/market-data", async (_req, res) => {
   res.json({ ...cfg, customApiKey: cfg.customApiKey ? "••••••••" : "" });
 });
 
-router.post("/settings/market-data", async (req, res) => {
+router.post("/settings/market-data", validateBody(MarketDataSettingsBody), async (req, res) => {
   const { getMarketDataConfig, saveMarketDataConfig } = await import("../helpers/marketData");
   const existing = await getMarketDataConfig();
   const body = req.body || {};
@@ -551,7 +797,7 @@ router.get("/settings/smtp", async (_req, res) => {
   res.json(await getSmtpConfigPublic());
 });
 
-router.post("/settings/smtp", async (req, res) => {
+router.post("/settings/smtp", validateBody(SmtpSettingsBody), async (req, res) => {
   const { getSmtpConfig, saveSmtpConfig } = await import("../helpers/smtpSettings");
   const { resetMailTransporter } = await import("../helpers/mailer");
   const existing = await getSmtpConfig();
@@ -570,9 +816,9 @@ router.post("/settings/smtp", async (req, res) => {
   res.json({ message: "SMTP settings saved" });
 });
 
-router.post("/settings/smtp/test", async (req, res) => {
+router.post("/settings/smtp/test", validateBody(SmtpTestBody), async (req, res) => {
   const { testSmtpConnection } = await import("../helpers/smtpSettings");
-  const testTo = typeof req.body?.testTo === "string" ? req.body.testTo : undefined;
+  const { testTo } = getValidatedBody<{ testTo?: string }>(req);
   res.json(await testSmtpConnection(testTo));
 });
 
@@ -581,19 +827,19 @@ router.get("/settings/support-inbox", async (_req, res) => {
   res.json(await getSupportInboxConfigPublic());
 });
 
-router.post("/settings/support-inbox", async (req, res) => {
+router.post("/settings/support-inbox", validateBody(SupportInboxSettingsBody), async (req, res) => {
   const { getSupportInboxConfig, saveSupportInboxConfig } = await import("../helpers/supportInboxSettings");
   const existing = await getSupportInboxConfig();
-  const body = req.body || {};
+  const body: Record<string, unknown> = req.body || {};
   await saveSupportInboxConfig({
-    enabled: body.enabled ?? existing.enabled,
-    host: body.host ?? existing.host,
-    port: body.port ?? existing.port,
-    secure: body.secure ?? existing.secure,
-    user: body.user ?? existing.user,
-    pass: (body.pass && body.pass !== "••••••••") ? body.pass : existing.pass,
-    inboxAddress: body.inboxAddress ?? existing.inboxAddress,
-    tlsRejectUnauthorized: body.tlsRejectUnauthorized ?? existing.tlsRejectUnauthorized,
+    enabled: (body.enabled as boolean | undefined) ?? existing.enabled,
+    host: (body.host as string | undefined) ?? existing.host,
+    port: (body.port as number | undefined) ?? existing.port,
+    secure: (body.secure as boolean | undefined) ?? existing.secure,
+    user: (body.user as string | undefined) ?? existing.user,
+    pass: (body.pass && body.pass !== "••••••••") ? String(body.pass) : existing.pass,
+    inboxAddress: (body.inboxAddress as string | undefined) ?? existing.inboxAddress,
+    tlsRejectUnauthorized: (body.tlsRejectUnauthorized as boolean | undefined) ?? existing.tlsRejectUnauthorized,
   });
   res.json({ message: "Support inbox settings saved" });
 });
@@ -623,7 +869,7 @@ router.get("/settings/email-communication", async (_req, res) => {
   });
 });
 
-router.post("/settings/email-communication", async (req, res) => {
+router.post("/settings/email-communication", validateBody(SettingsJsonBody), async (req, res) => {
   const { saveEmailCommunicationConfig, defaultEmailCommunicationConfig } = await import("../helpers/emailCommunicationSettings");
   const body = req.body?.config || req.body;
   const base = defaultEmailCommunicationConfig();
@@ -635,18 +881,94 @@ router.post("/settings/email-communication", async (req, res) => {
   res.json({ message: "Email communication settings saved" });
 });
 
-router.post("/settings/email-communication/test", async (req, res) => {
-  const { purpose, testTo } = req.body || {};
+router.post("/settings/email-communication/test", validateBody(EmailCommunicationTestBody), async (req, res) => {
+  const { purpose, testTo } = getValidatedBody<{ purpose: string; testTo: string }>(req);
   const { sendTestPurposeEmail, ALL_EMAIL_PURPOSES } = await import("../helpers/emailCommunicationSettings");
-  if (!purpose || !ALL_EMAIL_PURPOSES.includes(purpose)) {
+  if (!ALL_EMAIL_PURPOSES.includes(purpose as (typeof ALL_EMAIL_PURPOSES)[number])) {
     res.status(400).json({ error: "Valid purpose is required" });
     return;
   }
-  if (!testTo || typeof testTo !== "string") {
-    res.status(400).json({ error: "testTo email is required" });
+  res.json(await sendTestPurposeEmail(purpose as import("../helpers/emailCommunicationSettings").EmailPurpose, testTo));
+});
+
+router.get("/settings/otp-communication", async (_req, res) => {
+  const {
+    getOtpCommunicationConfig,
+    sanitizeOtpConfigForClient,
+    getOtpCommunicationSummary,
+    DEFAULT_OTP_MESSAGE,
+  } = await import("../helpers/otpCommunicationSettings");
+  const config = await getOtpCommunicationConfig();
+  res.json({
+    config: sanitizeOtpConfigForClient(config),
+    summary: await getOtpCommunicationSummary(),
+    defaultMessage: DEFAULT_OTP_MESSAGE,
+  });
+});
+
+router.post("/settings/otp-communication", async (req, res) => {
+  const { saveOtpCommunicationConfig, defaultOtpCommunicationConfig } = await import("../helpers/otpCommunicationSettings");
+  const body = req.body?.config || req.body || {};
+  const base = defaultOtpCommunicationConfig();
+  const current = await import("../helpers/otpCommunicationSettings").then(m => m.getOtpCommunicationConfig());
+
+  const mergeSecret = (incoming: string, existing: string) => {
+    const v = String(incoming || "").trim();
+    if (!v || v.includes("•")) return existing;
+    return v;
+  };
+
+  await saveOtpCommunicationConfig({
+    email: { ...base.email, ...(body.email || {}) },
+    sms: {
+      ...base.sms,
+      ...(body.sms || {}),
+      apiKey: mergeSecret(body.sms?.apiKey, current.sms.apiKey),
+      accountSid: mergeSecret(body.sms?.accountSid, current.sms.accountSid),
+    },
+    whatsapp: {
+      ...base.whatsapp,
+      ...(body.whatsapp || {}),
+      accessToken: mergeSecret(body.whatsapp?.accessToken, current.whatsapp.accessToken),
+    },
+    firebase: {
+      ...base.firebase,
+      ...(body.firebase || {}),
+      apiKey: mergeSecret(body.firebase?.apiKey, current.firebase.apiKey),
+    },
+    preferredMobileChannel: body.preferredMobileChannel || base.preferredMobileChannel,
+    login2faSms: body.login2faSms ?? base.login2faSms,
+    login2faWhatsapp: body.login2faWhatsapp ?? base.login2faWhatsapp,
+    otpMessageTemplate: body.otpMessageTemplate || base.otpMessageTemplate,
+  });
+  res.json({ message: "OTP communication settings saved" });
+});
+
+router.post("/settings/otp-communication/test", async (req, res) => {
+  const { channel, phone, email, name } = req.body || {};
+  const { createEmailOtp } = await import("../helpers/authHelpers");
+  const { sendOtpViaChannel } = await import("../helpers/otpDeliveryService");
+  const ch = channel === "whatsapp" ? "whatsapp" : channel === "sms" ? "sms" : "email";
+  if (ch !== "email" && !phone) {
+    res.status(400).json({ error: "phone is required for SMS/WhatsApp test" });
     return;
   }
-  res.json(await sendTestPurposeEmail(purpose, testTo));
+  if (ch === "email" && !email) {
+    res.status(400).json({ error: "email is required for email OTP test" });
+    return;
+  }
+  const target = ch === "email" ? email.toLowerCase() : `sms:${phone}`;
+  const { otp } = await createEmailOtp({ email: target, purpose: "registration", ttlMinutes: 10 });
+  const result = await sendOtpViaChannel({
+    channel: ch,
+    email,
+    phone,
+    name: name || "Test User",
+    otp,
+    purpose: "Test",
+    ttlMinutes: 10,
+  });
+  res.json(result);
 });
 
 router.get("/settings/mail-desk", async (_req, res) => {
@@ -678,8 +1000,15 @@ router.delete("/settings/mail-desk/templates/:id", async (req, res) => {
 
 // ── EA Subscriptions Overview ────────────────────────────────────────────────
 router.get("/ea-subscriptions", async (_req, res) => {
+  const { ensureDemoEaSubscriptions } = await import("../helpers/demoEaSubscriptions.js");
+  await ensureDemoEaSubscriptions();
   const subs = await db.select().from(eaSubscriptionsTable).orderBy(desc(eaSubscriptionsTable.createdAt));
-  res.json(subs);
+  res.json(subs.map(s => ({
+    ...s,
+    strategyName: EA_CATALOG_NAMES.get(s.strategyId) ?? `Strategy #${s.strategyId}`,
+    expiresAt: s.expiresAt.toISOString(),
+    createdAt: s.createdAt.toISOString(),
+  })));
 });
 
 router.patch("/ea-subscriptions/:id", async (req, res) => {
@@ -839,6 +1168,10 @@ function mapAlgoStrategy(s: typeof algoStrategiesTable.$inferSelect) {
     id: s.id, name: s.name, description: s.description,
     roi: Number(s.roi), riskLevel: s.riskLevel, subscribers: s.subscribers,
     status: s.status, minInvestment: Number(s.minInvestment), currency: s.currency,
+    priceMonthly: Number(s.priceMonthly),
+    priceQuarterly: Number(s.priceQuarterly),
+    priceBiannual: Number(s.priceBiannual),
+    priceAnnual: Number(s.priceAnnual),
     createdAt: s.createdAt.toISOString(),
   };
 }
@@ -849,7 +1182,7 @@ router.get("/algo-strategies", async (_req, res) => {
 });
 
 router.post("/algo-strategies", async (req, res) => {
-  const { name, description, roi, riskLevel, status, minInvestment, currency } = req.body;
+  const { name, description, roi, riskLevel, status, minInvestment, currency, priceMonthly, priceQuarterly, priceBiannual, priceAnnual } = req.body;
   if (!name || !description) { res.status(400).json({ error: "name and description are required" }); return; }
   const [strategy] = await db.insert(algoStrategiesTable).values({
     name,
@@ -859,6 +1192,10 @@ router.post("/algo-strategies", async (req, res) => {
     status: status || "active",
     minInvestment: String(minInvestment ?? 100),
     currency: currency || "USD",
+    priceMonthly: String(priceMonthly ?? 99),
+    priceQuarterly: String(priceQuarterly ?? 249),
+    priceBiannual: String(priceBiannual ?? 449),
+    priceAnnual: String(priceAnnual ?? 799),
   }).returning();
   res.status(201).json(mapAlgoStrategy(strategy));
 });
@@ -870,7 +1207,7 @@ router.patch("/algo-strategies/:id", async (req, res) => {
   for (const key of ["name", "description", "riskLevel", "status", "currency"]) {
     if (body[key] !== undefined) updates[key] = body[key];
   }
-  for (const key of ["roi", "minInvestment"]) {
+  for (const key of ["roi", "minInvestment", "priceMonthly", "priceQuarterly", "priceBiannual", "priceAnnual"]) {
     if (body[key] !== undefined) updates[key] = String(body[key]);
   }
   const [strategy] = await db.update(algoStrategiesTable).set(updates).where(eq(algoStrategiesTable.id, id)).returning();
@@ -1109,6 +1446,148 @@ router.delete("/about/items/:id", async (req, res) => {
     return;
   }
   res.json({ message: "Item deleted" });
+});
+
+// ── Crypto Exchange ───────────────────────────────────────────────────────────
+router.get("/exchange/rates", async (req, res) => {
+  try {
+    const { listAllExchangeRates } = await import("../helpers/exchangeService");
+    const fiat = String(req.query.fiat || "INR").toUpperCase();
+    res.json(await listAllExchangeRates(fiat));
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to load exchange rates" });
+  }
+});
+
+router.post("/exchange/rates/sync", async (_req, res) => {
+  const { syncExchangeRatesFromCryptoGateways, listAllExchangeRates } = await import("../helpers/exchangeService");
+  await syncExchangeRatesFromCryptoGateways();
+  res.json(await listAllExchangeRates("INR"));
+});
+
+router.put("/exchange/rates", async (req, res) => {
+  try {
+    const { saveExchangeRates } = await import("../helpers/exchangeService");
+    const rates = Array.isArray(req.body?.rates) ? req.body.rates : req.body;
+    if (!Array.isArray(rates)) {
+      res.status(400).json({ error: "rates array required" });
+      return;
+    }
+    res.json(await saveExchangeRates(rates));
+  } catch (err: any) {
+    const message = err?.message || "Failed to save exchange rates";
+    if (/buy_price_inr|sell_price_inr|buy_enabled|sell_enabled|column/.test(message)) {
+      res.status(500).json({
+        error: "Database schema is out of date. Run pnpm db:push on the server, then restart the API.",
+      });
+      return;
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+router.get("/exchange/orders", async (req, res) => {
+  const { listAllExchangeOrders } = await import("../helpers/exchangeService");
+  const status = String(req.query.status || "all");
+  res.json(await listAllExchangeOrders(status));
+});
+
+router.get("/exchange/orders/:id", async (req, res) => {
+  const { getExchangeOrderWithContext } = await import("../helpers/exchangeService");
+  const order = await getExchangeOrderWithContext(Number(req.params.id));
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+  res.json(order);
+});
+
+router.post("/exchange/orders/:id/complete", validateBody(ExchangeOrderAdminNotesBody), async (req, res) => {
+  const { completeExchangeOrder } = await import("../helpers/exchangeService");
+  const { WalletError } = await import("../helpers/walletService");
+  const adminId = (req as any).user.userId;
+  const { adminNotes } = getValidatedBody<{ adminNotes?: string }>(req);
+  try {
+    res.json(await completeExchangeOrder(Number(req.params.id), adminId, adminNotes));
+  } catch (err) {
+    if (err instanceof WalletError) {
+      res.status(400).json({ error: err.message, code: err.code });
+      return;
+    }
+    throw err;
+  }
+});
+
+router.post("/exchange/orders/:id/reject", validateBody(ExchangeOrderRejectBody), async (req, res) => {
+  const { rejectExchangeOrder } = await import("../helpers/exchangeService");
+  const { WalletError } = await import("../helpers/walletService");
+  const adminId = (req as any).user.userId;
+  const { reason } = getValidatedBody<{ reason?: string }>(req);
+  try {
+    res.json(await rejectExchangeOrder(Number(req.params.id), adminId, reason));
+  } catch (err) {
+    if (err instanceof WalletError) {
+      res.status(400).json({ error: err.message, code: err.code });
+      return;
+    }
+    throw err;
+  }
+});
+
+router.get("/partner-keys/scopes", (_req, res) => {
+  res.json({ scopes: PARTNER_SCOPES });
+});
+
+router.get("/partner-keys/webhook-events", (_req, res) => {
+  const events: N8nEventType[] = [
+    "user.registered", "deposit.submitted", "deposit.approved", "withdrawal.submitted",
+    "withdrawal.approved", "kyc.submitted", "kyc.approved", "kyc.rejected",
+    "investment.created", "ticket.created", "promoter.application", "promoter.approved", "promoter.rejected",
+  ];
+  res.json({ events });
+});
+
+router.get("/partner-keys", async (_req, res) => {
+  res.json(await listPartnerApiKeys());
+});
+
+router.post("/partner-keys", async (req, res) => {
+  const { name, scopes, webhookUrl, webhookSecret, webhookEvents } = req.body;
+  if (!name?.trim()) {
+    res.status(400).json({ error: "name is required" });
+    return;
+  }
+  const createdBy = (req as any).user.userId;
+  const result = await createPartnerApiKey({
+    name,
+    scopes: Array.isArray(scopes) ? scopes : [],
+    webhookUrl,
+    webhookSecret,
+    webhookEvents: Array.isArray(webhookEvents) ? webhookEvents : [],
+    createdBy,
+  });
+  res.status(201).json(result);
+});
+
+router.patch("/partner-keys/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const updated = await updatePartnerApiKey(id, req.body);
+  if (!updated) {
+    res.status(404).json({ error: "Partner key not found" });
+    return;
+  }
+  res.json(updated);
+});
+
+router.delete("/partner-keys/:id", async (req, res) => {
+  await deletePartnerApiKey(Number(req.params.id));
+  res.json({ message: "Partner key revoked" });
+});
+
+router.get("/analytics/cohorts", async (req, res) => {
+  const { computeCohortAnalytics } = await import("../helpers/cohortAnalyticsService");
+  const months = Math.min(Number(req.query.months) || 12, 24);
+  res.json(await computeCohortAnalytics(months));
 });
 
 export default router;

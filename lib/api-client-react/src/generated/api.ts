@@ -49,6 +49,7 @@ import type {
   LoginInput,
   ManagerStats,
   MessageResponse,
+  MonthlyReturnPoint,
   Mt5Account,
   Mt5AccountInput,
   Mt5EndpointInput,
@@ -890,6 +891,77 @@ export function useGetPortfolioChart<TData = Awaited<ReturnType<typeof getPortfo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPortfolioChartQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetMonthlyReturnsUrl = () => {
+
+
+
+
+  return `/api/dashboard/monthly-returns`
+}
+
+export const getMonthlyReturns = async ( options?: RequestInit): Promise<MonthlyReturnPoint[]> => {
+
+  return customFetch<MonthlyReturnPoint[]>(getGetMonthlyReturnsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMonthlyReturnsQueryKey = () => {
+    return [
+    `/api/dashboard/monthly-returns`
+    ] as const;
+    }
+
+
+export const getGetMonthlyReturnsQueryOptions = <TData = Awaited<ReturnType<typeof getMonthlyReturns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMonthlyReturns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMonthlyReturnsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMonthlyReturns>>> = ({ signal }) => getMonthlyReturns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMonthlyReturns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMonthlyReturnsQueryResult = NonNullable<Awaited<ReturnType<typeof getMonthlyReturns>>>
+export type GetMonthlyReturnsQueryError = ErrorType<unknown>
+
+
+
+export function useGetMonthlyReturns<TData = Awaited<ReturnType<typeof getMonthlyReturns>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMonthlyReturns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMonthlyReturnsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

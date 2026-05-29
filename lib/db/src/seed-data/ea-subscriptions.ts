@@ -1,0 +1,118 @@
+import type { InsertEASubscription } from "../schema/eaSubscriptions";
+
+type DemoEaSub = Omit<InsertEASubscription, "userId">;
+
+const daysFromNow = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+/** Sample EA subscriptions for super-admin / support dashboards (catalog strategy IDs 1001+). */
+export const DEMO_EA_SUBSCRIPTION_ROWS: DemoEaSub[] = [
+  {
+    strategyId: 1001,
+    mtAccountNumber: "50123456",
+    mtPlatform: "mt5",
+    plan: "monthly",
+    profitSharingPercent: null,
+    amount: "49.00",
+    currency: "USD",
+    licenseKey: "KQ-A1B2C3D4-E5F6G7H8-9I0J",
+    expiresAt: daysFromNow(24),
+    downloadCount: 3,
+    status: "active",
+  },
+  {
+    strategyId: 1002,
+    mtAccountNumber: "60987654",
+    mtPlatform: "mt5",
+    plan: "quarterly",
+    profitSharingPercent: null,
+    amount: "99.00",
+    currency: "USD",
+    licenseKey: "KQ-B2C3D4E5-F6G7H8I9-J0K1",
+    expiresAt: daysFromNow(72),
+    downloadCount: 1,
+    status: "active",
+  },
+  {
+    strategyId: 1005,
+    mtAccountNumber: "77001234",
+    mtPlatform: "mt5",
+    plan: "annual",
+    profitSharingPercent: 25,
+    amount: "549.00",
+    currency: "USD",
+    licenseKey: "KQ-C3D4E5F6-G7H8I9J0-K1L2",
+    expiresAt: daysFromNow(310),
+    downloadCount: 5,
+    status: "active",
+  },
+  {
+    strategyId: 1003,
+    mtAccountNumber: "50123456",
+    mtPlatform: "mt4",
+    plan: "biannual",
+    profitSharingPercent: null,
+    amount: "259.00",
+    currency: "USD",
+    licenseKey: "KQ-D4E5F6G7-H8I9J0K1-L2M3",
+    expiresAt: daysFromNow(145),
+    downloadCount: 2,
+    status: "active",
+  },
+  {
+    strategyId: 1007,
+    mtAccountNumber: "88221100",
+    mtPlatform: "mt5",
+    plan: "monthly",
+    profitSharingPercent: null,
+    amount: "79.00",
+    currency: "USD",
+    licenseKey: "KQ-E5F6G7H8-I9J0K1L2-M3N4",
+    expiresAt: daysAgo(3),
+    downloadCount: 4,
+    status: "expired",
+  },
+  {
+    strategyId: 1016,
+    mtAccountNumber: "60987654",
+    mtPlatform: "mt5",
+    plan: "quarterly",
+    profitSharingPercent: null,
+    amount: "169.00",
+    currency: "USD",
+    licenseKey: "KQ-F6G7H8I9-J0K1L2M3-N4O5",
+    expiresAt: daysFromNow(18),
+    downloadCount: 0,
+    status: "cancelled",
+  },
+  {
+    strategyId: 1010,
+    mtAccountNumber: "99003344",
+    mtPlatform: "mt5",
+    plan: "monthly",
+    profitSharingPercent: 20,
+    amount: "41.00",
+    currency: "USD",
+    licenseKey: "KQ-G7H8I9J0-K1L2M3N4-O5P6",
+    expiresAt: daysFromNow(12),
+    downloadCount: 1,
+    status: "active",
+  },
+  {
+    strategyId: 1020,
+    mtAccountNumber: "11223344",
+    mtPlatform: "mt5",
+    plan: "annual",
+    profitSharingPercent: null,
+    amount: "589.00",
+    currency: "USD",
+    licenseKey: "KQ-H8I9J0K1-L2M3N4O5-P6Q7",
+    expiresAt: daysFromNow(280),
+    downloadCount: 6,
+    status: "active",
+  },
+];
+
+export function buildDemoEaSubscriptionsForUser(userId: number): InsertEASubscription[] {
+  return DEMO_EA_SUBSCRIPTION_ROWS.map(row => ({ ...row, userId }));
+}

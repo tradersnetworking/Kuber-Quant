@@ -18,37 +18,103 @@ import { useLocation } from "wouter";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InvestmentPlansPanel } from "@/components/super-admin/InvestmentPlansPanel";
-import { EAStrategiesPanel } from "@/components/super-admin/EAStrategiesPanel";
-import { CopyTradersPanel } from "@/components/super-admin/CopyTradersPanel";
-import { WalletOperationsPanel } from "@/components/super-admin/WalletOperationsPanel";
-import { UsersManagementPanel } from "@/components/super-admin/UsersManagementPanel";
-import { ManagersManagementPanel } from "@/components/super-admin/ManagersManagementPanel";
-import { SupportTeamManagementPanel } from "@/components/super-admin/SupportTeamManagementPanel";
-import { ManagerApplicationsPanel } from "@/components/super-admin/ManagerApplicationsPanel";
-import { KycManagementPanel } from "@/components/super-admin/KycManagementPanel";
-import { PaymentGatewaysPanel } from "@/components/super-admin/PaymentGatewaysPanel";
-import { SupportTicketsPanel } from "@/components/super-admin/SupportTicketsPanel";
-import { SiteSettingsPanel } from "@/components/super-admin/SiteSettingsPanel";
-import { HomepageContentPanel } from "@/components/super-admin/HomepageContentPanel";
-import { PlatformInvestmentsPanel } from "@/components/super-admin/PlatformInvestmentsPanel";
-import { FinanceLedgerPanel } from "@/components/super-admin/FinanceLedgerPanel";
-import { NotificationManagementPanel } from "@/components/super-admin/NotificationManagementPanel";
-import { PlatformAlgoTradingPanel } from "@/components/super-admin/PlatformAlgoTradingPanel";
-import { PlatformReferralsPanel } from "@/components/super-admin/PlatformReferralsPanel";
-import { MtLinkedAccountsWorkspacePanel } from "@/components/super-admin/MtLinkedAccountsWorkspacePanel";
-import { VpsBridgeSettingsPanel } from "@/components/super-admin/VpsBridgeSettingsPanel";
-import { MarketDataSettingsPanel } from "@/components/super-admin/MarketDataSettingsPanel";
-import { CommunicationSettingsPanel } from "@/components/super-admin/CommunicationSettingsPanel";
-import { LegalAgreementsPanel } from "@/components/super-admin/LegalAgreementsPanel";
-import { WindowsServerServicesPanel } from "@/components/super-admin/WindowsServerServicesPanel";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { SupportMailInboxPanel } from "@/components/support/SupportMailInboxPanel";
-import { SuperAdminOverviewSamples, type OverviewData } from "@/components/super-admin/SuperAdminOverviewSamples";
+import {
+  InvestmentPlansPanel,
+  EAStrategiesPanel,
+  CopyTradersPanel,
+  WalletOperationsPanel,
+  UsersManagementPanel,
+  ManagersManagementPanel,
+  SupportTeamManagementPanel,
+  ManagerApplicationsPanel,
+  KycManagementPanel,
+  PaymentGatewaysPanel,
+  SupportTicketsPanel,
+  SiteSettingsPanel,
+  HomepageContentPanel,
+  PlatformInvestmentsPanel,
+  FinanceLedgerPanel,
+  ExchangeControlPanel,
+  NotificationManagementPanel,
+  PlatformAlgoTradingPanel,
+  PlatformReferralsPanel,
+  MtLinkedAccountsWorkspacePanel,
+  VpsBridgeSettingsPanel,
+  MarketDataSettingsPanel,
+  CommunicationSettingsPanel,
+  LegalAgreementsPanel,
+  WindowsServerServicesPanel,
+  BackupExportPanel,
+  LazyTabPanel,
+} from "@/pages/super-admin/lazy-panels";
+import {
+  SuperAdminPlatformStatsPanel,
+  buildStatsQuery,
+  type StatsPeriod,
+  type PlatformStats,
+} from "@/components/super-admin/SuperAdminPlatformStatsPanel";
+import { defaultStaffFinancePeriod, todayIso } from "@/lib/finance-period";
+import {
+  SuperAdminOverviewSamples,
+  type OverviewData,
+} from "@/components/super-admin/SuperAdminOverviewSamples";
+import { TreasuryOperationsPanel } from "@/components/super-admin/TreasuryOperationsPanel";
+import { UpcomingTransactionsPanel } from "@/components/transactions/UpcomingTransactionsPanel";
+import { PartnerIntegrationsPanel } from "@/components/super-admin/PartnerIntegrationsPanel";
+import { RbacManagementPanel } from "@/components/super-admin/RbacManagementPanel";
+import { CohortAnalyticsPanel } from "@/components/super-admin/CohortAnalyticsPanel";
 import { SUPER_ADMIN_TABS } from "@/lib/nav-config";
 import { authFetchJson, getStoredToken } from "@/lib/token-store";
+import { SafeBoundary } from "@/components/SafeBoundary";
+import { StaffMobileTabBar } from "@/components/staff/StaffMobileTabBar";
+import { StaffQuickLinkTile } from "@/components/staff/StaffQuickLinkTile";
+import { STAFF_PAGE_STACK, STAFF_QUICK_LINK_GRID, STAFF_HEADER_ROW, STAFF_FORM_GRID, STAFF_CHART_GRID } from "@/lib/staff-dashboard-ui";
+import type { StaffStatTone } from "@/lib/staff-dashboard-ui";
 
 const TAB_PANEL = "mt-4 space-y-6 outline-none data-[state=active]:block data-[state=inactive]:hidden";
+
+const SUPER_ADMIN_MOBILE_TABS = [
+  { value: "overview", label: "Overview" },
+  { value: "wallet", label: "Wallet" },
+  { value: "upcoming-transactions", label: "Upcoming" },
+  { value: "users", label: "Users" },
+  { value: "managers", label: "Managers" },
+  { value: "support-team", label: "Support" },
+  { value: "kyc", label: "KYC" },
+  { value: "investment-plans", label: "Plans" },
+  { value: "copy-trading", label: "Copy" },
+  { value: "algo-trading", label: "Algo" },
+  { value: "ea-strategies", label: "EA" },
+  { value: "transactions", label: "Txns" },
+  { value: "support", label: "Tickets" },
+  { value: "communication", label: "Email" },
+  { value: "settings", label: "Settings" },
+] as const;
+
+const OVERVIEW_QUICK_NAV: { tab: string; label: string; desc: string; tone: StaffStatTone }[] = [
+  { tab: "wallet", label: "Wallet & Txns", desc: "Deposits, withdrawals", tone: "emerald" },
+  { tab: "upcoming-transactions", label: "Upcoming Txns", desc: "Pending approvals", tone: "amber" },
+  { tab: "users", label: "Users", desc: "Edit all accounts", tone: "blue" },
+  { tab: "managers", label: "Managers", desc: "Create managers", tone: "cyan" },
+  { tab: "support-team", label: "Support Team", desc: "Create support agents", tone: "rose" },
+  { tab: "kyc", label: "KYC", desc: "Approvals", tone: "teal" },
+  { tab: "investment-plans", label: "Investment Plans", desc: "Plan CRUD", tone: "amber" },
+  { tab: "copy-trading", label: "Copy Trading", desc: "Master traders", tone: "violet" },
+  { tab: "mt5-accounts", label: "MT Accounts", desc: "Credentials & profit share", tone: "indigo" },
+  { tab: "algo-trading", label: "Algo Trading", desc: "Strategies & subs", tone: "fuchsia" },
+  { tab: "ea-strategies", label: "EA Strategies", desc: "Catalog CRUD", tone: "orange" },
+  { tab: "ea-subs", label: "EA Subscriptions", desc: "User EA subs", tone: "violet" },
+  { tab: "payment-gateways", label: "Payments", desc: "Deposit accounts", tone: "emerald" },
+  { tab: "support", label: "Support", desc: "Tickets", tone: "rose" },
+  { tab: "api", label: "Server API", desc: "VPS bridge & copier", tone: "blue" },
+  { tab: "communication", label: "Email & Comms", desc: "SMTP & auto emails", tone: "cyan" },
+  { tab: "homepage", label: "Homepage", desc: "Partners & about", tone: "amber" },
+  { tab: "site-config", label: "Site Config", desc: "Platform settings", tone: "teal" },
+  { tab: "promo-codes", label: "Promo Codes", desc: "Discounts", tone: "amber" },
+  { tab: "audit-logs", label: "Audit Logs", desc: "Activity trail", tone: "orange" },
+];
 
 async function apiFetch<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
   return authFetchJson<T>(path, opts);
@@ -79,7 +145,10 @@ export default function SuperAdminDashboard() {
   const [mt5Endpoint, setMt5Endpoint] = useState("");
   const [endpointSaved, setEndpointSaved] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>(defaultStaffFinancePeriod());
+  const [statsCustomFrom, setStatsCustomFrom] = useState(todayIso());
+  const [statsCustomTo, setStatsCustomTo] = useState(todayIso());
   const [mt5Requests, setMt5Requests] = useState<any[]>([]);
   const [eaSubs, setEaSubs] = useState<any[]>([]);
   const [overview, setOverview] = useState<OverviewData | null>(null);
@@ -123,7 +192,7 @@ export default function SuperAdminDashboard() {
   const [showSlaves, setShowSlaves] = useState(false);
   const [vpsConfigured, setVpsConfigured] = useState(false);
 
-  const isSuperAdmin = user && (user.role as string) === "superadmin";
+  const isSuperAdmin = user && ((user.role as string) === "superadmin" || (user.role as string) === "admin");
 
   useEffect(() => {
     if (activeTab === "promo-codes" && !promoLoaded) {
@@ -138,12 +207,26 @@ export default function SuperAdminDashboard() {
   }, [activeTab, promoLoaded, auditLoaded, agrLoaded]);
 
   // ── Load all data ─────────────────────────────────────────────────────────
+  const loadStats = useCallback(async (period: StatsPeriod, customFrom: string, customTo: string) => {
+    setLoading(l => ({ ...l, stats: true }));
+    try {
+      const query = buildStatsQuery(period, customFrom, customTo);
+      const s = await apiFetch<PlatformStats>(`/super-admin/stats?${query}`);
+      setStats(s);
+    } catch (e: any) {
+      toast({ title: "Stats load failed", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(l => ({ ...l, stats: false }));
+    }
+  }, [toast]);
+
   const loadAll = useCallback(async () => {
     setLoading(l => ({ ...l, all: true }));
     setLoadError(null);
     try {
+      const statsQuery = buildStatsQuery(statsPeriod, statsCustomFrom, statsCustomTo);
       const [s, u, m, e, ep, tc, ov, vps] = await Promise.all([
-        apiFetch("/super-admin/stats"),
+        apiFetch<PlatformStats>(`/super-admin/stats?${statsQuery}`),
         apiFetch("/super-admin/users"),
         apiFetch("/super-admin/mt5-requests"),
         apiFetch("/super-admin/ea-subscriptions"),
@@ -175,7 +258,18 @@ export default function SuperAdminDashboard() {
     } finally {
       setLoading(l => ({ ...l, all: false }));
     }
-  }, [toast]);
+  }, [toast, statsPeriod, statsCustomFrom, statsCustomTo]);
+
+  function handleStatsPeriodChange(period: StatsPeriod) {
+    setStatsPeriod(period);
+    if (period !== "custom") {
+      loadStats(period, statsCustomFrom, statsCustomTo);
+    }
+  }
+
+  function handleApplyCustomStats() {
+    loadStats("custom", statsCustomFrom, statsCustomTo);
+  }
 
   useEffect(() => {
     if (isSuperAdmin) loadAll();
@@ -278,42 +372,26 @@ export default function SuperAdminDashboard() {
     }
   }
 
-  const statCards = [
-    { label: "Platform Deposits", value: stats?.totalDeposits != null ? `$${Number(stats.totalDeposits).toLocaleString(undefined, { minimumFractionDigits: 0 })}` : undefined, color: "text-emerald-400" },
-    { label: "Total Invested", value: stats?.totalInvestments != null ? `$${Number(stats.totalInvestments).toLocaleString(undefined, { minimumFractionDigits: 0 })}` : undefined, color: "text-amber-400" },
-    { label: "Net Funds", value: stats?.netFunds != null ? `$${Number(stats.netFunds).toLocaleString(undefined, { minimumFractionDigits: 0 })}` : undefined, color: "text-green-400" },
-    { label: "Total Users", value: stats?.totalUsers, color: "text-blue-400" },
-    { label: "Managers", value: stats?.managers, color: "text-cyan-400" },
-    { label: "Support Team", value: stats?.supportAgents, color: "text-rose-400" },
-    { label: "Investors", value: stats?.investors, color: "text-purple-400" },
-    { label: "Pending Txns", value: stats?.pendingTransactions, color: "text-orange-400" },
-    { label: "Pending KYC", value: stats?.pendingKyc, color: "text-teal-400" },
-    { label: "Open Tickets", value: stats?.openTickets, color: "text-rose-400" },
-    { label: "Active Investments", value: stats?.activeInvestmentCount, color: "text-yellow-400" },
-    { label: "Active EA Subs", value: stats?.activeEASubscriptions, color: "text-indigo-400" },
-    { label: "Active Algo Subs", value: stats?.activeAlgoSubscriptions, color: "text-violet-400" },
-  ];
-
   const statusColor: Record<string, string> = {
-    pending: "bg-orange-500/20 text-orange-400",
-    forwarded: "bg-blue-500/20 text-blue-400",
-    accepted: "bg-green-500/20 text-green-400",
+    pending: "bg-orange-500/20 text-orange-600 dark:text-orange-400",
+    forwarded: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+    accepted: "bg-green-500/20 text-green-700 dark:text-green-400",
     rejected: "bg-red-500/20 text-red-400",
-    completed: "bg-amber-500/20 text-amber-400",
+    completed: "bg-amber-500/20 text-amber-600 dark:text-amber-400",
   };
 
   const tcIsConfigured = tcConfig.baseUrl.length > 0;
 
   return (
-    <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
+    <div className={STAFF_PAGE_STACK}>
+        <div className={STAFF_HEADER_ROW}>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 dark:from-amber-400 dark:to-yellow-600 bg-clip-text text-transparent">
               Super Admin
             </h1>
-            <p className="text-muted-foreground mt-1">Create plans, collect funds, and manage users, managers & support across the platform</p>
+            <p className="page-subtitle mt-1">Create plans, collect funds, and manage users, managers & support across the platform</p>
           </div>
-          <Button variant="outline" size="sm" onClick={loadAll} disabled={loading.all}>
+          <Button variant="outline" size="sm" className="shrink-0 w-full md:w-auto border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10" onClick={loadAll} disabled={loading.all}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading.all ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -342,57 +420,64 @@ export default function SuperAdminDashboard() {
         )}
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="md:hidden bg-white/5 border border-white/10 flex-wrap h-auto gap-1 p-1">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="wallet">Wallet</TabsTrigger>
-            <TabsTrigger value="investments">Investments</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="managers">Managers</TabsTrigger>
-            <TabsTrigger value="support-team">Support Team</TabsTrigger>
-            <TabsTrigger value="kyc">KYC</TabsTrigger>
-            <TabsTrigger value="investment-plans">Plans</TabsTrigger>
-            <TabsTrigger value="ea-strategies">EA</TabsTrigger>
-            <TabsTrigger value="copy-trading">Copy</TabsTrigger>
-            <TabsTrigger value="algo-trading">Algo</TabsTrigger>
-            <TabsTrigger value="transactions">Txns</TabsTrigger>
-            <TabsTrigger value="referrals">Referrals</TabsTrigger>
-            <TabsTrigger value="support">Support</TabsTrigger>
-            <TabsTrigger value="support-mail">Mail</TabsTrigger>
-            <TabsTrigger value="api">Server API</TabsTrigger>
-            <TabsTrigger value="notifications">Alerts</TabsTrigger>
-            <TabsTrigger value="communication">Email</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+          <StaffMobileTabBar
+            tabs={[...SUPER_ADMIN_MOBILE_TABS]}
+            value={activeTab}
+            onChange={handleTabChange}
+            className="mb-2"
+          />
 
           {/* ── Overview ── */}
           <TabsContent value="overview" className={TAB_PANEL}>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              {statCards.map((s) => (
-                <Card key={s.label} className="bg-white/5 border-white/10">
-                  <CardContent className="p-4">
-                    {loading.all ? <Skeleton className="h-8 w-16 mb-1" /> : (
-                      <p className={`text-2xl font-bold ${s.color}`}>{s.value ?? "—"}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-                  </CardContent>
-                </Card>
+            <SuperAdminPlatformStatsPanel
+              stats={stats}
+              loading={loading.all || loading.stats}
+              period={statsPeriod}
+              customFrom={statsCustomFrom}
+              customTo={statsCustomTo}
+              onPeriodChange={handleStatsPeriodChange}
+              onCustomFromChange={setStatsCustomFrom}
+              onCustomToChange={setStatsCustomTo}
+              onApplyCustom={handleApplyCustomStats}
+            />
+
+            <SafeBoundary label="Treasury panel failed to load.">
+              <TreasuryOperationsPanel />
+            </SafeBoundary>
+
+            <SafeBoundary label="Cohort analytics failed to load.">
+              <CohortAnalyticsPanel />
+            </SafeBoundary>
+
+            <SafeBoundary label="Platform catalog preview failed to load.">
+              <SuperAdminOverviewSamples
+                data={overview}
+                loading={loading.all}
+                onNavigate={handleTabChange}
+              />
+            </SafeBoundary>
+
+            <div className={STAFF_QUICK_LINK_GRID}>
+              {OVERVIEW_QUICK_NAV.map(item => (
+                <StaffQuickLinkTile
+                  key={item.tab}
+                  href="#"
+                  label={item.label}
+                  desc={item.desc}
+                  tone={item.tone}
+                  onClick={() => handleTabChange(item.tab)}
+                />
               ))}
             </div>
 
-            <SuperAdminOverviewSamples
-              data={overview}
-              loading={loading.all}
-              onNavigate={handleTabChange}
-            />
-
             {/* Trade Copier status card */}
             <Card className={`border ${tcIsConfigured ? "bg-green-500/5 border-green-500/20" : "bg-orange-500/5 border-orange-500/20"}`}>
-              <CardContent className="p-4 flex items-center gap-4">
+              <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-4">
                 {tcIsConfigured
-                  ? <Wifi className="h-5 w-5 text-green-400 shrink-0" />
-                  : <WifiOff className="h-5 w-5 text-orange-400 shrink-0" />}
+                  ? <Wifi className="h-5 w-5 text-green-700 dark:text-green-400 shrink-0" />
+                  : <WifiOff className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0" />}
                 <div className="flex-1">
-                  <p className={`text-sm font-medium ${tcIsConfigured ? "text-green-400" : "text-orange-400"}`}>
+                  <p className={`text-sm font-medium ${tcIsConfigured ? "text-green-700 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}`}>
                     Trade Copier API — {tcIsConfigured ? "Configured" : "Not configured"}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -401,161 +486,157 @@ export default function SuperAdminDashboard() {
                       : "Configure your Trade Copier API credentials in the API tab to enable automated copy trading."}
                   </p>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => handleTabChange("api")}>
+                <Button size="sm" variant="outline" className="w-full md:w-auto shrink-0" onClick={() => handleTabChange("api")}>
                   {tcIsConfigured ? "Manage" : "Set up"}
                 </Button>
               </CardContent>
             </Card>
 
+            <LazyTabPanel active={activeTab === "overview"}>
             <WindowsServerServicesPanel
               vpsConfigured={vpsConfigured}
               tradeCopierConfigured={tcIsConfigured}
               onNavigate={handleTabChange}
             />
-
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {[
-                { tab: "wallet", label: "Wallet & Txns", desc: "Deposits, withdrawals" },
-                { tab: "users", label: "Users", desc: "Edit all accounts" },
-                { tab: "managers", label: "Managers", desc: "Create managers" },
-                { tab: "support-team", label: "Support Team", desc: "Create support agents" },
-                { tab: "kyc", label: "KYC", desc: "Approvals" },
-                { tab: "investment-plans", label: "Investment Plans", desc: "Plan CRUD" },
-                { tab: "copy-trading", label: "Copy Trading", desc: "Master traders" },
-                { tab: "mt5-accounts", label: "MT Accounts & Profit Share", desc: "User credentials & requests" },
-                { tab: "algo-trading", label: "Algo Trading", desc: "Strategies & subs" },
-                { tab: "ea-strategies", label: "EA Strategies", desc: "Catalog CRUD" },
-                { tab: "ea-subs", label: "EA Subscriptions", desc: "User EA subs" },
-                { tab: "payment-gateways", label: "Payments", desc: "Gateway config" },
-                { tab: "support", label: "Support", desc: "Tickets" },
-                { tab: "api", label: "Windows Server API", desc: "VPS bridge & copier" },
-                { tab: "communication", label: "Email & Comms", desc: "SMTP & auto emails" },
-                { tab: "homepage", label: "Homepage Content", desc: "Partners & about section" },
-                { tab: "site-config", label: "Site Config", desc: "Platform settings" },
-                { tab: "promo-codes", label: "Promo Codes", desc: "Discounts" },
-                { tab: "audit-logs", label: "Audit Logs", desc: "Activity trail" },
-              ].map(item => (
-                <Button key={item.tab} variant="outline" className="h-auto py-4 flex flex-col items-start border-white/10 bg-white/5 hover:bg-white/10"
-                  onClick={() => handleTabChange(item.tab)}>
-                  <span className="font-semibold text-sm">{item.label}</span>
-                  <span className="text-xs text-muted-foreground font-normal">{item.desc}</span>
-                </Button>
-              ))}
-            </div>
+            </LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="wallet" className={TAB_PANEL}>
-            <WalletOperationsPanel />
+            <LazyTabPanel active={activeTab === "wallet"}><WalletOperationsPanel /></LazyTabPanel>
+          </TabsContent>
+
+          <TabsContent value="upcoming-transactions" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "upcoming-transactions"}>
+              <UpcomingTransactionsPanel variant="admin" />
+            </LazyTabPanel>
+          </TabsContent>
+
+          <TabsContent value="exchange" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "exchange"}><ExchangeControlPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="investments" className={TAB_PANEL}>
-            <PlatformInvestmentsPanel />
+            <LazyTabPanel active={activeTab === "investments"}><PlatformInvestmentsPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="transactions" className={TAB_PANEL}>
-            <FinanceLedgerPanel />
+            <LazyTabPanel active={activeTab === "transactions"}><FinanceLedgerPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="notifications" className={TAB_PANEL}>
-            <NotificationManagementPanel />
+            <LazyTabPanel active={activeTab === "notifications"}><NotificationManagementPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="algo-trading" className={TAB_PANEL}>
-            <PlatformAlgoTradingPanel />
+            <LazyTabPanel active={activeTab === "algo-trading"}><PlatformAlgoTradingPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="referrals" className={TAB_PANEL}>
-            <PlatformReferralsPanel />
+            <LazyTabPanel active={activeTab === "referrals"}><PlatformReferralsPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="users" className={TAB_PANEL}>
-            <UsersManagementPanel defaultRoleTab="user" />
+            <LazyTabPanel active={activeTab === "users"}><UsersManagementPanel defaultRoleTab="user" /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="managers" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "managers"}>
             <ManagerApplicationsPanel />
             <div className="mt-8">
               <ManagersManagementPanel />
             </div>
+            </LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="support-team" className={TAB_PANEL}>
-            <SupportTeamManagementPanel />
+            <LazyTabPanel active={activeTab === "support-team"}><SupportTeamManagementPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="kyc" className={TAB_PANEL}>
-            <KycManagementPanel />
+            <LazyTabPanel active={activeTab === "kyc"}><KycManagementPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="investment-plans" className={TAB_PANEL}>
-            <InvestmentPlansPanel />
+            <LazyTabPanel active={activeTab === "investment-plans"}><InvestmentPlansPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="ea-strategies" className={TAB_PANEL}>
-            <EAStrategiesPanel />
+            <LazyTabPanel active={activeTab === "ea-strategies"}><EAStrategiesPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="copy-trading" className={TAB_PANEL}>
-            <CopyTradersPanel />
+            <LazyTabPanel active={activeTab === "copy-trading"}><CopyTradersPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="mt5-accounts" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "mt5-accounts"}>
             <MtLinkedAccountsWorkspacePanel apiBase="/super-admin" showFormConfig />
+            </LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="mt5" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "mt5"}>
             <MtLinkedAccountsWorkspacePanel apiBase="/super-admin" showFormConfig defaultTab="requests" />
+            </LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="payment-gateways" className={TAB_PANEL}>
-            <PaymentGatewaysPanel />
+            <LazyTabPanel active={activeTab === "payment-gateways"}><PaymentGatewaysPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="support" className={TAB_PANEL}>
-            <SupportTicketsPanel />
+            <LazyTabPanel active={activeTab === "support"}><SupportTicketsPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="support-mail" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "support-mail"}>
             <SupportMailInboxPanel
               title="Support Mail"
               description="Manage client queries, complaints, disputes, and other emails sent to support@kuberquant.com."
               apiBase="/admin/mail"
             />
+            </LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="site-config" className={TAB_PANEL}>
-            <SiteSettingsPanel />
+            <LazyTabPanel active={activeTab === "site-config"}><SiteSettingsPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="homepage" className={TAB_PANEL}>
-            <HomepageContentPanel />
+            <LazyTabPanel active={activeTab === "homepage"}><HomepageContentPanel /></LazyTabPanel>
           </TabsContent>
 
           {/* ── EA Subscriptions ── */}
           <TabsContent value="ea-subs" className={TAB_PANEL}>
-            <h2 className="text-lg font-semibold">EA Subscriptions</h2>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">EA Subscriptions</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                User subscriptions to catalog Expert Advisors — license keys, MT accounts, and renewal status.
+              </p>
+            </div>
             <div className="space-y-2">
               {loading.all ? (
                 Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
               ) : eaSubs.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No subscriptions yet</p>
               ) : eaSubs.map(s => (
-                <Card key={s.id} className="bg-white/5 border-white/10">
+                <Card key={s.id} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                   <CardContent className="p-3 flex flex-col md:flex-row md:items-center gap-3">
                     <div className="flex-1">
-                      <p className="text-sm font-medium">Strategy #{s.strategyId}</p>
+                      <p className="text-sm font-medium">{s.strategyName ?? `Strategy #${s.strategyId}`}</p>
                       <p className="text-xs text-muted-foreground">
-                        User #{s.userId} · Account: {s.mtAccountNumber} · {s.mtPlatform.toUpperCase()}
+                        User #{s.userId} · Account: {s.mtAccountNumber} · {String(s.mtPlatform).toUpperCase()} · {String(s.plan).replace(/^./, c => c.toUpperCase())}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        License: <code className="text-amber-400">{s.licenseKey}</code> · Downloads: {s.downloadCount}
+                        License: <code className="text-amber-600 dark:text-amber-400">{s.licenseKey}</code> · Downloads: {s.downloadCount}
+                        {s.amount ? ` · $${s.amount}` : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge className={`text-xs ${
-                        s.status === "active" ? "bg-green-500/20 text-green-400" :
+                        s.status === "active" ? "bg-green-500/20 text-green-700 dark:text-green-400" :
                         s.status === "expired" ? "bg-red-500/20 text-red-400" :
-                        "bg-gray-500/20 text-gray-400"
+                        "bg-muted text-muted-foreground"
                       }`}>{s.status}</Badge>
                       <span className="text-xs text-muted-foreground">
                         Expires {new Date(s.expiresAt).toLocaleDateString()}
@@ -587,7 +668,7 @@ export default function SuperAdminDashboard() {
           <TabsContent value="api" className={TAB_PANEL}>
             <div>
               <h2 className="text-xl font-semibold flex items-center gap-2">
-                <Link2 className="h-5 w-5 text-amber-400" />
+                <Link2 className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 API Integrations
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
@@ -596,19 +677,19 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Trade Copier API */}
-            <Card className="bg-white/5 border-white/10">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <CardHeader>
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                      <Code2 className="h-5 w-5 text-blue-400" />
+                      <Code2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         Trade Copier API
                         {tcIsConfigured
-                          ? <Badge className="bg-green-500/20 text-green-400 text-xs flex items-center gap-1"><Wifi className="h-2.5 w-2.5" />Configured</Badge>
-                          : <Badge className="bg-orange-500/20 text-orange-400 text-xs flex items-center gap-1"><WifiOff className="h-2.5 w-2.5" />Not configured</Badge>}
+                          ? <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 text-xs flex items-center gap-1"><Wifi className="h-2.5 w-2.5" />Configured</Badge>
+                          : <Badge className="bg-orange-500/20 text-orange-600 dark:text-orange-400 text-xs flex items-center gap-1"><WifiOff className="h-2.5 w-2.5" />Not configured</Badge>}
                       </CardTitle>
                       <CardDescription>
                         Connect to a RESTful trade copier service (e.g. Duplikium, custom API). Copy trading relay requests will automatically register slave accounts via this API.
@@ -619,7 +700,7 @@ export default function SuperAdminDashboard() {
                     href="https://trade-copier.com/features/trade-copier-api"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                    className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1"
                   >
                     <ExternalLink className="h-3 w-3" />
                     API Docs
@@ -638,7 +719,7 @@ export default function SuperAdminDashboard() {
                         value={tcConfig.baseUrl}
                         onChange={e => setTcConfig(c => ({ ...c, baseUrl: e.target.value }))}
                         placeholder="https://api.trade-copier.com"
-                        className="bg-white/5 border-white/10 font-mono text-sm"
+                        className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm"
                       />
                       <p className="text-xs text-muted-foreground">The root URL of your trade copier API — no trailing slash.</p>
                     </div>
@@ -647,7 +728,7 @@ export default function SuperAdminDashboard() {
                     <div className="space-y-2">
                       <Label className="text-xs uppercase tracking-wider text-muted-foreground">Authentication Method</Label>
                       <Select value={tcConfig.authType} onValueChange={v => setTcConfig(c => ({ ...c, authType: v as any }))}>
-                        <SelectTrigger className="bg-white/5 border-white/10">
+                        <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -670,26 +751,26 @@ export default function SuperAdminDashboard() {
                             value={tcConfig.apiKey}
                             onChange={e => setTcConfig(c => ({ ...c, apiKey: e.target.value }))}
                             placeholder={tcConfig.authType === "api_key" ? "your-api-key" : "your-bearer-token"}
-                            className="bg-white/5 border-white/10 font-mono text-sm pr-10"
+                            className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm pr-10"
                           />
                           <button
                             type="button"
                             onClick={() => setShowApiKey(s => !s)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                           >
                             {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={STAFF_FORM_GRID}>
                         <div className="space-y-2">
                           <Label className="text-xs uppercase tracking-wider text-muted-foreground">Username</Label>
                           <Input
                             value={tcConfig.username}
                             onChange={e => setTcConfig(c => ({ ...c, username: e.target.value }))}
                             placeholder="your-username"
-                            className="bg-white/5 border-white/10"
+                            className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
                           />
                         </div>
                         <div className="space-y-2">
@@ -700,12 +781,12 @@ export default function SuperAdminDashboard() {
                               value={tcConfig.password}
                               onChange={e => setTcConfig(c => ({ ...c, password: e.target.value }))}
                               placeholder="your-password"
-                              className="bg-white/5 border-white/10 pr-10"
+                              className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 pr-10"
                             />
                             <button
                               type="button"
                               onClick={() => setShowPassword(s => !s)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             >
                               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
@@ -721,7 +802,7 @@ export default function SuperAdminDashboard() {
                         value={tcConfig.masterAccountId}
                         onChange={e => setTcConfig(c => ({ ...c, masterAccountId: e.target.value }))}
                         placeholder="master-account-id-from-trade-copier"
-                        className="bg-white/5 border-white/10 font-mono text-sm"
+                        className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm"
                       />
                       <p className="text-xs text-muted-foreground">The master account ID registered on your trade copier platform. Slave accounts will be linked to this master.</p>
                     </div>
@@ -763,7 +844,7 @@ export default function SuperAdminDashboard() {
                     {tcTestResult && (
                       <div className={`flex items-start gap-3 p-3 rounded-lg border text-sm ${
                         tcTestResult.ok
-                          ? "bg-green-500/10 border-green-500/20 text-green-400"
+                          ? "bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400"
                           : "bg-red-500/10 border-red-500/20 text-red-400"
                       }`}>
                         {tcTestResult.ok
@@ -786,9 +867,9 @@ export default function SuperAdminDashboard() {
                         {tcSlaves.length === 0 ? (
                           <p className="text-sm text-muted-foreground">No slave accounts found on the trade copier.</p>
                         ) : tcSlaves.map((sl, i) => (
-                          <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 text-xs">
+                          <div key={i} className="flex items-center justify-between bg-muted/60 dark:bg-white/5 rounded-lg px-3 py-2 text-xs">
                             <span className="font-mono">{sl.login || sl.id || JSON.stringify(sl)}</span>
-                            <Badge className="bg-white/10 text-muted-foreground text-xs">{sl.status || "active"}</Badge>
+                            <Badge className="bg-muted dark:bg-white/10 text-muted-foreground text-xs">{sl.status || "active"}</Badge>
                           </div>
                         ))}
                       </div>
@@ -809,39 +890,39 @@ export default function SuperAdminDashboard() {
             <MarketDataSettingsPanel />
 
             {/* How the integration works */}
-            <Card className="bg-white/5 border-white/10">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-amber-400" />
+                  <Activity className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   How the Integration Works
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-sm">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className={STAFF_CHART_GRID}>
                   {[
                     {
                       icon: "1",
                       title: "User Submits Request",
                       desc: "A user submits a Copy Trading request via the MT4/MT5 Services page, including their account number and profit sharing terms.",
-                      color: "text-blue-400 bg-blue-500/20",
+                      color: "text-blue-600 dark:text-blue-400 bg-blue-500/20",
                     },
                     {
                       icon: "2",
                       title: "Admin Reviews",
                       desc: "You review the request in the MT5 Relay tab, verify the account details, and click Forward to approve.",
-                      color: "text-amber-400 bg-amber-500/20",
+                      color: "text-amber-600 dark:text-amber-400 bg-amber-500/20",
                     },
                     {
                       icon: "3",
                       title: "Auto Slave Registration",
                       desc: "On Forward, the platform calls POST /v1/slaves on your Trade Copier API with the slave login, master account ID, and profit sharing %.",
-                      color: "text-purple-400 bg-purple-500/20",
+                      color: "text-purple-600 dark:text-purple-400 bg-purple-500/20",
                     },
                     {
                       icon: "4",
                       title: "Live Copy Trading Begins",
                       desc: "The trade copier begins mirroring trades from your master account to the slave. Both accounts trade in real time.",
-                      color: "text-green-400 bg-green-500/20",
+                      color: "text-green-700 dark:text-green-400 bg-green-500/20",
                     },
                   ].map(item => (
                     <div key={item.icon} className="flex gap-3">
@@ -849,14 +930,14 @@ export default function SuperAdminDashboard() {
                         {item.icon}
                       </div>
                       <div>
-                        <p className="font-medium text-white/90">{item.title}</p>
+                        <p className="font-medium text-foreground/90">{item.title}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="bg-black/40 border border-white/10 rounded-lg p-4 space-y-2">
+                <div className="bg-muted/90 dark:bg-black/40 border border-border dark:border-white/10 rounded-lg p-4 space-y-2">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">API Endpoints Used</p>
                   {[
                     { method: "POST", path: "/v1/slaves", desc: "Register a new slave account" },
@@ -865,30 +946,34 @@ export default function SuperAdminDashboard() {
                     { method: "GET", path: "/ping or /health", desc: "Test API connectivity" },
                   ].map(ep => (
                     <div key={ep.path} className="flex items-center gap-3 text-xs">
-                      <span className={`font-mono font-bold w-14 text-center ${ep.method === "POST" ? "text-green-400" : ep.method === "DELETE" ? "text-red-400" : "text-blue-400"}`}>
+                      <span className={`font-mono font-bold w-14 text-center ${ep.method === "POST" ? "text-green-700 dark:text-green-400" : ep.method === "DELETE" ? "text-red-400" : "text-blue-600 dark:text-blue-400"}`}>
                         {ep.method}
                       </span>
-                      <code className="text-amber-400 font-mono flex-1">{ep.path}</code>
+                      <code className="text-amber-600 dark:text-amber-400 font-mono flex-1">{ep.path}</code>
                       <span className="text-muted-foreground hidden md:block">{ep.desc}</span>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
+
+            <PartnerIntegrationsPanel />
+
+            {user?.role === "superadmin" && <RbacManagementPanel />}
           </TabsContent>
 
           <TabsContent value="communication" className={TAB_PANEL}>
-            <CommunicationSettingsPanel />
+            <LazyTabPanel active={activeTab === "communication"}><CommunicationSettingsPanel /></LazyTabPanel>
           </TabsContent>
 
           {/* ── Settings ── */}
           <TabsContent value="settings" className={TAB_PANEL}>
             <SiteSettingsPanel />
 
-            <Card className="bg-white/5 border-white/10 mt-8">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 mt-8">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-amber-400" />
+                  <Globe className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   External MT5 Relay Endpoint
                 </CardTitle>
                 <CardDescription>
@@ -902,7 +987,7 @@ export default function SuperAdminDashboard() {
                     value={mt5Endpoint}
                     onChange={e => setMt5Endpoint(e.target.value)}
                     placeholder="https://your-mt5-site.com/api/relay"
-                    className="bg-white/5 border-white/10"
+                    className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
                   />
                   <p className="text-xs text-muted-foreground">
                     POST body: requestId, type, userId, userEmail, userName, mt5AccountId, profitSharingPercent, details, timestamp
@@ -914,10 +999,10 @@ export default function SuperAdminDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-white/5 border-white/10">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5 text-amber-400" />
+                  <Key className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   Platform Information
                 </CardTitle>
               </CardHeader>
@@ -925,11 +1010,11 @@ export default function SuperAdminDashboard() {
                 {[
                   { label: "Your Role", value: <Badge className="bg-red-500/20 text-red-400">Super Admin</Badge> },
                   { label: "Role Hierarchy", value: "superadmin → support → manager → user" },
-                  { label: "KYC Requirement", value: <span className="text-green-400">Exempt</span> },
-                  { label: "MT5 Relay Endpoint", value: <span className={mt5Endpoint ? "text-green-400" : "text-orange-400"}>{mt5Endpoint ? "Configured" : "Not configured"}</span> },
-                  { label: "Trade Copier API", value: <span className={tcIsConfigured ? "text-green-400" : "text-orange-400"}>{tcIsConfigured ? "Configured" : "Not configured"}</span> },
+                  { label: "KYC Requirement", value: <span className="text-green-700 dark:text-green-400">Exempt</span> },
+                  { label: "MT5 Relay Endpoint", value: <span className={mt5Endpoint ? "text-green-700 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}>{mt5Endpoint ? "Configured" : "Not configured"}</span> },
+                  { label: "Trade Copier API", value: <span className={tcIsConfigured ? "text-green-700 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}>{tcIsConfigured ? "Configured" : "Not configured"}</span> },
                 ].map(item => (
-                  <div key={item.label} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+                  <div key={item.label} className="flex justify-between items-center py-2 border-b border-border/80 dark:border-white/5 last:border-0">
                     <span className="text-muted-foreground">{item.label}</span>
                     <span>{item.value}</span>
                   </div>
@@ -951,8 +1036,8 @@ export default function SuperAdminDashboard() {
             </div>
 
             {showPromoCreate && (
-              <Card className="bg-white/5 border-amber-500/20">
-                <CardHeader><CardTitle className="text-base text-amber-400">New Promo Code</CardTitle></CardHeader>
+              <Card className="bg-muted/60 dark:bg-white/5 border-amber-500/20">
+                <CardHeader><CardTitle className="text-base text-amber-600 dark:text-amber-400">New Promo Code</CardTitle></CardHeader>
                 <CardContent>
                   <form onSubmit={async (e) => {
                     e.preventDefault();
@@ -973,15 +1058,15 @@ export default function SuperAdminDashboard() {
                       toast({ title: "Promo code created!" });
                     } catch (err: any) { toast({ title: "Error", description: err.message, variant: "destructive" }); }
                     finally { setPromoLoading(false); }
-                  }} className="grid grid-cols-2 gap-3">
+                  }} className={STAFF_FORM_GRID}>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Code</Label>
-                      <Input required value={promoForm.code} onChange={e => setPromoForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="SAVE20" className="bg-white/5 border-white/10 uppercase" />
+                      <Input required value={promoForm.code} onChange={e => setPromoForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="SAVE20" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 uppercase" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Applies To</Label>
                       <Select value={promoForm.appliesTo} onValueChange={v => setPromoForm(f => ({ ...f, appliesTo: v }))}>
-                        <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="deposit">Deposit</SelectItem>
                           <SelectItem value="investment">Investment</SelectItem>
@@ -992,7 +1077,7 @@ export default function SuperAdminDashboard() {
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Discount Type</Label>
                       <Select value={promoForm.type} onValueChange={v => setPromoForm(f => ({ ...f, type: v }))}>
-                        <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="percentage">Percentage (%)</SelectItem>
                           <SelectItem value="fixed">Fixed ($)</SelectItem>
@@ -1001,19 +1086,19 @@ export default function SuperAdminDashboard() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Discount Value</Label>
-                      <Input required type="number" value={promoForm.discountValue} onChange={e => setPromoForm(f => ({ ...f, discountValue: e.target.value }))} placeholder={promoForm.type === "percentage" ? "20" : "50"} className="bg-white/5 border-white/10" />
+                      <Input required type="number" value={promoForm.discountValue} onChange={e => setPromoForm(f => ({ ...f, discountValue: e.target.value }))} placeholder={promoForm.type === "percentage" ? "20" : "50"} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Min Amount ($, optional)</Label>
-                      <Input type="number" value={promoForm.minAmount} onChange={e => setPromoForm(f => ({ ...f, minAmount: e.target.value }))} placeholder="100" className="bg-white/5 border-white/10" />
+                      <Input type="number" value={promoForm.minAmount} onChange={e => setPromoForm(f => ({ ...f, minAmount: e.target.value }))} placeholder="100" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Max Uses (optional)</Label>
-                      <Input type="number" value={promoForm.maxUses} onChange={e => setPromoForm(f => ({ ...f, maxUses: e.target.value }))} placeholder="100" className="bg-white/5 border-white/10" />
+                      <Input type="number" value={promoForm.maxUses} onChange={e => setPromoForm(f => ({ ...f, maxUses: e.target.value }))} placeholder="100" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                     </div>
                     <div className="col-span-2 space-y-1">
                       <Label className="text-xs text-muted-foreground">Expiry Date (optional)</Label>
-                      <Input type="date" value={promoForm.expiresAt} onChange={e => setPromoForm(f => ({ ...f, expiresAt: e.target.value }))} className="bg-white/5 border-white/10" />
+                      <Input type="date" value={promoForm.expiresAt} onChange={e => setPromoForm(f => ({ ...f, expiresAt: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                     </div>
                     <div className="col-span-2 flex gap-2 pt-1">
                       <Button type="submit" disabled={promoLoading} className="bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold">
@@ -1026,7 +1111,7 @@ export default function SuperAdminDashboard() {
               </Card>
             )}
 
-            <Card className="bg-white/5 border-white/10">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
               <CardContent className="p-0">
                 {!promoLoaded ? (
                   <div className="p-6 space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
@@ -1038,11 +1123,11 @@ export default function SuperAdminDashboard() {
                 ) : (
                   <div className="divide-y divide-white/5">
                     {promoCodes.map((p: any) => (
-                      <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
+                      <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className={`h-2 w-2 rounded-full ${p.isActive ? "bg-green-500" : "bg-gray-500"}`} />
+                          <div className={`h-2 w-2 rounded-full ${p.isActive ? "bg-green-500" : "bg-background0"}`} />
                           <div>
-                            <p className="font-mono font-bold text-amber-400">{p.code}</p>
+                            <p className="font-mono font-bold text-amber-600 dark:text-amber-400">{p.code}</p>
                             <p className="text-xs text-muted-foreground capitalize">
                               {p.type === "percentage" ? `${p.value}% off` : `$${p.value} off`} · {p.appliesTo?.replace("_", " ")}
                               {p.maxUses ? ` · ${p.usedCount}/${p.maxUses} used` : ""}
@@ -1051,13 +1136,13 @@ export default function SuperAdminDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge className={p.isActive ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}>
+                          <Badge className={p.isActive ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground"}>
                             {p.isActive ? "Active" : "Disabled"}
                           </Badge>
                           <Button size="sm" variant="ghost" onClick={async () => {
                             await apiFetch(`/promo-codes/${p.id}/toggle`, { method: "PATCH" });
                             setPromoCodes(ps => ps.map(x => x.id === p.id ? { ...x, isActive: !x.isActive } : x));
-                          }} className="h-7 w-7 p-0 text-muted-foreground hover:text-white">
+                          }} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
                             {p.isActive ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
                           </Button>
                           <Button size="sm" variant="ghost" onClick={async () => {
@@ -1077,6 +1162,11 @@ export default function SuperAdminDashboard() {
             </Card>
           </TabsContent>
 
+          {/* ── Backup & Export ── */}
+          <TabsContent value="backup" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "backup"}><BackupExportPanel /></LazyTabPanel>
+          </TabsContent>
+
           {/* ── Audit Logs ── */}
           <TabsContent value="audit-logs" className={TAB_PANEL}>
             <div>
@@ -1088,7 +1178,7 @@ export default function SuperAdminDashboard() {
               <Button onClick={async () => {
                 const d = await apiFetch("/audit-logs?limit=100");
                 setAuditLogs(d); setAuditLoaded(true);
-              }} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white">
+              }} className="bg-muted/60 dark:bg-white/5 border border-border dark:border-white/10 hover:bg-muted dark:bg-white/10 text-foreground">
                 <FileText className="h-4 w-4 mr-2" />Load Audit Logs
               </Button>
             )}
@@ -1097,9 +1187,9 @@ export default function SuperAdminDashboard() {
               <>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input value={auditFilter} onChange={e => setAuditFilter(e.target.value)} placeholder="Filter by action, email, or entity..." className="bg-white/5 border-white/10 pl-10" />
+                  <Input value={auditFilter} onChange={e => setAuditFilter(e.target.value)} placeholder="Filter by action, email, or entity..." className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 pl-10" />
                 </div>
-                <Card className="bg-white/5 border-white/10">
+                <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
                   <CardContent className="p-0">
                     {auditLogs.length === 0 ? (
                       <div className="p-12 text-center text-muted-foreground">
@@ -1111,17 +1201,17 @@ export default function SuperAdminDashboard() {
                         {auditLogs
                           .filter((l: any) => !auditFilter || JSON.stringify(l).toLowerCase().includes(auditFilter.toLowerCase()))
                           .map((l: any, i: number) => (
-                            <div key={i} className="px-4 py-3 hover:bg-white/5 transition-colors">
+                            <div key={i} className="px-4 py-3 hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5 transition-colors">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-start gap-2 min-w-0">
-                                  <Badge className="bg-amber-500/20 text-amber-400 text-xs shrink-0 mt-0.5">{l.action}</Badge>
+                                  <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs shrink-0 mt-0.5">{l.action}</Badge>
                                   <div className="min-w-0">
                                     <p className="text-xs text-muted-foreground">
-                                      {l.entityType && <span className="text-white/60">{l.entityType}</span>}
-                                      {l.entityId && <span className="text-white/40"> #{l.entityId}</span>}
+                                      {l.entityType && <span className="text-muted-foreground">{l.entityType}</span>}
+                                      {l.entityId && <span className="text-muted-foreground/70"> #{l.entityId}</span>}
                                     </p>
                                     {l.details && (
-                                      <p className="text-xs text-white/40 font-mono truncate max-w-sm">
+                                      <p className="text-xs text-muted-foreground/70 font-mono truncate max-w-sm">
                                         {typeof l.details === "object" ? JSON.stringify(l.details) : l.details}
                                       </p>
                                     )}
@@ -1129,7 +1219,7 @@ export default function SuperAdminDashboard() {
                                 </div>
                                 <div className="text-right shrink-0">
                                   <p className="text-xs text-muted-foreground">{l.ipAddress || "—"}</p>
-                                  <p className="text-xs text-white/40">{l.createdAt ? new Date(l.createdAt).toLocaleString() : "—"}</p>
+                                  <p className="text-xs text-muted-foreground/70">{l.createdAt ? new Date(l.createdAt).toLocaleString() : "—"}</p>
                                 </div>
                               </div>
                             </div>
@@ -1143,6 +1233,7 @@ export default function SuperAdminDashboard() {
           </TabsContent>
           {/* ── Agreements ── */}
           <TabsContent value="agreements" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "agreements"}>
             <LegalAgreementsPanel
               agreements={agreements}
               agrFilter={agrFilter}
@@ -1167,13 +1258,14 @@ export default function SuperAdminDashboard() {
                 }
               }}
               onRefreshAgreements={() => apiFetch("/agreements/admin/all?limit=100").then(d => { setAgreements(d); setAgrLoaded(true); })}
-              onRevoke={async (id) => {
+              onRevoke={async (id: number) => {
                 if (!confirm("Revoke this agreement?")) return;
                 await apiFetch(`/agreements/admin/${id}/revoke`, { method: "PATCH" });
                 setAgreements(prev => prev.map(a => a.id === id ? { ...a, status: "revoked" } : a));
                 toast({ title: "Agreement revoked" });
               }}
             />
+            </LazyTabPanel>
           </TabsContent>
         </Tabs>
       </div>

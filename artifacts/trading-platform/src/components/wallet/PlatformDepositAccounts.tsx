@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { authFetchJson } from "@/lib/token-store";
 import { CredentialRow } from "@/components/wallet/CredentialRow";
 import { DepositDialog } from "@/components/wallet/DepositDialog";
@@ -13,35 +11,46 @@ import { OnlineGatewayCheckoutPanel } from "@/components/wallet/OnlineGatewayChe
 import {
   enrichDepositAccount,
   buildUpiPayUri,
-  upiQrImageUrl,
-  cryptoQrImageUrl,
+  resolveDepositQrSrc,
   type DepositAccountsResponse,
   type DepositAccount,
 } from "@/components/wallet/deposit-account-utils";
+import { QrImage } from "@/components/wallet/QrImage";
 import {
-  CRYPTO_DEPOSIT_TABS,
+  resolveCryptoDepositTabs,
   findCryptoDepositAccount,
 } from "@/components/wallet/crypto-networks";
+import { formatCryptoAssetLabel } from "@/components/wallet/crypto-asset-catalog";
+import { CryptoAssetIcon } from "@/components/wallet/CryptoAssetIcon";
 import { Building2, QrCode, Wallet, Globe } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { mobileCardHeader, paymentMethodSubTabsList } from "@/lib/mobile-ui";
+import { DEPOSIT_BUTTON_CLASS } from "@/lib/wallet-action-styles";
+import {
+  PaymentMethodSelect,
+  PaymentMethodTabsList,
+  PaymentMethodTabsTrigger,
+} from "@/components/wallet/PaymentMethodField";
 
 function UpiAccountCard({ account }: { account: DepositAccount }) {
   const a = enrichDepositAccount(account);
   return (
-    <Card className="bg-black/20 border-white/10">
+    <Card className="bg-muted/80 dark:bg-black/20 border-border dark:border-white/10">
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2 flex-wrap">
           <CardTitle className="text-base">{a.name}</CardTitle>
-          {a.badge && <Badge variant="outline" className="border-amber-500/40 text-amber-400">{a.badge}</Badge>}
+          {a.badge && <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400">{a.badge}</Badge>}
         </div>
-        <CardDescription>Scan QR or copy UPI ID to pay</CardDescription>
+        <CardDescription>Scan the QR code or copy the UPI ID to pay</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {(a.qrCodeUrl || a.upiId) && (
           <div className="text-center">
-            <img
-              src={a.qrCodeUrl || upiQrImageUrl(a.upiId!, a.name)}
+            <QrImage
+              src={resolveDepositQrSrc({ qrCodeUrl: a.qrCodeUrl, upiId: a.upiId, payeeName: a.name })}
+              fallbackSrc={a.upiId ? resolveDepositQrSrc({ upiId: a.upiId, payeeName: a.name }) : undefined}
               alt="UPI QR"
-              className="mx-auto max-h-44 rounded border border-white/10"
+              className="mx-auto max-h-44 rounded border border-border dark:border-white/10"
             />
           </div>
         )}
@@ -50,7 +59,7 @@ function UpiAccountCard({ account }: { account: DepositAccount }) {
             <CredentialRow label="UPI ID" value={a.upiId} mono />
             <a
               href={buildUpiPayUri(a.upiId, a.name)}
-              className="inline-flex text-sm font-semibold text-black bg-amber-500 hover:bg-amber-600 px-4 py-2 rounded-md"
+              className={cn("inline-flex text-sm px-4 py-2 rounded-md", DEPOSIT_BUTTON_CLASS)}
             >
               Pay Now
             </a>
@@ -65,15 +74,15 @@ function UpiAccountCard({ account }: { account: DepositAccount }) {
 function BankAccountCard({ account }: { account: DepositAccount }) {
   const a = enrichDepositAccount(account);
   return (
-    <Card className="bg-black/20 border-white/10">
+    <Card className="bg-muted/80 dark:bg-black/20 border-border dark:border-white/10">
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2 flex-wrap">
           <CardTitle className="text-base">{a.name}</CardTitle>
-          {a.badge && <Badge variant="outline" className="border-amber-500/40 text-amber-400">{a.badge}</Badge>}
+          {a.badge && <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400">{a.badge}</Badge>}
         </div>
         <CardDescription>Wire Transfer, RTGS, NEFT, IMPS &amp; UPI</CardDescription>
       </CardHeader>
-      <CardContent className="rounded-lg border border-white/10 bg-black/20 p-3">
+      <CardContent className="rounded-lg border border-border dark:border-white/10 bg-muted/80 dark:bg-black/20 p-3">
         <CredentialRow label="Account Holder" value={a.accountHolderName} />
         <CredentialRow label="Bank" value={a.bankName} copyable={false} />
         <CredentialRow label="Account No." value={a.accountNumber} mono />
@@ -91,23 +100,30 @@ function BankAccountCard({ account }: { account: DepositAccount }) {
 function CryptoAccountCard({ account, tabLabel }: { account: DepositAccount; tabLabel: string }) {
   const a = enrichDepositAccount(account);
   return (
-    <Card className="bg-black/20 border-white/10">
+    <Card className="bg-muted/80 dark:bg-black/20 border-border dark:border-white/10">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">{tabLabel}</CardTitle>
-        <CardDescription>Send only {a.symbol} on {a.network || "the correct"} network</CardDescription>
+        <div className="flex items-center gap-2">
+          <CryptoAssetIcon symbol={a.symbol} network={a.network} coinName={a.extraConfig?.coinName} size="md" />
+          <div>
+            <CardTitle className="text-base">{tabLabel}</CardTitle>
+            <CardDescription>{formatCryptoAssetLabel(a.symbol, a.network, a.extraConfig?.coinName)}</CardDescription>
+          </div>
+        </div>
+        <CardDescription className="pt-1">Scan the QR code or copy the wallet address to deposit</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {(a.qrCodeUrl || a.walletAddress) && (
           <div className="text-center">
-            <img
-              src={a.qrCodeUrl || cryptoQrImageUrl(a.walletAddress!)}
+            <QrImage
+              src={resolveDepositQrSrc({ qrCodeUrl: a.qrCodeUrl, walletAddress: a.walletAddress })}
+              fallbackSrc={a.walletAddress ? resolveDepositQrSrc({ walletAddress: a.walletAddress }) : undefined}
               alt="Wallet QR"
-              className="mx-auto max-h-44 rounded border border-white/10"
+              className="mx-auto max-h-44 rounded border border-border dark:border-white/10"
             />
           </div>
         )}
-        <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-          <CredentialRow label="Coin" value={`${a.symbol || "—"} (${a.network || "—"})`} copyable={false} />
+        <div className="rounded-lg border border-border dark:border-white/10 bg-muted/80 dark:bg-black/20 p-3">
+          <CredentialRow label="Coin" value={formatCryptoAssetLabel(a.symbol, a.network, a.extraConfig?.coinName)} copyable={false} />
           <CredentialRow label="Address" value={a.walletAddress} mono />
         </div>
         {a.note && <p className="text-xs text-muted-foreground italic">{a.note}</p>}
@@ -127,7 +143,7 @@ export function PlatformDepositAccounts({
   const [tab, setTab] = useState<"upi" | "bank" | "crypto" | "online">(initialSection || "upi");
   const [selectedUpi, setSelectedUpi] = useState("");
   const [selectedBank, setSelectedBank] = useState("");
-  const [cryptoTab, setCryptoTab] = useState(CRYPTO_DEPOSIT_TABS[0].key);
+  const [cryptoTab, setCryptoTab] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/payments/deposit-accounts"],
@@ -137,6 +153,11 @@ export function PlatformDepositAccounts({
   const upi = (data?.upi || []).map(enrichDepositAccount);
   const bank = (data?.bank || []).map(enrichDepositAccount);
   const crypto = (data?.crypto || []).map(enrichDepositAccount);
+  const cryptoTabs = useMemo(() => resolveCryptoDepositTabs(crypto), [crypto]);
+  const configuredCryptoTabs = useMemo(
+    () => cryptoTabs.filter(t => findCryptoDepositAccount(crypto, t)),
+    [cryptoTabs, crypto],
+  );
   const onlineCount = (data?.online || []).length;
 
   useEffect(() => {
@@ -154,9 +175,9 @@ export function PlatformDepositAccounts({
   }, [upi, bank, selectedUpi, selectedBank]);
 
   useEffect(() => {
-    const first = CRYPTO_DEPOSIT_TABS.find(t => findCryptoDepositAccount(crypto, t));
+    const first = configuredCryptoTabs[0];
     if (first) setCryptoTab(first.key);
-  }, [crypto]);
+  }, [configuredCryptoTabs]);
 
   if (isLoading) return <Skeleton className="h-64 w-full rounded-xl" />;
 
@@ -164,60 +185,61 @@ export function PlatformDepositAccounts({
   const activeBank = bank.find(a => String(a.id) === selectedBank);
 
   return (
-    <Card className="bg-white/5 border-white/10">
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
+    <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
+      <CardHeader className={mobileCardHeader}>
+        <div className="min-w-0">
           <CardTitle>Deposit Accounts</CardTitle>
           <CardDescription>UPI, bank, crypto, or payment gateway — copy details or pay online</CardDescription>
         </div>
         <DepositDialog trigger={
-          <button type="button" className="text-xs text-amber-400 hover:underline shrink-0">Quick deposit →</button>
+          <button type="button" className="text-xs text-amber-600 dark:text-amber-400 hover:underline shrink-0 self-start sm:self-auto">Quick deposit →</button>
         } />
       </CardHeader>
       <CardContent>
         <Tabs value={tab} onValueChange={v => setTab(v as typeof tab)}>
-          <TabsList className="bg-white/5 border border-white/10 mb-4 flex-wrap h-auto">
+          <PaymentMethodTabsList className="mb-4">
             {upi.length > 0 && (
-              <TabsTrigger value="upi" className="gap-1.5">
-                <QrCode className="h-3.5 w-3.5" /> UPI ({upi.length})
-              </TabsTrigger>
+              <PaymentMethodTabsTrigger value="upi" tone="upi" className="gap-1.5">
+                <QrCode className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">UPI ({upi.length})</span>
+              </PaymentMethodTabsTrigger>
             )}
             {bank.length > 0 && (
-              <TabsTrigger value="bank" className="gap-1.5">
-                <Building2 className="h-3.5 w-3.5" /> Bank ({bank.length})
-              </TabsTrigger>
+              <PaymentMethodTabsTrigger value="bank" tone="bank" className="gap-1.5">
+                <Building2 className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Bank ({bank.length})</span>
+              </PaymentMethodTabsTrigger>
             )}
-            <TabsTrigger value="crypto" className="gap-1.5">
-              <Wallet className="h-3.5 w-3.5" /> Crypto
-            </TabsTrigger>
-            <TabsTrigger value="online" className="gap-1.5">
-              <Globe className="h-3.5 w-3.5" /> Payment Gateway{onlineCount > 0 ? ` (${onlineCount})` : ""}
-            </TabsTrigger>
-          </TabsList>
+            <PaymentMethodTabsTrigger value="crypto" tone="crypto" className="gap-1.5">
+              <Wallet className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Crypto{configuredCryptoTabs.length > 0 ? ` (${configuredCryptoTabs.length})` : ""}</span>
+            </PaymentMethodTabsTrigger>
+            <PaymentMethodTabsTrigger value="online" tone="gateway" className="gap-1.5">
+              <Globe className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Online{onlineCount > 0 ? ` (${onlineCount})` : ""}</span>
+            </PaymentMethodTabsTrigger>
+          </PaymentMethodTabsList>
 
           {upi.length > 0 && (
             <TabsContent value="upi" className="space-y-3 mt-0">
               {upi.length > 1 && (
                 <>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Select UPI / QR account</Label>
-                    <Select value={selectedUpi} onValueChange={setSelectedUpi}>
-                      <SelectTrigger className="bg-white/5 border-white/10">
-                        <SelectValue placeholder="-- Select UPI ID --" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {upi.map(a => (
-                          <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <PaymentMethodSelect
+                    tone="upi"
+                    label="Select UPI / QR account"
+                    value={selectedUpi}
+                    onValueChange={setSelectedUpi}
+                    placeholder="-- Select UPI ID --"
+                    options={upi.map(a => ({ value: String(a.id), label: a.name }))}
+                  />
                   <Tabs value={selectedUpi} onValueChange={setSelectedUpi}>
-                    <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1">
+                    <PaymentMethodTabsList className={paymentMethodSubTabsList}>
                       {upi.map(a => (
-                        <TabsTrigger key={a.id} value={String(a.id)} className="text-xs">{a.name}</TabsTrigger>
+                        <PaymentMethodTabsTrigger key={a.id} value={String(a.id)} tone="upi" className="text-xs">
+                          <span className="truncate">{a.name}</span>
+                        </PaymentMethodTabsTrigger>
                       ))}
-                    </TabsList>
+                    </PaymentMethodTabsList>
                   </Tabs>
                 </>
               )}
@@ -228,41 +250,47 @@ export function PlatformDepositAccounts({
           {bank.length > 0 && (
             <TabsContent value="bank" className="space-y-3 mt-0">
               <Tabs value={selectedBank} onValueChange={setSelectedBank}>
-                <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1">
+                <PaymentMethodTabsList className={paymentMethodSubTabsList}>
                   {bank.map(a => (
-                    <TabsTrigger key={a.id} value={String(a.id)} className="text-xs">{a.name}</TabsTrigger>
+                    <PaymentMethodTabsTrigger key={a.id} value={String(a.id)} tone="bank" className="text-xs">
+                      <span className="truncate">{a.name}</span>
+                    </PaymentMethodTabsTrigger>
                   ))}
-                </TabsList>
+                </PaymentMethodTabsList>
               </Tabs>
               {activeBank && <BankAccountCard account={activeBank} />}
             </TabsContent>
           )}
 
           <TabsContent value="crypto" className="space-y-3 mt-0">
+            {configuredCryptoTabs.length === 0 ? (
+              <Card className="bg-muted/80 dark:bg-black/20 border-border dark:border-white/10 border-dashed">
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  No crypto deposit wallets configured. Ask admin to add them in Super Admin → Deposit & Withdrawal Payment Accounts.
+                </CardContent>
+              </Card>
+            ) : (
             <Tabs value={cryptoTab} onValueChange={setCryptoTab}>
-              <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1 p-1">
-                {CRYPTO_DEPOSIT_TABS.map(t => (
-                  <TabsTrigger key={t.key} value={t.key} className="text-xs whitespace-nowrap">{t.label}</TabsTrigger>
+              <PaymentMethodTabsList className={paymentMethodSubTabsList}>
+                {configuredCryptoTabs.map(t => (
+                  <PaymentMethodTabsTrigger key={t.key} value={t.key} tone="crypto" className="text-xs gap-1.5">
+                    <CryptoAssetIcon symbol={t.symbol} network={t.network} coinName={t.coinName} size="xs" />
+                    <span className="truncate">{t.label}</span>
+                  </PaymentMethodTabsTrigger>
                 ))}
-              </TabsList>
-              {CRYPTO_DEPOSIT_TABS.map(t => {
+              </PaymentMethodTabsList>
+              {configuredCryptoTabs.map(t => {
                 const account = findCryptoDepositAccount(crypto, t);
                 return (
                   <TabsContent key={t.key} value={t.key} className="mt-3">
                     {account ? (
                       <CryptoAccountCard account={account} tabLabel={t.label} />
-                    ) : (
-                      <Card className="bg-black/20 border-white/10 border-dashed">
-                        <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                          <p className="font-medium text-foreground/80">{t.label}</p>
-                          <p className="mt-1">Wallet not configured. Ask admin to add in Super Admin → Payments.</p>
-                        </CardContent>
-                      </Card>
-                    )}
+                    ) : null}
                   </TabsContent>
                 );
               })}
             </Tabs>
+            )}
           </TabsContent>
 
           <TabsContent value="online" className="space-y-3 mt-0" id="deposit-online-payments">
@@ -271,7 +299,7 @@ export function PlatformDepositAccounts({
         </Tabs>
 
         <p className="text-xs text-muted-foreground mt-4">
-          Manual UPI/bank/crypto: submit proof via the <span className="text-amber-400">Deposit</span> button. Payment gateways credit instantly after successful checkout.
+          Manual UPI/bank/crypto: submit proof via the <span className="text-amber-600 dark:text-amber-400">Deposit</span> button. Payment gateways credit instantly after successful checkout.
         </p>
       </CardContent>
     </Card>

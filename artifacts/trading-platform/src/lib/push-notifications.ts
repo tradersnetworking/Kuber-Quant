@@ -1,4 +1,6 @@
 /** Register service worker and subscribe to Web Push when permitted */
+import { apiPath, authFetch, authFetchJson } from "@/lib/api-fetch";
+
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!("serviceWorker" in navigator)) return null;
   try {
@@ -26,11 +28,7 @@ export async function subscribeToPush(token: string): Promise<boolean> {
   const reg = await registerServiceWorker();
   if (!reg) return false;
 
-  const keyRes = await fetch("/api/notifications/push/vapid-public-key", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!keyRes.ok) return false;
-  const { publicKey } = await keyRes.json();
+  const { publicKey } = await authFetchJson<{ publicKey: string }>("/notifications/push/vapid-public-key");
 
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
@@ -40,9 +38,8 @@ export async function subscribeToPush(token: string): Promise<boolean> {
     });
   }
 
-  const res = await fetch("/api/notifications/push/subscribe", {
+  const res = await authFetch(apiPath("/notifications/push/subscribe"), {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ subscription: sub.toJSON() }),
   });
   return res.ok;

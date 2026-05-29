@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import { getPostLoginPath } from "@/lib/nav-config";
 import { InvestorAccountRoutes } from "@/routes/investor-routes";
-import { getStaffPortal, type StaffPortal } from "@/lib/subdomain";
+import { getStaffPortal, getCrossPortalRedirectTarget, getStaffPortalForRole, type StaffPortal } from "@/lib/subdomain";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { isPublicPath, isStaffPortalPublic } from "@/lib/public-routes";
 import { DashboardShell } from "@/components/layout/DashboardShell";
@@ -25,7 +25,9 @@ import ManagerClients from "@/pages/manager/clients";
 import ManagerClientDetail from "@/pages/manager/client-detail";
 import ManagerKyc from "@/pages/manager/kyc";
 import ManagerTransactions from "@/pages/manager/transactions";
+import ManagerUpcomingTransactions from "@/pages/manager/upcoming-transactions";
 import ManagerTickets from "@/pages/manager/tickets";
+import ManagerMail from "@/pages/manager/mail";
 
 import SuperAdminDashboard from "@/pages/super-admin/index";
 import SupportTeamDashboard from "@/pages/support-team/index";
@@ -33,24 +35,43 @@ import SupportTeamTickets from "@/pages/support-team/tickets";
 import SupportComplaintsPage from "@/pages/support-team/complaints";
 import SupportQueriesPage from "@/pages/support-team/queries";
 import SupportUserLookup from "@/pages/support-team/users";
+import SupportTeamManagers from "@/pages/support-team/managers";
+import SupportTeamKyc from "@/pages/support-team/kyc";
 import SupportTeamMail from "@/pages/support-team/mail";
+import SupportTransactionsPage from "@/pages/support-team/transactions";
+import SupportUpcomingTransactionsPage from "@/pages/support-team/upcoming-transactions";
+import SupportInvestmentsPage from "@/pages/support-team/investments";
+import SupportPlansPage from "@/pages/support-team/plans";
+import SupportSubscriptionsPage from "@/pages/support-team/subscriptions";
+import SupportProfitSharingPage from "@/pages/support-team/profit-sharing";
+import SupportExchangePage from "@/pages/support-team/exchange";
 
 import PrivacyPolicyPage from "@/pages/legal/privacy-policy";
 import TermsOfServicePage from "@/pages/legal/terms-of-service";
 import RiskDisclosurePage from "@/pages/legal/risk-disclosure";
 import CookiePolicyPage from "@/pages/legal/cookie-policy";
+import AmlPolicyPage from "@/pages/legal/aml-policy";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NotificationPopProvider } from "@/components/notifications/NotificationPopProvider";
+import { ReferralAttributionCapture } from "@/components/referral/ReferralAttributionCapture";
+import { MobileAppInstallPrompt } from "@/components/pwa/MobileAppInstallPrompt";
+import { MaintenanceModeGuard } from "@/components/routing/MaintenanceModeGuard";
+import { ScreenshotProtection } from "@/components/security/ScreenshotProtection";
+import { DEFAULT_STALE_MS, isRateLimitedError } from "@/lib/query-config";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: (failureCount, error: any) => {
-        if (error?.status === 401 || error?.status === 403) return false;
-        return failureCount < 2;
-      },
+      staleTime: DEFAULT_STALE_MS,
       refetchOnWindowFocus: false,
+      refetchIntervalInBackground: false,
+      retry: (failureCount, error: unknown) => {
+        const status = (error as { status?: number })?.status;
+        if (status === 401 || status === 403 || status === 429) return false;
+        if (isRateLimitedError(error)) return false;
+        return failureCount < 1;
+      },
     },
   },
 });
@@ -100,6 +121,13 @@ function StaffPortalGuard({ role }: { role: "manager" | "support" | "superadmin"
   if (!user) return <StaffLoginPage />;
 
   const userRole = user.role as string;
+
+  const crossPortal = getCrossPortalRedirectTarget(userRole);
+  if (crossPortal && getStaffPortalForRole(userRole) !== role) {
+    window.location.replace(crossPortal);
+    return null;
+  }
+
   if (role === "superadmin" && (userRole === "superadmin" || userRole === "admin")) {
     return <Redirect to="/super-admin" />;
   }
@@ -107,7 +135,7 @@ function StaffPortalGuard({ role }: { role: "manager" | "support" | "superadmin"
     return <Redirect to={userRole === "manager" ? "/manager" : "/super-admin"} />;
   }
   if (role === "support" && userRole === "support") return <Redirect to="/support-team" />;
-  if (role === "support" && (userRole === "manager" || userRole === "superadmin")) {
+  if (role === "support" && (userRole === "manager" || userRole === "superadmin" || userRole === "admin")) {
     return <Redirect to={getPostLoginPath(userRole)} />;
   }
 
@@ -125,11 +153,17 @@ function managerRouteElements() {
     <Route key="manager-kyc" path="/manager/kyc">
       <ProtectedRoute component={ManagerKyc} managerOnly />
     </Route>,
+    <Route key="manager-upcoming" path="/manager/upcoming-transactions">
+      <ProtectedRoute component={ManagerUpcomingTransactions} managerOnly />
+    </Route>,
     <Route key="manager-transactions" path="/manager/transactions">
       <ProtectedRoute component={ManagerTransactions} managerOnly />
     </Route>,
     <Route key="manager-tickets" path="/manager/tickets">
       <ProtectedRoute component={ManagerTickets} managerOnly />
+    </Route>,
+    <Route key="manager-mail" path="/manager/mail">
+      <ProtectedRoute component={ManagerMail} managerOnly />
     </Route>,
     <Route key="manager" path="/manager">
       <ProtectedRoute component={ManagerDashboard} managerOnly />
@@ -153,6 +187,33 @@ function supportRouteElements() {
     </Route>,
     <Route key="support-users" path="/support-team/users">
       <ProtectedRoute component={SupportUserLookup} supportOnly />
+    </Route>,
+    <Route key="support-managers" path="/support-team/managers">
+      <ProtectedRoute component={SupportTeamManagers} supportOnly />
+    </Route>,
+    <Route key="support-kyc" path="/support-team/kyc">
+      <ProtectedRoute component={SupportTeamKyc} supportOnly />
+    </Route>,
+    <Route key="support-upcoming" path="/support-team/upcoming-transactions">
+      <ProtectedRoute component={SupportUpcomingTransactionsPage} supportOnly />
+    </Route>,
+    <Route key="support-transactions" path="/support-team/transactions">
+      <ProtectedRoute component={SupportTransactionsPage} supportOnly />
+    </Route>,
+    <Route key="support-investments" path="/support-team/investments">
+      <ProtectedRoute component={SupportInvestmentsPage} supportOnly />
+    </Route>,
+    <Route key="support-plans" path="/support-team/plans">
+      <ProtectedRoute component={SupportPlansPage} supportOnly />
+    </Route>,
+    <Route key="support-subscriptions" path="/support-team/subscriptions">
+      <ProtectedRoute component={SupportSubscriptionsPage} supportOnly />
+    </Route>,
+    <Route key="support-profit-sharing" path="/support-team/profit-sharing">
+      <ProtectedRoute component={SupportProfitSharingPage} supportOnly />
+    </Route>,
+    <Route key="support-exchange" path="/support-team/exchange">
+      <ProtectedRoute component={SupportExchangePage} supportOnly />
     </Route>,
     <Route key="support-team" path="/support-team">
       <ProtectedRoute component={SupportTeamDashboard} supportOnly />
@@ -241,11 +302,7 @@ function ManagerPortalRouter() {
   }
   return (
     <DashboardShell>
-      <Switch>
-        {managerRouteElements()}
-        {InvestorAccountRoutes({ Wrap: BareRoute, PromoterWrap: PromoterRoute })}
-        <Route path="/:rest*"><NotFound /></Route>
-      </Switch>
+      <StaffPortalAuthenticatedRoutes includeSuperAdmin />
     </DashboardShell>
   );
 }
@@ -264,11 +321,7 @@ function SupportPortalRouter() {
   }
   return (
     <DashboardShell>
-      <Switch>
-        {supportRouteElements()}
-        {InvestorAccountRoutes({ Wrap: BareRoute, PromoterWrap: PromoterRoute })}
-        <Route path="/:rest*"><NotFound /></Route>
-      </Switch>
+      <StaffPortalAuthenticatedRoutes includeSuperAdmin />
     </DashboardShell>
   );
 }
@@ -289,6 +342,7 @@ function MainRouter() {
         <Route path="/terms-of-service" component={TermsOfServicePage} />
         <Route path="/risk-disclosure" component={RiskDisclosurePage} />
         <Route path="/cookie-policy" component={CookiePolicyPage} />
+        <Route path="/aml-policy" component={AmlPolicyPage} />
         <Route path="/:rest*"><NotFound /></Route>
       </Switch>
     );
@@ -315,12 +369,17 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
+          <ScreenshotProtection />
           <NotificationPopProvider>
+            <MobileAppInstallPrompt />
+            <MaintenanceModeGuard>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <ReferralAttributionCapture />
               <ErrorBoundary>
                 <ActiveRouter />
               </ErrorBoundary>
             </WouterRouter>
+            </MaintenanceModeGuard>
           </NotificationPopProvider>
         </AuthProvider>
         <Toaster />

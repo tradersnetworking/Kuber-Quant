@@ -1,5 +1,5 @@
 import { db, transactionsTable, paymentGatewaysTable } from "@workspace/db";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne } from "@workspace/db/orm";
 
 export type BlockchainVerificationResult = {
   verified: boolean;

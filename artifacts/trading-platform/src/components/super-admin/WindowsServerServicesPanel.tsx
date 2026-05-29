@@ -25,10 +25,10 @@ export function WindowsServerServicesPanel({
   const bridgeReady = vpsConfigured || tradeCopierConfigured;
 
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Server className="h-5 w-5 text-violet-400" />
+          <Server className="h-5 w-5 text-violet-600 dark:text-violet-400" />
           Windows Server API — Service Routing
         </CardTitle>
         <CardDescription>
@@ -38,19 +38,19 @@ export function WindowsServerServicesPanel({
             : " No Windows server connection configured yet — set up VPS Bridge and Trade Copier API."}
         </CardDescription>
         <div className="flex gap-2 pt-1">
-          <Badge variant="outline" className={vpsConfigured ? "text-green-400 border-green-500/30" : "text-orange-400 border-orange-500/30"}>
+          <Badge variant="outline" className={vpsConfigured ? "text-green-700 dark:text-green-400 border-green-500/30" : "text-orange-600 dark:text-orange-400 border-orange-500/30"}>
             VPS Bridge: {vpsConfigured ? "Configured" : "Not set"}
           </Badge>
-          <Badge variant="outline" className={tradeCopierConfigured ? "text-green-400 border-green-500/30" : "text-orange-400 border-orange-500/30"}>
+          <Badge variant="outline" className={tradeCopierConfigured ? "text-green-700 dark:text-green-400 border-green-500/30" : "text-orange-600 dark:text-orange-400 border-orange-500/30"}>
             Trade Copier: {tradeCopierConfigured ? "Configured" : "Not set"}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {SERVICES.map(svc => (
-          <div key={svc.name} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
+          <div key={svc.name} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02]">
             <div className="flex items-start gap-3 flex-1 min-w-0">
-              <svc.icon className="h-4 w-4 text-sky-400 mt-0.5 shrink-0" />
+              <svc.icon className="h-4 w-4 text-sky-600 dark:text-sky-400 mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-medium">{svc.name}</p>
                 <p className="text-xs text-muted-foreground">{svc.desc}</p>

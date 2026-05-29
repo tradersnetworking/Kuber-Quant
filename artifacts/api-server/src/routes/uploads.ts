@@ -1,14 +1,15 @@
 import { Router } from "express";
 import path from "path";
-import fs from "fs";
+import { pipeline } from "stream/promises";
 import { requireAuth } from "../middlewares/auth";
 import { getUploadRoot } from "../middlewares/upload";
+import { objectExists, readUploadObject } from "../helpers/objectStorage";
 import { db, kycRecordsTable, transactionsTable } from "@workspace/db";
-import { eq, and, like } from "drizzle-orm";
+import { eq, and, like } from "@workspace/db/orm";
 
 const router = Router();
 
-const PROTECTED_FOLDERS = new Set(["kyc_documents", "payment_proofs"]);
+const PROTECTED_FOLDERS = new Set(["kyc_documents", "payment_proofs", "mail_attachments"]);
 
 const MIME_BY_EXT: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -29,12 +30,15 @@ router.get("/:folder/:filename", requireAuth, async (req, res) => {
   }
 
   const safeName = path.basename(filename);
-  const filePath = path.join(getUploadRoot(), folder, safeName);
-  if (!filePath.startsWith(path.join(getUploadRoot(), folder))) {
+  const uploadRoot = getUploadRoot();
+  const filePath = path.join(uploadRoot, folder, safeName);
+  if (!filePath.startsWith(path.join(uploadRoot, folder))) {
     res.status(400).json({ error: "Invalid path" });
     return;
   }
-  if (!fs.existsSync(filePath)) {
+
+  const exists = await objectExists(uploadRoot, folder, safeName);
+  if (!exists) {
     res.status(404).json({ error: "File not found" });
     return;
   }
@@ -65,7 +69,20 @@ router.get("/:folder/:filename", requireAuth, async (req, res) => {
   const mime = MIME_BY_EXT[ext] || "application/octet-stream";
   res.setHeader("Content-Type", mime);
   res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
-  res.sendFile(filePath);
+
+  const file = await readUploadObject(uploadRoot, folder, safeName);
+  if (!file) {
+    res.status(404).json({ error: "File not found" });
+    return;
+  }
+  if ("localPath" in file) {
+    res.sendFile(file.localPath);
+    return;
+  }
+  if (file.contentType) {
+    res.setHeader("Content-Type", file.contentType);
+  }
+  await pipeline(file.stream, res);
 });
 
 export default router;

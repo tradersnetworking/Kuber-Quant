@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TAB_LIST_MOBILE_SCROLL } from "@/lib/tab-tones";
+import { STAFF_PAGE_STACK, STAFF_CARD, STAFF_HEADER_ROW, STAFF_TOOLBAR_ROW } from "@/lib/staff-dashboard-ui";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -52,14 +54,14 @@ const STATUS_TABS = [
 
 function priorityBadge(priority: string) {
   if (priority === "urgent" || priority === "high") return "bg-red-500/20 text-red-400 border-red-500/20";
-  if (priority === "medium") return "bg-amber-500/20 text-amber-400 border-amber-500/20";
-  return "bg-blue-500/20 text-blue-400 border-blue-500/20";
+  if (priority === "medium") return "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/20";
+  return "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/20";
 }
 
 function statusBadge(status: string) {
-  if (status === "open") return "bg-green-500/20 text-green-400 border-green-500/20";
+  if (status === "open") return "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/20";
   if (status === "resolved" || status === "closed") return "bg-gray-500/20 text-gray-300 border-gray-500/20";
-  return "bg-amber-500/20 text-amber-400 border-amber-500/20";
+  return "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/20";
 }
 
 export function SupportTicketsWorkspace({
@@ -149,31 +151,31 @@ export function SupportTicketsWorkspace({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Headset className="h-7 w-7 text-rose-400" />
+    <div className={STAFF_PAGE_STACK}>
+      <div className={STAFF_HEADER_ROW}>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Headset className="h-6 w-6 sm:h-7 sm:w-7 text-rose-600 dark:text-rose-400 shrink-0" />
             {title}
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">{description}</p>
+          <p className="page-subtitle">{description}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button variant="outline" size="sm" className="w-full md:w-auto shrink-0" onClick={load} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto">
+      <div className={STAFF_TOOLBAR_ROW}>
+        <Tabs value={statusFilter} onValueChange={setStatusFilter} className="min-w-0 w-full md:w-auto">
+          <TabsList className={TAB_LIST_MOBILE_SCROLL}>
             {STATUS_TABS.map(t => (
               <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-full sm:w-40 bg-white/5 border-white/10">
+          <SelectTrigger className="w-full md:w-40 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
           <SelectContent>
@@ -186,7 +188,7 @@ export function SupportTicketsWorkspace({
         </Select>
       </div>
 
-      <Card className="border-white/10 bg-white/5">
+      <Card className={STAFF_CARD}>
         <CardHeader>
           <CardTitle className="text-base">Ticket Queue ({tickets.length})</CardTitle>
         </CardHeader>
@@ -199,55 +201,86 @@ export function SupportTicketsWorkspace({
           ) : tickets.length === 0 ? (
             <p className="text-center py-10 text-muted-foreground text-sm">No tickets match your filters.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-white/10">
-                    <TableHead>ID</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tickets.map(t => (
-                    <TableRow key={t.id} className="border-white/10 hover:bg-white/5">
-                      <TableCell className="font-mono text-xs">#{t.id}</TableCell>
-                      <TableCell>
-                        <p className="text-sm">{t.userName || "—"}</p>
-                        <p className="text-xs text-muted-foreground">{t.userEmail}</p>
-                      </TableCell>
-                      <TableCell className="max-w-[180px] truncate font-medium">{t.subject}</TableCell>
-                      <TableCell className="text-sm capitalize">{t.category || "General"}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={priorityBadge(t.priority)}>{t.priority}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={statusBadge(t.status)}>{t.status.replace("_", " ")}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{format(new Date(t.createdAt), "MMM d, yyyy")}</TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" variant="ghost" className="text-amber-400" onClick={() => setSelected(t)}>
-                          View & Reply
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <ResponsiveDataView
+              data={tickets}
+              rowKey={t => t.id}
+              rowClassName="border-border dark:border-white/10"
+              mobileFooter={t => (
+                <div className="mt-2 flex justify-end">
+                  <Button size="sm" variant="ghost" className="text-amber-600 dark:text-amber-400" onClick={() => setSelected(t)}>
+                    View & Reply
+                  </Button>
+                </div>
+              )}
+              columns={[
+                {
+                  key: "id",
+                  header: "ID",
+                  mobileTitle: true,
+                  cell: t => <span className="font-mono text-xs">#{t.id}</span>,
+                },
+                {
+                  key: "user",
+                  header: "User",
+                  cell: t => (
+                    <>
+                      <p className="text-sm">{t.userName || "—"}</p>
+                      <p className="text-xs text-muted-foreground">{t.userEmail}</p>
+                    </>
+                  ),
+                },
+                {
+                  key: "subject",
+                  header: "Subject",
+                  cell: t => <span className="font-medium break-words">{t.subject}</span>,
+                },
+                {
+                  key: "category",
+                  header: "Category",
+                  cell: t =>
+                    t.category === "Staff Escalation" ? (
+                      <Badge className="bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30">Staff Escalation</Badge>
+                    ) : (
+                      <span className="capitalize">{t.category || "General"}</span>
+                    ),
+                },
+                {
+                  key: "priority",
+                  header: "Priority",
+                  cell: t => <Badge variant="outline" className={priorityBadge(t.priority)}>{t.priority}</Badge>,
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  cell: t => <Badge variant="outline" className={statusBadge(t.status)}>{t.status.replace("_", " ")}</Badge>,
+                },
+                {
+                  key: "created",
+                  header: "Created",
+                  cell: t => <span className="text-muted-foreground text-sm">{format(new Date(t.createdAt), "MMM d, yyyy")}</span>,
+                },
+                {
+                  key: "action",
+                  header: "Action",
+                  headerClassName: "text-right",
+                  cellClassName: "text-right",
+                  hideOnMobile: true,
+                  cell: t => (
+                    <Button size="sm" variant="ghost" className="text-amber-600 dark:text-amber-400" onClick={() => setSelected(t)}>
+                      View & Reply
+                    </Button>
+                  ),
+                },
+              ]}
+            />
           )}
         </CardContent>
       </Card>
 
       <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
-        <DialogContent className="bg-[#050A14] border-white/10 max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogContent className="bg-background border-border dark:border-white/10 max-w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="pr-8">
+            <DialogTitle className="text-left break-words pr-8">
               Ticket #{selected?.id}: {selected?.subject}
             </DialogTitle>
             <div className="flex flex-wrap gap-2 pt-2">
@@ -259,9 +292,9 @@ export function SupportTicketsWorkspace({
           </DialogHeader>
           <ScrollArea className="flex-1 max-h-[280px] pr-2">
             <div className="space-y-3">
-              <div className="p-3 rounded-lg bg-white/5 border border-white/10 text-sm whitespace-pre-wrap">{selected?.message}</div>
+              <div className="p-3 rounded-lg bg-muted/60 dark:bg-white/5 border border-border dark:border-white/10 text-sm whitespace-pre-wrap">{selected?.message}</div>
               {selected?.replies?.map(r => (
-                <div key={r.id} className={`p-3 rounded-lg border text-sm whitespace-pre-wrap ${r.isAdmin ? "bg-amber-500/10 border-amber-500/20 ml-4" : "bg-white/5 border-white/10 mr-4"}`}>
+                <div key={r.id} className={`p-3 rounded-lg border text-sm whitespace-pre-wrap break-words ${r.isAdmin ? "bg-amber-500/10 border-amber-500/20 ml-0 sm:ml-4" : "bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 mr-0 sm:mr-4"}`}>
                   <p className="text-xs text-muted-foreground mb-1">{r.isAdmin ? "Support Team" : "Customer"} · {format(new Date(r.createdAt), "MMM d, h:mm a")}</p>
                   {r.message}
                 </div>
@@ -269,16 +302,16 @@ export function SupportTicketsWorkspace({
             </div>
           </ScrollArea>
           {selected?.status === "closed" ? (
-            <DialogFooter className="pt-3 border-t border-white/10">
+            <DialogFooter className="pt-3 border-t border-border dark:border-white/10">
               <Button type="button" variant="outline" onClick={() => changeStatus("open")}>Reopen Ticket</Button>
             </DialogFooter>
           ) : selected?.status !== "closed" && (
-            <form onSubmit={sendReply} className="space-y-3 pt-3 border-t border-white/10">
+            <form onSubmit={sendReply} className="space-y-3 pt-3 border-t border-border dark:border-white/10">
               <Label>Reply to customer</Label>
               <Textarea
                 value={reply}
                 onChange={e => setReply(e.target.value)}
-                className="bg-white/5 border-white/10 min-h-[90px]"
+                className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 min-h-[90px]"
                 placeholder="Type your response..."
               />
               <DialogFooter className="flex-col sm:flex-row gap-2">

@@ -1,6 +1,6 @@
 import webpush from "web-push";
 import { db, pushSubscriptionsTable, siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 
 const VAPID_PUBLIC_KEY = "push_vapid_public_key";
 const VAPID_PRIVATE_KEY = "push_vapid_private_key";

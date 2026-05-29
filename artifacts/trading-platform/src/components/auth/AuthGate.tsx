@@ -13,7 +13,7 @@ export function AuthGate({ children, redirectTo = "/login" }: Props) {
 
   if (isRestoring) {
     return (
-      <div className="min-h-screen bg-[#050A14] bg-background text-foreground flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">Loading your session…</p>
       </div>

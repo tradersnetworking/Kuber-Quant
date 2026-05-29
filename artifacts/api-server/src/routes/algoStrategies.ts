@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db, algoStrategiesTable, algoSubscriptionsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { generateAgreement } from "../helpers/agreementEngine";
 import { linkMtTradingAccount, validateMtTradingCredentials } from "../helpers/mtAccountLink";
+import { assertTradingServiceDeposit } from "../helpers/tradingServiceDepositGate";
 
 const router = Router();
 
@@ -19,13 +20,22 @@ router.get("/", requireAuth, async (_req, res) => {
     status: s.status,
     minInvestment: Number(s.minInvestment),
     currency: s.currency,
+    priceMonthly: Number(s.priceMonthly),
+    priceQuarterly: Number(s.priceQuarterly),
+    priceBiannual: Number(s.priceBiannual),
+    priceAnnual: Number(s.priceAnnual),
   })));
 });
 
 router.post("/:id/subscribe", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
+  const { respondIfServiceBlocked } = await import("../helpers/userAccessControl");
+  if (await respondIfServiceBlocked(userId, "algo", res)) return;
+
   const strategyId = parseInt(String(req.params.id));
-  const { amount, currency, accountNumber, brokerName, serverName, platform, tradingPassword } = req.body;
+  const { amount, currency, plan, accountNumber, brokerName, serverName, platform, tradingPassword } = req.body;
+  const selectedPlan = ["monthly", "quarterly", "biannual", "annual"].includes(String(plan)) ? String(plan) : "monthly";
+  const planDays: Record<string, number> = { monthly: 30, quarterly: 90, biannual: 180, annual: 365 };
 
   const mtCreds = {
     accountNumber: String(accountNumber || "").trim(),
@@ -41,6 +51,13 @@ router.post("/:id/subscribe", requireAuth, async (req, res) => {
   if (!strategy) { res.status(404).json({ error: "Strategy not found" }); return; }
 
   try {
+    await assertTradingServiceDeposit(userId);
+  } catch (err: any) {
+    res.status(402).json({ error: err.message, code: err.code || "TRADING_DEPOSIT_REQUIRED" });
+    return;
+  }
+
+  try {
     await linkMtTradingAccount(userId, mtCreds);
   } catch (err: any) {
     res.status(400).json({ error: err.message || "Failed to link MT account" });
@@ -48,7 +65,12 @@ router.post("/:id/subscribe", requireAuth, async (req, res) => {
   }
 
   await db.insert(algoSubscriptionsTable).values({
-    userId, strategyId, amount: String(amount || 100), currency: currency || "USD",
+    userId,
+    strategyId,
+    amount: String(amount || strategy.minInvestment),
+    currency: currency || "USD",
+    plan: selectedPlan as "monthly" | "quarterly" | "biannual" | "annual",
+    expiresAt: new Date(Date.now() + (planDays[selectedPlan] || 30) * 24 * 60 * 60 * 1000),
   });
   const [sub] = await db.select().from(algoSubscriptionsTable)
     .where(and(eq(algoSubscriptionsTable.userId, userId), eq(algoSubscriptionsTable.strategyId, strategyId)))

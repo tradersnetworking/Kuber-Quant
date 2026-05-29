@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { ACCEPTED_FILE_TYPES, MAX_FILE_SIZE } from "./constants";
+import { isIndianUser } from "./kyc-region";
+import type { OnboardingConfig } from "./api";
 
 const fileSchema = z
   .custom<File>((v) => v instanceof File, "File required")
@@ -34,12 +36,26 @@ export const investorStep1Schema = z.object({
   referralCode: z.string().optional(),
   agreeTerms: z.literal(true, { errorMap: () => ({ message: "Accept Terms & Conditions" }) }),
   agreeRisk: z.literal(true, { errorMap: () => ({ message: "Accept Risk Disclosure" }) }),
-  emailOtpVerified: z.boolean().refine(v => v, "Verify email OTP"),
+  emailOtpVerified: z.boolean().optional(),
   mobileOtpVerified: z.boolean().optional(),
-  captchaAnswer: z.string().min(1, "Complete CAPTCHA"),
-  captchaExpected: z.string(),
-}).refine(d => d.password === d.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] })
-  .refine(d => d.captchaAnswer === d.captchaExpected, { message: "Incorrect CAPTCHA", path: ["captchaAnswer"] });
+  captchaAnswer: z.string().optional(),
+  captchaExpected: z.string().optional(),
+}).refine(d => d.password === d.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] });
+
+export function buildInvestorStep1Schema(config: Pick<OnboardingConfig, "requireEmailOtp" | "requireMobileOtp" | "requireCaptcha">) {
+  return investorStep1Schema
+    .superRefine((data, ctx) => {
+      if (config.requireEmailOtp && !data.emailOtpVerified) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Verify email OTP", path: ["emailOtpVerified"] });
+      }
+      if (config.requireMobileOtp && data.phoneNum?.trim() && !data.mobileOtpVerified) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Verify mobile OTP", path: ["mobileOtpVerified"] });
+      }
+      if (config.requireCaptcha && !data.captchaAnswer?.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Complete CAPTCHA", path: ["captchaAnswer"] });
+      }
+    });
+}
 
 export const investorStep2Schema = z.object({
   dateOfBirth: z.string().min(1, "Date of birth required"),
@@ -52,19 +68,43 @@ export const investorStep2Schema = z.object({
   postalCode: z.string().min(3, "Postal code required"),
 });
 
-export const investorStep3Schema = z.object({
-  panCard: z.string().regex(panRegex, "Invalid PAN format (e.g. ABCDE1234F)"),
-  aadhaarNumber: z.string().optional(),
-  passportNumber: z.string().optional(),
+const kycCommonSchema = z.object({
   taxId: z.string().optional(),
-  panDocument: fileSchema,
-  aadhaarFront: optionalFile,
-  aadhaarBack: optionalFile,
-  passportDocument: optionalFile,
   selfie: fileSchema,
   addressProof: fileSchema,
   signature: fileSchema,
 });
+
+export const investorStep3IndianSchema = kycCommonSchema.extend({
+  panCard: z.string().regex(panRegex, "Invalid PAN format (e.g. ABCDE1234F)"),
+  aadhaarNumber: z.string().min(12, "Valid Aadhaar number required").max(14, "Valid Aadhaar number required"),
+  panDocument: fileSchema,
+  aadhaarFront: fileSchema,
+  aadhaarBack: fileSchema,
+  passportNumber: z.string().optional(),
+  passportDocument: optionalFile,
+  driversLicenseNumber: z.string().optional(),
+  driversLicenseDocument: optionalFile,
+});
+
+export const investorStep3AbroadSchema = kycCommonSchema.extend({
+  passportNumber: z.string().min(5, "Passport number required"),
+  driversLicenseNumber: z.string().min(4, "Driving license number required"),
+  passportDocument: fileSchema,
+  driversLicenseDocument: fileSchema,
+  panCard: z.string().optional(),
+  aadhaarNumber: z.string().optional(),
+  panDocument: optionalFile,
+  aadhaarFront: optionalFile,
+  aadhaarBack: optionalFile,
+});
+
+export function buildInvestorStep3Schema(country: string, nationality: string) {
+  return isIndianUser(country, nationality) ? investorStep3IndianSchema : investorStep3AbroadSchema;
+}
+
+/** @deprecated use buildInvestorStep3Schema */
+export const investorStep3Schema = investorStep3IndianSchema;
 
 export const investorStep4Schema = z.object({
   accountHolderName: z.string().min(2, "Account holder name required"),
@@ -163,11 +203,13 @@ export type InvestorFormValues = {
   panCard: string;
   aadhaarNumber: string;
   passportNumber: string;
+  driversLicenseNumber: string;
   taxId: string;
   panDocument?: File;
   aadhaarFront?: File;
   aadhaarBack?: File;
   passportDocument?: File;
+  driversLicenseDocument?: File;
   selfie?: File;
   addressProof?: File;
   signature?: File;
@@ -213,7 +255,7 @@ export const defaultInvestorValues: InvestorFormValues = {
   captchaAnswer: "", captchaExpected: "", captchaToken: "",
   emailVerificationToken: "", mobileVerificationToken: "",
   dateOfBirth: "", gender: "", nationality: "", country: "", state: "", city: "", address: "", postalCode: "",
-  panCard: "", aadhaarNumber: "", passportNumber: "", taxId: "",
+  panCard: "", aadhaarNumber: "", passportNumber: "", driversLicenseNumber: "", taxId: "",
   accountHolderName: "", bankName: "", accountNumber: "", confirmAccountNumber: "",
   ifscCode: "", branchName: "", upiId: "",
   cryptoWallets: {},
@@ -227,7 +269,7 @@ export const defaultInvestorValues: InvestorFormValues = {
 };
 
 export const INVESTOR_STEP_SCHEMAS = [
-  investorStep1Schema, investorStep2Schema, investorStep3Schema, investorStep4Schema,
+  investorStep1Schema, investorStep2Schema, investorStep3IndianSchema, investorStep4Schema,
   investorStep5Schema, investorStep6Schema, investorStep7Schema, investorStep8MtSchema,
   investorStep9Schema, investorStep10Schema,
 ];

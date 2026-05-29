@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Save, Globe, DollarSign, Phone, Palette, Settings, Upload, ImageIcon, AlertCircle, RefreshCw, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { BOOL_SETTING_KEYS, mergeSiteSettings } from "@/lib/site-settings-defaults";
+import { BOOL_SETTING_KEYS, mergeSiteSettings, MAINTENANCE_SETTING_KEYS, SECURITY_SETTING_KEYS, TEXTAREA_SETTING_KEYS } from "@/lib/site-settings-defaults";
 import { BrandTitle } from "@/components/brand/BrandTitle";
+import { authFetch, apiPath } from "@/lib/api-fetch";
 import { invalidateSiteBrandingCache } from "@/hooks/use-site-branding";
 import { GoogleOAuthPreview } from "@/components/admin/GoogleOAuthPreview";
 
@@ -73,7 +75,13 @@ export function SiteSettingsContent() {
     });
   };
 
-  const byCategory = (cat: string) => settings.filter((s: SiteSetting) => s.category === cat);
+  const byCategory = (cat: string) =>
+    settings.filter(
+      (s: SiteSetting) =>
+        s.category === cat &&
+        !MAINTENANCE_SETTING_KEYS.has(s.key) &&
+        !SECURITY_SETTING_KEYS.has(s.key),
+    );
 
   const handleImageUpload = async (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -82,9 +90,8 @@ export function SiteSettingsContent() {
     try {
       const body = new FormData();
       body.append("file", file);
-      const res = await fetch("/api/admin/upload/branding", {
+      const res = await authFetch(apiPath("/admin/upload/branding"), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token || localStorage.getItem("token") || ""}` },
         body,
       });
       const data = await res.json();
@@ -104,20 +111,21 @@ export function SiteSettingsContent() {
     const isColor = setting.key.includes("color");
     const isImage = setting.key === "logo_url" || setting.key === "favicon_url";
     const isTitlePart = setting.key === "site_title_gold" || setting.key === "site_title_silver";
+    const isTextarea = TEXTAREA_SETTING_KEYS.has(setting.key);
 
     if (isImage) {
       return (
         <div className="space-y-3">
           {values[setting.key] && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-black/30 border border-white/10">
-              <img src={values[setting.key]} alt={setting.label} className="h-14 w-14 object-contain rounded bg-white/10 p-1" />
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted dark:bg-black/30 border border-border dark:border-white/10">
+              <img src={values[setting.key]} alt={setting.label} className="h-14 w-14 object-contain rounded bg-muted dark:bg-white/10 p-1" />
               <Button type="button" variant="ghost" size="sm" className="text-red-400"
                 onClick={() => handleChange(setting.key, "")}>Remove</Button>
             </div>
           )}
           <div className="flex flex-wrap gap-2 items-center">
             <Label htmlFor={`upload-${setting.key}`} className="cursor-pointer">
-              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 text-sm">
+              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 text-sm">
                 <Upload className="h-4 w-4" />
                 {uploadingKey === setting.key ? "Uploading..." : "Upload Image"}
               </span>
@@ -128,7 +136,7 @@ export function SiteSettingsContent() {
           <div className="relative">
             <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input value={values[setting.key] || ""} onChange={e => handleChange(setting.key, e.target.value)}
-              placeholder="Or paste image URL" className="bg-white/5 border-white/10 focus:border-amber-500 pl-10" />
+              placeholder="Or paste image URL" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 focus:border-amber-500 pl-10" />
           </div>
         </div>
       );
@@ -148,6 +156,17 @@ export function SiteSettingsContent() {
       );
     }
 
+    if (isTextarea) {
+      return (
+        <Textarea
+          value={values[setting.key] || ""}
+          onChange={e => handleChange(setting.key, e.target.value)}
+          rows={3}
+          className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 resize-y min-h-[80px]"
+        />
+      );
+    }
+
     if (isColor) {
       return (
         <div className="flex items-center gap-3">
@@ -155,13 +174,13 @@ export function SiteSettingsContent() {
             type="color"
             value={values[setting.key] || "#D4AF37"}
             onChange={e => handleChange(setting.key, e.target.value)}
-            className="h-10 w-16 rounded cursor-pointer border border-white/10 bg-transparent"
+            className="h-10 w-16 rounded cursor-pointer border border-border dark:border-white/10 bg-transparent"
           />
           <Input
             value={values[setting.key] || ""}
             onChange={e => handleChange(setting.key, e.target.value)}
             placeholder="#D4AF37"
-            className="bg-white/5 border-white/10 focus:border-amber-500 font-mono w-32"
+            className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 focus:border-amber-500 font-mono w-32"
           />
         </div>
       );
@@ -178,7 +197,7 @@ export function SiteSettingsContent() {
             handleChange("site_name", `${gold} ${silver}`.trim());
           }
         }}
-        className="bg-white/5 border-white/10 focus:border-amber-500"
+        className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 focus:border-amber-500"
       />
     );
   };
@@ -200,7 +219,7 @@ export function SiteSettingsContent() {
           <div className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-amber-500" />
             {dirty.size > 0 && (
-              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
+              <span className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
                 {dirty.size} unsaved change{dirty.size > 1 ? "s" : ""}
               </span>
             )}
@@ -230,12 +249,12 @@ export function SiteSettingsContent() {
             {CATEGORIES.map(cat => {
               const fields = byCategory(cat.key);
               return (
-                <AccordionItem key={cat.key} value={cat.key} className="border border-white/10 rounded-xl bg-white/5 px-4">
+                <AccordionItem key={cat.key} value={cat.key} className="border border-border dark:border-white/10 rounded-xl bg-muted/60 dark:bg-white/5 px-4">
                   <AccordionTrigger className="hover:no-underline py-4">
                     <div className="flex items-center gap-2 text-left">
                       <cat.icon className="h-5 w-5 text-amber-500 shrink-0" />
                       <div>
-                        <p className="font-semibold text-white">{cat.label} Settings</p>
+                        <p className="font-semibold text-foreground">{cat.label} Settings</p>
                         <p className="text-xs text-muted-foreground font-normal">{fields.length} field{fields.length !== 1 ? "s" : ""}</p>
                       </div>
                     </div>
@@ -259,7 +278,7 @@ export function SiteSettingsContent() {
                         {cat.key === "appearance" && (
                           <Card className="border-amber-500/20 bg-gradient-to-br from-black/40 to-amber-500/5">
                             <CardHeader className="pb-3">
-                              <CardTitle className="text-base text-white">Header Brand Title Preview</CardTitle>
+                              <CardTitle className="text-base text-foreground">Header Brand Title Preview</CardTitle>
                               <CardDescription>
                                 This is how the site title appears in the dashboard header — gold word first, silver word second.
                               </CardDescription>
@@ -269,7 +288,7 @@ export function SiteSettingsContent() {
                                 <img
                                   src={values.logo_url || values.favicon_url}
                                   alt="Logo preview"
-                                  className="h-12 w-12 object-contain rounded bg-white/10 p-1"
+                                  className="h-12 w-12 object-contain rounded bg-muted dark:bg-white/10 p-1"
                                 />
                               )}
                               <BrandTitle size="xl" branding={previewBranding} />

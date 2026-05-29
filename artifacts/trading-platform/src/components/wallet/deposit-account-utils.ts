@@ -1,5 +1,7 @@
 /** Shared deposit account types & helpers (mirrors WP Payment Forms Pro patterns) */
 
+import { resolveMediaUrl } from "@/lib/media-url";
+
 export type DepositAccount = {
   id: number;
   name: string;
@@ -52,7 +54,7 @@ export const ONLINE_GATEWAY_CATALOG: OnlineGatewayMeta[] = [
 export const ONLINE_GATEWAY_TYPES = ONLINE_GATEWAY_CATALOG.map(g => g.type);
 
 /** Gateways with live checkout flow implemented in the app. */
-export const LIVE_CHECKOUT_GATEWAY_TYPES = new Set(["razorpay", "phonepe", "payu", "paypal"]);
+export const LIVE_CHECKOUT_GATEWAY_TYPES = new Set(["razorpay", "phonepe", "payu"]);
 
 export function isLiveCheckoutGateway(type: string): boolean {
   return LIVE_CHECKOUT_GATEWAY_TYPES.has(type);
@@ -70,28 +72,43 @@ export function isOnlineGatewayType(type: string): boolean {
   return ONLINE_GATEWAY_TYPES.includes(type);
 }
 
+export function trimCredential(v?: string | null): string | null {
+  if (!v?.trim()) return null;
+  return v.trim();
+}
+
 export function enrichDepositAccount(g: DepositAccount): DepositAccount {
   const ec = g.extraConfig || {};
+  const logoRaw = ec.logoUrl || g.logoUrl || null;
   return {
     ...g,
-    accountHolderName: ec.accountHolderName || g.accountHolderName || null,
-    bankName: ec.bankName || g.bankName || g.name,
-    accountNumber: ec.accountNumber || g.accountNumber || null,
-    ifscCode: ec.ifscCode || g.ifscCode || null,
-    branchName: ec.branchName || g.branchName || null,
-    accountType: ec.accountType || g.accountType || null,
-    swiftCode: ec.swiftCode || g.swiftCode || null,
-    micrCode: ec.micrCode || ec.micr || null,
-    badge: ec.badge || g.badge || null,
-    note: ec.note || g.note || null,
-    logoUrl: ec.logoUrl || g.logoUrl || null,
+    name: trimCredential(g.name) || g.name,
+    description: trimCredential(g.description),
+    walletAddress: trimCredential(g.walletAddress),
+    upiId: trimCredential(g.upiId)?.toLowerCase() || null,
+    qrCodeUrl: publicAssetUrl(g.qrCodeUrl) || null,
+    accountHolderName: trimCredential(ec.accountHolderName || g.accountHolderName),
+    bankName: trimCredential(ec.bankName || g.bankName || g.name),
+    accountNumber: trimCredential(ec.accountNumber || g.accountNumber),
+    ifscCode: trimCredential(ec.ifscCode || g.ifscCode)?.toUpperCase() || null,
+    branchName: trimCredential(ec.branchName || g.branchName),
+    accountType: trimCredential(ec.accountType || g.accountType),
+    swiftCode: trimCredential(ec.swiftCode || g.swiftCode),
+    micrCode: trimCredential(ec.micrCode || ec.micr || g.micrCode),
+    badge: trimCredential(ec.badge || g.badge),
+    note: trimCredential(ec.note || g.note),
+    logoUrl: publicAssetUrl(logoRaw) || null,
+    symbol: trimCredential(g.symbol)?.toUpperCase() || g.symbol || null,
+    network: trimCredential(g.network),
   };
 }
 
 export function buildUpiPayUri(upiId: string, payeeName: string, amount?: number, currency = "INR") {
+  const pa = upiId.trim().toLowerCase();
+  if (!pa) return "";
   const params = new URLSearchParams({
-    pa: upiId,
-    pn: payeeName.slice(0, 50),
+    pa,
+    pn: (payeeName || "UPI").trim().slice(0, 50),
     cu: currency,
     tn: "Kuber Quant Deposit",
   });
@@ -100,12 +117,23 @@ export function buildUpiPayUri(upiId: string, payeeName: string, amount?: number
 }
 
 export function upiQrImageUrl(upiId: string, payeeName: string, amount?: number) {
-  const uri = buildUpiPayUri(upiId, payeeName, amount);
-  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(uri)}`;
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+  const params = new URLSearchParams({ upiId, name: payeeName });
+  if (amount && amount > 0) params.set("amount", String(amount));
+  const path = `${base}/api/payments/qr/upi?${params.toString()}`;
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`;
+  }
+  return path;
 }
 
 export function cryptoQrImageUrl(address: string) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(address)}`;
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+  const path = `${base}/api/payments/qr/wallet?${new URLSearchParams({ address }).toString()}`;
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`;
+  }
+  return path;
 }
 
 export function isManualDepositType(type: string) {
@@ -118,3 +146,66 @@ export type DepositAccountsResponse = {
   crypto: DepositAccount[];
   online: DepositAccount[];
 };
+
+/** Fiat deposit gateways (UPI, bank, online) use INR; crypto uses USD minimums. */
+export function minAmountLabelForGatewayType(type: string): string {
+  return type === "crypto" ? "Min Amount ($)" : "Min Amount (₹)";
+}
+
+export function formatGatewayMinAmount(type: string, amount: number): string {
+  return type === "crypto" ? `Min $${amount}` : `Min ₹${amount}`;
+}
+
+/** Resolve QR image src: stored upload, or live-generated from platform API. */
+export function resolveDepositQrSrc(opts: {
+  qrCodeUrl?: string | null;
+  upiId?: string | null;
+  walletAddress?: string | null;
+  payeeName?: string;
+  amount?: number;
+}): string | undefined {
+  // Dynamic amount UPI QR must be generated on the fly.
+  if (opts.upiId?.trim() && opts.amount && opts.amount > 0) {
+    return upiQrImageUrl(opts.upiId.trim(), opts.payeeName || "UPI", opts.amount);
+  }
+
+  const stored = publicAssetUrl(opts.qrCodeUrl);
+  if (stored) return stored;
+
+  if (opts.upiId?.trim()) {
+    return upiQrImageUrl(opts.upiId.trim(), opts.payeeName || "UPI", opts.amount);
+  }
+  if (opts.walletAddress?.trim()) {
+    return cryptoQrImageUrl(opts.walletAddress.trim());
+  }
+  return undefined;
+}
+
+/** Resolve payout / withdrawal account QR (UPI or crypto wallet). */
+export function resolvePayoutQrSrc(opts: {
+  accountType?: string;
+  label?: string;
+  upiId?: string | null;
+  upiQrUrl?: string | null;
+  walletAddress?: string | null;
+  walletQrUrl?: string | null;
+}): string | undefined {
+  if (opts.accountType === "upi") {
+    const stored = publicAssetUrl(opts.upiQrUrl);
+    if (stored) return stored;
+    if (opts.upiId?.trim()) return upiQrImageUrl(opts.upiId.trim(), opts.label || "UPI");
+    return undefined;
+  }
+  if (opts.accountType === "crypto") {
+    const stored = publicAssetUrl(opts.walletQrUrl);
+    if (stored) return stored;
+    if (opts.walletAddress?.trim()) return cryptoQrImageUrl(opts.walletAddress.trim());
+    return undefined;
+  }
+  return publicAssetUrl(opts.upiQrUrl || opts.walletQrUrl);
+}
+
+/** Resolve stored upload paths (/uploads/...) for img src. */
+export function publicAssetUrl(path?: string | null): string | undefined {
+  return resolveMediaUrl(path);
+}

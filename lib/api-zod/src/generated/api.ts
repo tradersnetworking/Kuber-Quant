@@ -59,7 +59,8 @@ export const LoginResponse = zod.object({
 
 
 export const GoogleAuthBody = zod.object({
-  "idToken": zod.string()
+  "idToken": zod.string(),
+  "referralCode": zod.string().optional().describe('Optional referral code to attribute a new Google signup')
 })
 
 export const GoogleAuthResponse = zod.object({
@@ -177,7 +178,16 @@ export const GetDashboardSummaryResponse = zod.object({
   "activeAlgoStrategies": zod.number().optional(),
   "referralEarnings": zod.number().optional(),
   "pendingWithdrawals": zod.number().optional(),
-  "unreadNotifications": zod.number().optional()
+  "unreadNotifications": zod.number().optional(),
+  "monthPortfolioChangePct": zod.number().optional(),
+  "monthProfitChangePct": zod.number().optional(),
+  "pendingActions": zod.number().optional(),
+  "nextPayoutDate": zod.string().nullish(),
+  "portfolioAllocation": zod.array(zod.object({
+  "label": zod.string(),
+  "pct": zod.number(),
+  "value": zod.number()
+})).optional()
 })
 
 
@@ -188,12 +198,22 @@ export const GetPortfolioChartResponseItem = zod.object({
 export const GetPortfolioChartResponse = zod.array(GetPortfolioChartResponseItem)
 
 
+export const GetMonthlyReturnsResponseItem = zod.object({
+  "month": zod.string(),
+  "return": zod.number(),
+  "invested": zod.number()
+})
+export const GetMonthlyReturnsResponse = zod.array(GetMonthlyReturnsResponseItem)
+
+
 export const GetRecentActivityResponseItem = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['deposit', 'withdrawal', 'profit', 'investment', 'trade', 'referral']),
-  "description": zod.string(),
+  "transactionId": zod.number().optional(),
+  "type": zod.enum(['deposit', 'withdrawal']),
   "amount": zod.number(),
   "currency": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "paymentMethod": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const GetRecentActivityResponse = zod.array(GetRecentActivityResponseItem)
@@ -302,7 +322,11 @@ export const ListAlgoStrategiesResponseItem = zod.object({
   "subscribers": zod.number(),
   "status": zod.enum(['active', 'paused']),
   "minInvestment": zod.number().optional(),
-  "currency": zod.string().optional()
+  "currency": zod.string().optional(),
+  "priceMonthly": zod.number().optional(),
+  "priceQuarterly": zod.number().optional(),
+  "priceBiannual": zod.number().optional(),
+  "priceAnnual": zod.number().optional()
 })
 export const ListAlgoStrategiesResponse = zod.array(ListAlgoStrategiesResponseItem)
 
@@ -314,6 +338,7 @@ export const SubscribeAlgoStrategyParams = zod.object({
 export const SubscribeAlgoStrategyBody = zod.object({
   "amount": zod.number(),
   "currency": zod.string().optional(),
+  "plan": zod.enum(['monthly', 'quarterly', 'biannual', 'annual']).optional(),
   "accountNumber": zod.string(),
   "brokerName": zod.string(),
   "serverName": zod.string(),

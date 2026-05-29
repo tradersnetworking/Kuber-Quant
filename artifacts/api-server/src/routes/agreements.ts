@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, agreementsTable, agreementEventsTable, agreementTemplatesTable, usersTable } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and } from "@workspace/db/orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { generateAgreement, signAgreement, getAgreementPDF, previewTemplateContent } from "../helpers/agreementEngine";
 import { DEFAULT_TEMPLATES, getDefaultTemplate, templateContentToMarkdown, AGREEMENT_PLACEHOLDERS } from "../helpers/agreementTemplates";

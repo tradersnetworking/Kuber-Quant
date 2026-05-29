@@ -1,6 +1,7 @@
 import { db, notificationsTable, usersTable } from "@workspace/db";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, inArray } from "@workspace/db/orm";
 import { sendPushToUser } from "./pushService";
+import { publishNotificationEvent } from "./notificationStreamService";
 
 export type NotificationCategory =
   | "deposit" | "withdrawal" | "service" | "kyc" | "investment"
@@ -48,6 +49,8 @@ export async function notifyUser(opts: {
       tag: `${opts.category}-${row.id}`,
     }).catch(() => {});
   }
+
+  publishNotificationEvent(opts.userId, mapNotification(row));
 
   return mapNotification(row);
 }

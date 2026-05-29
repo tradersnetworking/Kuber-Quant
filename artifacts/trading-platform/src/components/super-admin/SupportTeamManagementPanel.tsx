@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -19,6 +19,7 @@ import {
   Search, UserCheck, RefreshCw,
 } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
+import { STAFF_FORM_GRID_3 } from "@/lib/staff-dashboard-ui";
 import { UserFullDetailSheet } from "@/components/super-admin/UserFullDetailSheet";
 import { Link } from "wouter";
 
@@ -187,17 +188,17 @@ export function SupportTeamManagementPanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className={STAFF_FORM_GRID_3}>
         {[
           { href: "/super-admin/support", icon: Ticket, label: "Support Tickets", desc: "Reply and close tickets" },
           { href: "/super-admin/support-mail", icon: Mail, label: "Mail Desk", desc: "IMAP inbox & replies" },
           { href: "/super-admin/users", icon: Users, label: "All Users", desc: "Full user management" },
         ].map(({ href, icon: Icon, label, desc }) => (
           <Link key={href} href={href}>
-            <Card className="bg-white/5 border-white/10 hover:border-rose-500/30 transition-colors cursor-pointer h-full">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 hover:border-rose-500/30 transition-colors cursor-pointer h-full">
               <CardContent className="p-4 flex items-start gap-3">
                 <div className="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
-                  <Icon className="h-4 w-4 text-rose-400" />
+                  <Icon className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">{label}</p>
@@ -209,10 +210,10 @@ export function SupportTeamManagementPanel() {
         ))}
       </div>
 
-      <Card className="bg-white/5 border-white/10 w-fit">
+      <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 w-fit">
         <CardContent className="p-4 flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center">
-            <Headset className="h-5 w-5 text-rose-400" />
+            <Headset className="h-5 w-5 text-rose-600 dark:text-rose-400" />
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Active Support Agents</p>
@@ -221,7 +222,7 @@ export function SupportTeamManagementPanel() {
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/5">
+      <Card className="border-border dark:border-white/10 bg-muted/60 dark:bg-white/5">
         <CardHeader><CardTitle className="text-base">Support Team Members</CardTitle></CardHeader>
         <CardContent>
           {loadError && (
@@ -237,63 +238,98 @@ export function SupportTeamManagementPanel() {
               No support agents yet — add an existing member or create a new agent above.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/10">
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {agents.map(agent => (
-                  <TableRow
-                    key={agent.id}
-                    className="border-white/10 cursor-pointer hover:bg-white/5"
-                    onClick={() => { setDetailUserId(agent.id); setDetailOpen(true); }}
+            <ResponsiveDataView
+              data={agents}
+              rowKey={agent => agent.id}
+              onRowClick={agent => {
+                setDetailUserId(agent.id);
+                setDetailOpen(true);
+              }}
+              rowClassName="border-border dark:border-white/10 hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5"
+              mobileFooter={agent => (
+                <div className="mt-3 pt-3 border-t border-border/80 flex justify-end" onClick={e => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setDemoteTarget(agent);
+                    }}
+                    className="text-red-400"
                   >
-                    <TableCell>
-                      <p className="font-medium hover:text-rose-400">{agent.fullName}</p>
-                      <p className="text-xs text-muted-foreground">ID #{agent.id}</p>
-                    </TableCell>
-                    <TableCell>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              columns={[
+                {
+                  key: "agent",
+                  header: "Agent",
+                  mobileTitle: true,
+                  cell: agent => (
+                    <>
+                      <p className="font-medium hover:text-rose-600 dark:text-rose-400">{agent.fullName}</p>
+                      <p className="text-xs text-muted-foreground font-normal">ID #{agent.id}</p>
+                    </>
+                  ),
+                },
+                {
+                  key: "contact",
+                  header: "Contact",
+                  cell: agent => (
+                    <>
                       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Mail className="h-3 w-3" />{agent.email}
+                        <Mail className="h-3 w-3 shrink-0" />{agent.email}
                       </div>
                       {agent.phone && (
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                          <Phone className="h-3 w-3" />{agent.phone}
+                          <Phone className="h-3 w-3 shrink-0" />{agent.phone}
                         </div>
                       )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    </>
+                  ),
+                },
+                {
+                  key: "joined",
+                  header: "Joined",
+                  cellClassName: "text-sm text-muted-foreground",
+                  cell: agent => (
+                    <>
                       <Calendar className="h-3 w-3 inline mr-1" />
                       {agent.createdAt ? format(new Date(agent.createdAt), "MMM d, yyyy") : "—"}
-                    </TableCell>
-                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                    </>
+                  ),
+                },
+                {
+                  key: "actions",
+                  header: "Actions",
+                  headerClassName: "text-right",
+                  cellClassName: "text-right",
+                  hideOnMobile: true,
+                  cell: agent => (
+                    <div onClick={e => e.stopPropagation()}>
                       <Button variant="ghost" size="sm" onClick={() => setDemoteTarget(agent)} className="text-red-400">
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  ),
+                },
+              ]}
+            />
           )}
         </CardContent>
       </Card>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="bg-[#050A14] border-white/10 max-w-lg">
+        <DialogContent className="bg-background border-border dark:border-white/10 max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Headset className="h-5 w-5 text-rose-400" /> Add to Support Team
+              <Headset className="h-5 w-5 text-rose-600 dark:text-rose-400" /> Add to Support Team
             </DialogTitle>
           </DialogHeader>
 
           <Tabs value={addTab} onValueChange={v => setAddTab(v as "existing" | "new")}>
-            <TabsList className="bg-white/5 border border-white/10 w-full">
+            <TabsList className="bg-muted/60 dark:bg-white/5 border border-border dark:border-white/10 w-full">
               <TabsTrigger value="existing" className="flex-1">Existing Member</TabsTrigger>
               <TabsTrigger value="new" className="flex-1">New Agent</TabsTrigger>
             </TabsList>
@@ -308,10 +344,10 @@ export function SupportTeamManagementPanel() {
                   placeholder="Search by name, email, or ID..."
                   value={candidateSearch}
                   onChange={e => setCandidateSearch(e.target.value)}
-                  className="pl-9 bg-white/5 border-white/10"
+                  className="pl-9 bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
                 />
               </div>
-              <div className="max-h-64 overflow-y-auto rounded-md border border-white/10 divide-y divide-white/5">
+              <div className="max-h-64 overflow-y-auto rounded-md border border-border dark:border-white/10 divide-y divide-white/5">
                 {candidatesLoading ? (
                   <div className="p-4 space-y-2">
                     {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
@@ -322,13 +358,13 @@ export function SupportTeamManagementPanel() {
                   </p>
                 ) : (
                   candidates.map(c => (
-                    <div key={c.id} className="flex items-center justify-between gap-3 p-3 hover:bg-white/5">
+                    <div key={c.id} className="flex items-center justify-between gap-3 p-3 hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5">
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{c.fullName}</p>
                         <p className="text-xs text-muted-foreground truncate">{c.email}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant="outline" className="text-[10px] capitalize border-white/20">
+                        <Badge variant="outline" className="text-[10px] capitalize border-border dark:border-white/20">
                           {roleLabel(c.role)}
                         </Badge>
                         <Button
@@ -354,19 +390,19 @@ export function SupportTeamManagementPanel() {
               <form onSubmit={handleCreate} className="space-y-3">
                 <div className="space-y-1">
                   <Label>Full Name</Label>
-                  <Input required value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} className="bg-white/5 border-white/10" />
+                  <Input required value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                 </div>
                 <div className="space-y-1">
                   <Label>Email</Label>
-                  <Input type="email" required placeholder="support@kuberquant.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="bg-white/5 border-white/10" />
+                  <Input type="email" required placeholder="support@kuberquant.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                 </div>
                 <div className="space-y-1">
                   <Label>Password</Label>
-                  <Input type="password" required minLength={8} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="bg-white/5 border-white/10" />
+                  <Input type="password" required minLength={8} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                 </div>
                 <div className="space-y-1">
                   <Label>Phone (optional)</Label>
-                  <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="bg-white/5 border-white/10" />
+                  <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                 </div>
                 <DialogFooter className="pt-2">
                   <Button type="submit" disabled={saving} className="w-full bg-rose-500 hover:bg-rose-600 text-white">
@@ -380,7 +416,7 @@ export function SupportTeamManagementPanel() {
       </Dialog>
 
       <AlertDialog open={!!demoteTarget} onOpenChange={() => setDemoteTarget(null)}>
-        <AlertDialogContent className="bg-[#050A14] border-white/10">
+        <AlertDialogContent className="bg-background border-border dark:border-white/10">
           <AlertDialogHeader>
             <AlertDialogTitle>Remove from Support Team?</AlertDialogTitle>
             <AlertDialogDescription>

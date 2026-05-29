@@ -6,7 +6,7 @@ import {
   algoSubscriptionsTable, algoStrategiesTable, userProfilesTable,
   userPaymentAccountsTable, mt5AccountsTable,
 } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and } from "@workspace/db/orm";
 import { generateAgreementPDF } from "./pdfGenerator";
 import { decryptSensitive } from "./encryption";
 import { buildUserCollectedPlaceholders } from "./userDataPlaceholders";

@@ -1,16 +1,23 @@
+import { initSentry } from "./lib/sentry";
+
+initSentry();
+
 import app from "./app";
 import { logger } from "./lib/logger";
-import { assertProductionSecrets, warnDevSecrets } from "./lib/env";
-import cron from "node-cron";
-import { processMaturedInvestments } from "./helpers/roiEngine";
-import { syncSupportInboxFromImap } from "./helpers/supportMailService";
-import { getSupportMailDeskConfig } from "./helpers/supportMailDeskSettings";
+import { assertProductionSecrets, warnDevSecrets, warnProductionBootstrap } from "./lib/env";
 import { ensureDefaultUsers } from "./helpers/bootstrapUsers";
 import { ensureDefaultCryptoGateways } from "./helpers/defaultPaymentGateways";
 import { refreshExchangeRates } from "./helpers/exchangeRateService";
+import { ensureDefaultExchangeRates } from "./helpers/exchangeService";
+import { scheduleBackgroundJobs } from "./helpers/scheduleBackgroundJobs";
+import { closeJobQueue } from "./helpers/jobQueue";
+import { ensureRbacSeed } from "./helpers/rbacService";
+import { ensureSampleTransactionHistory } from "./helpers/sampleTransactionHistory";
+import { ensureDatabaseSchemaPatches } from "./helpers/ensureDatabaseSchemaPatches";
 
 assertProductionSecrets();
 warnDevSecrets();
+warnProductionBootstrap();
 
 const rawPort = process.env["PORT"];
 
@@ -24,59 +31,48 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const server = app.listen(port, () => {
-  logger.info({ port, env: process.env.NODE_ENV || "development" }, "Server listening");
+let server: ReturnType<typeof app.listen>;
 
-  void ensureDefaultUsers();
-  void ensureDefaultCryptoGateways();
-  void refreshExchangeRates(true);
+void (async () => {
+  try {
+    await ensureDatabaseSchemaPatches();
+  } catch (err) {
+    logger.error({ err }, "Database schema patches failed — some dashboards may error until pnpm db:push is run");
+  }
 
-  cron.schedule("0 6 * * *", async () => {
-    try {
-      await refreshExchangeRates(true);
-      logger.info("Daily FX rate refresh complete");
-    } catch (err) {
-      logger.error({ err }, "Daily FX rate refresh failed");
-    }
-  });
-  logger.info("Daily FX rate refresh scheduled (06:00 UTC)");
+  server = app.listen(port, () => {
+    logger.info({ port, env: process.env.NODE_ENV || "development" }, "Server listening");
 
-  cron.schedule("0 * * * *", async () => {
-    logger.info("ROI automation: starting cycle");
-    try {
-      const result = await processMaturedInvestments();
-      if (result.processed > 0 || result.errors > 0) {
-        logger.info({ ...result }, "ROI automation: cycle complete");
+    void ensureDefaultUsers().then(() => {
+      if (process.env.BOOTSTRAP_USERS !== "false" && process.env.NODE_ENV !== "production") {
+        void ensureSampleTransactionHistory();
       }
-    } catch (err) {
-      logger.error({ err }, "ROI automation failed");
-    }
+    });
+    void ensureDefaultCryptoGateways().then(async () => {
+      const { ensureAllPaymentGatewayQrsInDb } = await import("./helpers/qrCodeService");
+      const updated = await ensureAllPaymentGatewayQrsInDb();
+      if (updated > 0) logger.info({ updated }, "Regenerated stale payment gateway QR codes");
+    });
+    void ensureDefaultExchangeRates();
+    void ensureRbacSeed();
+    void refreshExchangeRates(true);
+    void scheduleBackgroundJobs();
   });
-  logger.info("ROI automation engine scheduled (every hour)");
+})();
 
-  cron.schedule("*/5 * * * *", async () => {
-    try {
-      const desk = await getSupportMailDeskConfig();
-      if (!desk.autoSyncEnabled) return;
-      const result = await syncSupportInboxFromImap();
-      if (result.synced > 0) {
-        logger.info({ synced: result.synced }, "Support mail IMAP sync complete");
-      }
-    } catch (err) {
-      logger.error({ err }, "Support mail IMAP sync failed");
-    }
-  });
-  logger.info("Support mail IMAP sync scheduled (every 5 minutes when enabled)");
-});
-
-function shutdown(signal: string) {
+async function shutdown(signal: string) {
   logger.info({ signal }, "Graceful shutdown initiated");
-  server.close(() => {
+  if (!server) {
+    process.exit(0);
+    return;
+  }
+  server.close(async () => {
+    await closeJobQueue();
     logger.info("Server closed");
     process.exit(0);
   });
   setTimeout(() => process.exit(1), 10000).unref();
 }
 
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

@@ -1,85 +1,84 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { authFetchJson, getStoredToken } from "@/lib/token-store";
-import { ArrowDownLeft, Upload } from "lucide-react";
-import { CredentialRow } from "@/components/wallet/CredentialRow";
-import { OnlineGatewayCheckoutPanel } from "@/components/wallet/OnlineGatewayCheckoutPanel";
+import { authFetch, authFetchJson, apiPath } from "@/lib/api-fetch";
+import { ArrowDownLeft, Loader2, Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { mobileBtnWrap } from "@/lib/mobile-ui";
 import {
   enrichDepositAccount,
-  upiQrImageUrl,
-  cryptoQrImageUrl,
-  buildUpiPayUri,
-  getOnlineGatewayLabel,
   type DepositAccountsResponse,
 } from "@/components/wallet/deposit-account-utils";
-import { CRYPTO_DEPOSIT_TABS, findCryptoDepositAccount } from "@/components/wallet/crypto-networks";
+import { resolveCryptoDepositTabs, findCryptoDepositAccount } from "@/components/wallet/crypto-networks";
+import { WalletDepositMethodPanel, type WalletDepositMethod } from "@/components/wallet/WalletDepositMethodPanel";
+import { ExchangeDepositProofPanel, isExchangeProofReady } from "@/components/exchange/ExchangeDepositProofPanel";
+import { DEPOSIT_BUTTON_CLASS } from "@/lib/wallet-action-styles";
 import { DEPOSIT_FIAT_CURRENCIES } from "@/lib/wallet-currency-options";
+import {
+  upiDepositExceedsLimit,
+  upiLimitErrorMessage,
+  formatUpiLimitInr,
+  UPI_MAX_INR_PER_TRANSACTION,
+} from "@/lib/payment-limits";
+import { FinanceFieldLabel, financeInputClass } from "@/components/wallet/PaymentMethodField";
 
-type PaymentOption = "" | "upi" | "bank" | "gateway" | "crypto";
+type FormProps = {
+  onSuccess?: () => void;
+  compact?: boolean;
+};
 
-const PAYMENT_OPTIONS: { value: PaymentOption; label: string; hint?: string }[] = [
-  { value: "upi", label: "UPI" },
-  { value: "bank", label: "Bank Transfer (IMPS, NEFT, RTGS)" },
-  { value: "gateway", label: "Payment Gateway" },
-  { value: "crypto", label: "Crypto" },
-];
-
-export function DepositDialog({ onSuccess, trigger }: { onSuccess?: () => void; trigger?: React.ReactNode }) {
+export function WalletDepositForm({ onSuccess, compact }: FormProps) {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const proofRef = useRef<HTMLInputElement>(null);
-
-  const [paymentOption, setPaymentOption] = useState<PaymentOption>("");
+  const [method, setMethod] = useState<WalletDepositMethod | "">("");
   const [accountId, setAccountId] = useState("");
-  const [manual, setManual] = useState({ amount: "", currency: "INR", utrReference: "", promoCode: "" });
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("INR");
+  const [utr, setUtr] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [promoCode, setPromoCode] = useState("");
   const [promoDiscount, setPromoDiscount] = useState<number | null>(null);
   const [promoValidating, setPromoValidating] = useState(false);
 
   const { data: depositAccounts } = useQuery({
     queryKey: ["/api/payments/deposit-accounts"],
     queryFn: () => authFetchJson<DepositAccountsResponse>("/payments/deposit-accounts"),
-    enabled: open,
   });
 
-  const upi = (depositAccounts?.upi || []).map(enrichDepositAccount);
-  const bank = (depositAccounts?.bank || []).map(enrichDepositAccount);
   const crypto = (depositAccounts?.crypto || []).map(enrichDepositAccount);
-  const online = (depositAccounts?.online || []).map(enrichDepositAccount);
+  const cryptoTabs = resolveCryptoDepositTabs(crypto);
+  const activeCryptoTab = cryptoTabs.find(t => t.key === accountId);
+  const activeCrypto = activeCryptoTab ? findCryptoDepositAccount(crypto, activeCryptoTab) : undefined;
+  const activeUpi = (depositAccounts?.upi || []).map(enrichDepositAccount).find(a => String(a.id) === accountId);
+  const activeBank = (depositAccounts?.bank || []).map(enrichDepositAccount).find(a => String(a.id) === accountId);
+
+  const isCrypto = method === "crypto";
+  const isGateway = method === "gateway";
+  const isUpi = method === "upi";
+  const parsedAmount = Number(amount);
+  const usdInrRate = (depositAccounts as any)?.exchangeRates?.USD_INR;
+  const upiOverLimit = isUpi && amount.trim() !== "" && !Number.isNaN(parsedAmount)
+    && upiDepositExceedsLimit(parsedAmount, currency, usdInrRate);
+  const proofMode = isCrypto ? "sell" : "buy";
+  const proofReady = isGateway || isExchangeProofReady(proofMode, utr, utr, proofFile);
 
   useEffect(() => {
     setAccountId("");
-  }, [paymentOption]);
-
-  useEffect(() => {
-    if (!paymentOption || accountId) return;
-    if (paymentOption === "upi" && upi.length) setAccountId(String(upi[0].id));
-    if (paymentOption === "bank" && bank.length) setAccountId(String(bank[0].id));
-    if (paymentOption === "crypto" && CRYPTO_DEPOSIT_TABS.length) {
-      const first = CRYPTO_DEPOSIT_TABS.find(t => findCryptoDepositAccount(crypto, t));
-      if (first) setAccountId(first.key);
-    }
-  }, [paymentOption, upi, bank, crypto, accountId]);
-
-  const activeUpi = upi.find(a => String(a.id) === accountId);
-  const activeBank = bank.find(a => String(a.id) === accountId);
-  const activeGateway = online.find(g => String(g.id) === accountId);
-  const activeCryptoTab = CRYPTO_DEPOSIT_TABS.find(t => t.key === accountId);
-  const activeCrypto = activeCryptoTab ? findCryptoDepositAccount(crypto, activeCryptoTab) : undefined;
+    setUtr("");
+    setProofFile(null);
+  }, [method]);
 
   async function validatePromo() {
-    if (!manual.promoCode.trim()) { setPromoDiscount(null); return; }
+    if (!promoCode.trim()) { setPromoDiscount(null); return; }
     setPromoValidating(true);
     try {
       const res = await authFetchJson<{ valid: boolean; discount: number }>("/promo-codes/validate", {
         method: "POST",
-        body: JSON.stringify({ code: manual.promoCode.trim(), amount: Number(manual.amount) || 0, appliesTo: "deposit" }),
+        body: JSON.stringify({ code: promoCode.trim(), amount: Number(amount) || 0, appliesTo: "deposit" }),
       });
       setPromoDiscount(res.discount);
       toast({ title: "Promo applied", description: `Discount: ${res.discount}` });
@@ -93,44 +92,62 @@ export function DepositDialog({ onSuccess, trigger }: { onSuccess?: () => void; 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (paymentOption === "gateway") return;
+    if (isGateway) return;
+    if (!method || !accountId) {
+      toast({ title: "Select deposit method", variant: "destructive" });
+      return;
+    }
+    if (isUpi && upiDepositExceedsLimit(Number(amount), currency, usdInrRate)) {
+      toast({ title: "UPI limit exceeded", description: upiLimitErrorMessage(), variant: "destructive" });
+      return;
+    }
+    if (!proofReady) {
+      toast({
+        title: "Proof required",
+        description: isCrypto ? "Enter the blockchain transaction hash." : "Upload proof or enter UTR/reference.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      if (paymentOption === "crypto") {
+      if (isCrypto) {
         await authFetchJson("/payments/crypto/deposit", {
           method: "POST",
           body: JSON.stringify({
-            amount: Number(manual.amount),
+            amount: Number(amount),
             currency: activeCryptoTab?.symbol || "USDT",
-            txHash: manual.utrReference,
+            txHash: utr.trim(),
             gatewayId: activeCrypto?.id,
           }),
         });
         toast({ title: "Crypto deposit submitted", description: "Pending verification." });
       } else {
-        const active = paymentOption === "upi" ? activeUpi : activeBank;
+        const active = method === "upi" ? activeUpi : activeBank;
         const fd = new FormData();
-        fd.append("amount", manual.amount);
-        fd.append("currency", manual.currency);
-        fd.append("paymentMethod", active?.name || paymentOption);
-        if (manual.utrReference) fd.append("utrReference", manual.utrReference);
-        if (manual.promoCode.trim()) fd.append("promoCode", manual.promoCode.trim().toUpperCase());
+        fd.append("amount", amount);
+        fd.append("currency", currency);
+        fd.append("paymentMethod", active?.name || method);
+        fd.append("depositMethodType", method);
+        if (utr.trim()) fd.append("utrReference", utr.trim());
+        if (promoCode.trim()) fd.append("promoCode", promoCode.trim().toUpperCase());
         if (active) fd.append("notes", `Deposit to ${active.name} (ID ${active.id})`);
-        const file = proofRef.current?.files?.[0];
-        if (file) fd.append("proof", file);
+        if (proofFile) fd.append("proof", proofFile);
 
-        const token = getStoredToken();
-        const res = await fetch("/api/transactions/manual-deposit", {
+        const res = await authFetch(apiPath("/transactions/manual-deposit"), {
           method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: fd,
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Deposit failed");
         toast({ title: "Deposit submitted", description: "Pending admin verification." });
       }
-      setOpen(false);
+      setAmount("");
+      setUtr("");
+      setProofFile(null);
+      setPromoCode("");
+      setPromoDiscount(null);
       onSuccess?.();
     } catch (err: any) {
       toast({ title: "Deposit failed", description: err.message, variant: "destructive" });
@@ -139,194 +156,143 @@ export function DepositDialog({ onSuccess, trigger }: { onSuccess?: () => void; 
     }
   }
 
-  const accountOptions = (() => {
-    if (paymentOption === "upi") return upi.map(a => ({ value: String(a.id), label: a.name }));
-    if (paymentOption === "bank") return bank.map(a => ({ value: String(a.id), label: a.name }));
-    if (paymentOption === "gateway") return online.map(g => ({ value: String(g.id), label: g.name || getOnlineGatewayLabel(g.type) }));
-    if (paymentOption === "crypto") return CRYPTO_DEPOSIT_TABS.map(t => ({ value: t.key, label: t.label }));
-    return [];
-  })();
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button className="bg-amber-500 hover:bg-amber-600 text-black font-semibold">
-            <ArrowDownLeft className="mr-2 h-4 w-4" /> Deposit
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="bg-[#050A14] border-white/10 max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Deposit Funds</DialogTitle>
-          <DialogDescription>Select payment type, then choose an account.</DialogDescription>
-        </DialogHeader>
+    <div className="space-y-5">
+      <WalletDepositMethodPanel
+        depositAccounts={depositAccounts}
+        method={method}
+        onMethodChange={setMethod}
+        accountId={accountId}
+        onAccountIdChange={setAccountId}
+        amountHint={amount}
+        onGatewaySuccess={onSuccess}
+      />
 
-        <div className="space-y-4 mt-2">
-          <div className="space-y-1.5">
-            <Label>Payment option</Label>
-            <Select value={paymentOption} onValueChange={v => setPaymentOption(v as PaymentOption)}>
-              <SelectTrigger className="bg-white/5 border-white/10">
-                <SelectValue placeholder="-- Select payment option --" />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {method && !isGateway && (
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2 border-t border-border dark:border-white/10">
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Step 2 — Amount & proof</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Enter the amount you paid/sent, then upload proof for admin verification.
+            </p>
           </div>
 
-          {paymentOption && (
-            <div className="space-y-1.5">
-              <Label>
-                {paymentOption === "upi" && "Select UPI ID"}
-                {paymentOption === "bank" && "Select bank account"}
-                {paymentOption === "crypto" && "Select coin / network"}
-                {paymentOption === "gateway" && "Select payment gateway"}
-              </Label>
-              <Select
-                value={accountId}
-                onValueChange={setAccountId}
-              >
-                <SelectTrigger className="bg-white/5 border-white/10">
-                  <SelectValue placeholder="-- Select account --" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accountOptions.map(o => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {paymentOption === "gateway" && online.length === 0 && (
-                <p className="text-xs text-muted-foreground">No gateways enabled. Contact admin.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <FinanceFieldLabel tone="amount">Amount</FinanceFieldLabel>
+              <Input
+                type="number"
+                required
+                min={1}
+                max={isUpi && currency === "INR" ? UPI_MAX_INR_PER_TRANSACTION : undefined}
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                className={financeInputClass(upiOverLimit ? "border-red-500/50" : undefined)}
+              />
+              {isUpi && (
+                <p className={cn("text-[11px]", upiOverLimit ? "text-red-400" : "text-sky-600 dark:text-sky-400/90")}>
+                  UPI max ₹{formatUpiLimitInr()} per transaction
+                </p>
               )}
             </div>
-          )}
-
-          {paymentOption === "gateway" && accountId && (
-            <OnlineGatewayCheckoutPanel
-              compact
-              initialGatewayId={accountId}
-              onSuccess={() => {
-                setOpen(false);
-                onSuccess?.();
-              }}
-            />
-          )}
-
-          {paymentOption === "upi" && activeUpi && (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-3">
-              <p className="text-sm font-medium text-center">{activeUpi.name}</p>
-              {(activeUpi.qrCodeUrl || activeUpi.upiId) && (
-                <img
-                  src={activeUpi.qrCodeUrl || upiQrImageUrl(activeUpi.upiId!, activeUpi.name, manual.amount ? Number(manual.amount) : undefined)}
-                  alt="UPI QR"
-                  className="mx-auto max-h-40 rounded border border-white/10"
-                />
-              )}
-              {activeUpi.upiId && (
-                <>
-                  <CredentialRow label="UPI ID" value={activeUpi.upiId} mono />
-                  <a href={buildUpiPayUri(activeUpi.upiId, activeUpi.name)} className="inline-flex text-sm font-semibold text-black bg-amber-500 hover:bg-amber-600 px-4 py-2 rounded-md">
-                    Pay Now
-                  </a>
-                </>
-              )}
-            </div>
-          )}
-
-          {paymentOption === "bank" && activeBank && (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-0">
-              <p className="text-sm font-medium mb-2">{activeBank.name}</p>
-              <p className="text-xs text-muted-foreground mb-2 italic">IMPS · NEFT · RTGS · Wire Transfer</p>
-              <CredentialRow label="Account Holder" value={activeBank.accountHolderName} />
-              <CredentialRow label="Bank" value={activeBank.bankName} copyable={false} />
-              <CredentialRow label="Account No." value={activeBank.accountNumber} mono />
-              <CredentialRow label="IFSC" value={activeBank.ifscCode} mono />
-              <CredentialRow label="MICR" value={activeBank.micrCode} mono />
-              <CredentialRow label="SWIFT" value={activeBank.swiftCode} mono />
-              <CredentialRow label="Branch" value={activeBank.branchName} copyable={false} />
-            </div>
-          )}
-
-          {paymentOption === "crypto" && activeCryptoTab && (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-3">
-              <p className="text-sm font-medium">{activeCryptoTab.label}</p>
-              {activeCrypto ? (
-                <>
-                  {(activeCrypto.qrCodeUrl || activeCrypto.walletAddress) && (
-                    <img
-                      src={activeCrypto.qrCodeUrl || cryptoQrImageUrl(activeCrypto.walletAddress!)}
-                      alt="Wallet QR"
-                      className="mx-auto max-h-40 rounded border border-white/10"
-                    />
-                  )}
-                  <CredentialRow label="Coin" value={`${activeCrypto.symbol} (${activeCrypto.network})`} copyable={false} />
-                  <CredentialRow label="Address" value={activeCrypto.walletAddress} mono />
-                </>
-              ) : (
-                <p className="text-xs text-amber-400/80">Wallet not configured for {activeCryptoTab.label}.</p>
-              )}
-            </div>
-          )}
-
-          {paymentOption && paymentOption !== "gateway" && (
-            <form onSubmit={handleSubmit} className="space-y-3 pt-2 border-t border-white/10">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Amount</Label>
-                  <Input type="number" required min={1} value={manual.amount}
-                    onChange={e => setManual({ ...manual, amount: e.target.value })} className="bg-white/5 border-white/10" />
-                </div>
-                <div className="space-y-1">
-                  <Label>Currency</Label>
-                  <Select value={manual.currency} onValueChange={v => setManual({ ...manual, currency: v })}>
-                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {DEPOSIT_FIAT_CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            {!isCrypto && (
               <div className="space-y-1">
-                <Label>Promo code (optional)</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={manual.promoCode}
-                    onChange={e => setManual({ ...manual, promoCode: e.target.value.toUpperCase() })}
-                    placeholder="SAVE20"
-                    className="bg-white/5 border-white/10 uppercase"
-                  />
-                  <Button type="button" variant="outline" onClick={validatePromo} disabled={promoValidating || !manual.promoCode.trim()}>
-                    Apply
-                  </Button>
-                </div>
-                {promoDiscount != null && (
-                  <p className="text-xs text-green-400">Discount: {promoDiscount} {manual.currency}</p>
-                )}
+                <FinanceFieldLabel tone="currency">Currency</FinanceFieldLabel>
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger className={financeInputClass()}><SelectValue /></SelectTrigger>
+                  <SelectContent className="border-border bg-popover">
+                    {DEPOSIT_FIAT_CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-1">
-                <Label>{paymentOption === "crypto" ? "Transaction Hash / TX ID" : "UTR / Reference Number"}</Label>
+            )}
+          </div>
+
+          {!isCrypto && (
+            <div className="space-y-1">
+              <FinanceFieldLabel tone="proof">Promo code (optional)</FinanceFieldLabel>
+              <div className="flex flex-wrap gap-2">
                 <Input
-                  required={paymentOption === "crypto"}
-                  placeholder={paymentOption === "crypto" ? "Blockchain transaction hash" : "Payment reference"}
-                  value={manual.utrReference}
-                  onChange={e => setManual({ ...manual, utrReference: e.target.value })}
-                  className="bg-white/5 border-white/10 font-mono text-sm"
+                  value={promoCode}
+                  onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                  placeholder="SAVE20"
+                  className={cn(financeInputClass("uppercase"), "min-w-0 flex-1")}
                 />
+                <Button type="button" variant="outline" className="shrink-0" onClick={validatePromo} disabled={promoValidating || !promoCode.trim()}>
+                  Apply
+                </Button>
               </div>
-              {paymentOption !== "crypto" && (
-                <div className="space-y-1">
-                  <Label>Payment proof (screenshot)</Label>
-                  <Input ref={proofRef} type="file" accept="image/*,.pdf" className="bg-white/5 border-white/10" />
-                </div>
+              {promoDiscount != null && (
+                <p className="text-xs text-green-700 dark:text-green-400">Discount: {promoDiscount} {currency}</p>
               )}
-              <Button type="submit" disabled={loading} className="w-full bg-amber-500 text-black font-semibold">
-                {loading ? "Submitting..." : <><Upload className="h-4 w-4 mr-2 inline" />Submit for Verification</>}
-              </Button>
-            </form>
+            </div>
           )}
+
+          <ExchangeDepositProofPanel
+            mode={proofMode}
+            utr={utr}
+            onUtrChange={setUtr}
+            txHash={utr}
+            onTxHashChange={setUtr}
+            proofFile={proofFile}
+            onProofFileChange={setProofFile}
+            disabled={loading}
+          />
+
+          <Button
+            type="submit"
+            size="wrap"
+            disabled={loading || !accountId || !proofReady || upiOverLimit}
+            className={cn("w-full font-bold", DEPOSIT_BUTTON_CLASS, mobileBtnWrap)}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Upload className="h-4 w-4 shrink-0" />}
+            <span>Submit deposit for verification</span>
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+type DialogProps = FormProps & {
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+/** @deprecated alias — use WalletDepositForm */
+export const DepositDialogForm = WalletDepositForm;
+
+export function DepositDialog({ onSuccess, trigger, open, onOpenChange }: DialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const dialogOpen = isControlled ? open : internalOpen;
+  const setDialogOpen = isControlled ? onOpenChange! : setInternalOpen;
+
+  return (
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button className={DEPOSIT_BUTTON_CLASS}>
+              <ArrowDownLeft className="mr-2 h-4 w-4" /> Deposit
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
+      <DialogContent className="dialog-scroll-content bg-background border-border dark:border-white/10 max-w-xl w-[calc(100vw-2rem)] overflow-x-hidden p-0 gap-0">
+        <DialogHeader className="px-4 pt-4 sm:px-6">
+          <DialogTitle>Deposit Funds</DialogTitle>
+          <DialogDescription>UPI, bank transfer, payment gateway, or crypto — same flow as Buy Crypto.</DialogDescription>
+        </DialogHeader>
+        <div className="dialog-form-inner px-4 pb-4 sm:px-6 sm:pb-6 min-w-0">
+          <WalletDepositForm
+            compact
+            onSuccess={() => {
+              setDialogOpen(false);
+              onSuccess?.();
+            }}
+          />
         </div>
       </DialogContent>
     </Dialog>

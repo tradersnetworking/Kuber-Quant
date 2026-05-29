@@ -1,36 +1,63 @@
 import { Router } from "express";
-import { db, usersTable, investmentsTable, transactionsTable, copyFollowsTable, algoSubscriptionsTable, walletLedgerTable } from "@workspace/db";
-import { eq, and, desc, gte, inArray } from "drizzle-orm";
+import { db, dbRead, usersTable, investmentsTable, transactionsTable, copyFollowsTable, algoSubscriptionsTable, walletLedgerTable } from "@workspace/db";
+import { eq, and, desc, inArray } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { handleGetWatchlist, handleSaveWatchlist } from "../helpers/watchlistHandlers";
 import { clearMarketTickerCache } from "../helpers/marketCache";
 import { getWalletFinancialSummary } from "../helpers/walletService";
 import { getExchangeRates, usdToInr } from "../helpers/exchangeRateService";
+import { computePlatformFinancialStats, parseQueryDateRange, daysForChartRange, inDateRange } from "../helpers/platformStatsService";
+import { computePlatformFiatAudit } from "../helpers/platformLedgerAuditService";
+import { computeDashboardInsights, computeMonthlyReturns } from "../helpers/dashboardInsightsService";
+import { buildPortfolioChartSeries } from "../helpers/ledgerBalanceUtils";
 
 const router = Router();
 
 router.get("/summary", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
+  const { from, to, label: statsPeriodLabel } = parseQueryDateRange({
+    period: (req.query.period as string | undefined) || "day",
+    from: req.query.from as string | undefined,
+    to: req.query.to as string | undefined,
+  });
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
   const walletSummary = await getWalletFinancialSummary(userId);
 
-  const investments = await db.select().from(investmentsTable).where(eq(investmentsTable.userId, userId));
+  const investments = await dbRead.select().from(investmentsTable).where(eq(investmentsTable.userId, userId));
   const activeInvestments = investments.filter(i => i.status === "active");
-  const totalInvested = investments.reduce((s, i) => s + Number(i.amount), 0);
-  const investmentProfit = investments.reduce((s, i) => s + Number(i.profit), 0);
   const activeInvested = activeInvestments.reduce((s, i) => s + Number(i.amount), 0);
+  const lifetimeInvested = investments.reduce((s, i) => s + Number(i.amount), 0);
 
   const follows = await db.select().from(copyFollowsTable)
     .where(and(eq(copyFollowsTable.userId, userId), eq(copyFollowsTable.active, true)));
   const algoSubs = await db.select().from(algoSubscriptionsTable)
     .where(and(eq(algoSubscriptionsTable.userId, userId), eq(algoSubscriptionsTable.active, true)));
 
-  const combinedProfit = walletSummary.totalProfit + investmentProfit;
-  const totalPortfolio = walletSummary.totalBalance + activeInvested + investmentProfit;
+  const userTxns = await dbRead.select().from(transactionsTable).where(eq(transactionsTable.userId, userId));
+  const [txnTotals, periodTotals, fiatAudit] = await Promise.all([
+    computePlatformFinancialStats({
+      transactions: userTxns,
+      investments: [],
+      from: null,
+      to: null,
+    }),
+    computePlatformFinancialStats({
+      transactions: userTxns,
+      investments: [],
+      from,
+      to,
+    }),
+    computePlatformFiatAudit({ from, to, investorIds: [userId] }),
+  ]);
+
+  const totalPortfolio = walletSummary.totalBalance + activeInvested;
+  const totalProfit = walletSummary.totalProfit;
   const fx = await getExchangeRates();
+  const insights = await computeDashboardInsights(userId);
+  const totalInvested = activeInvested;
 
   res.json({
     totalBalance: walletSummary.totalBalance,
@@ -41,10 +68,47 @@ router.get("/summary", requireAuth, async (req, res) => {
     cryptoBalance: walletSummary.cryptoBalance,
     totalDeposited: walletSummary.totalDeposited,
     totalWithdrawn: walletSummary.totalWithdrawn,
-    totalProfit: combinedProfit,
-    totalProfitInr: usdToInr(combinedProfit, fx),
+    totalFiatDeposits: txnTotals.totalFiatDeposits,
+    totalFiatWithdrawals: txnTotals.totalFiatWithdrawals,
+    totalCryptoDeposits: txnTotals.totalCryptoDeposits,
+    totalCryptoWithdrawals: txnTotals.totalCryptoWithdrawals,
+    totalFiatDepositsInr: usdToInr(txnTotals.totalFiatDeposits, fx),
+    totalFiatWithdrawalsInr: usdToInr(txnTotals.totalFiatWithdrawals, fx),
+    totalCryptoDepositsInr: usdToInr(txnTotals.totalCryptoDeposits, fx),
+    totalCryptoWithdrawalsInr: usdToInr(txnTotals.totalCryptoWithdrawals, fx),
+    monthFiatDeposits: fiatAudit.periodDeposits,
+    monthFiatWithdrawals: fiatAudit.periodWithdrawals,
+    monthCryptoDeposits: periodTotals.totalCryptoDeposits,
+    monthCryptoWithdrawals: periodTotals.totalCryptoWithdrawals,
+    monthFiatDepositsInr: usdToInr(fiatAudit.periodDeposits, fx),
+    monthFiatWithdrawalsInr: usdToInr(fiatAudit.periodWithdrawals, fx),
+    monthCryptoDepositsInr: usdToInr(periodTotals.totalCryptoDeposits, fx),
+    monthCryptoWithdrawalsInr: usdToInr(periodTotals.totalCryptoWithdrawals, fx),
+    periodFiatDeposits: fiatAudit.periodDeposits,
+    periodFiatWithdrawals: fiatAudit.periodWithdrawals,
+    periodCryptoDeposits: periodTotals.totalCryptoDeposits,
+    periodCryptoWithdrawals: periodTotals.totalCryptoWithdrawals,
+    periodFiatDepositsInr: usdToInr(fiatAudit.periodDeposits, fx),
+    periodFiatWithdrawalsInr: usdToInr(fiatAudit.periodWithdrawals, fx),
+    periodCryptoDepositsInr: usdToInr(periodTotals.totalCryptoDeposits, fx),
+    periodCryptoWithdrawalsInr: usdToInr(periodTotals.totalCryptoWithdrawals, fx),
+    periodInvested: fiatAudit.periodInvestmentOut,
+    periodInvestedInr: usdToInr(fiatAudit.periodInvestmentOut, fx),
+    periodMaturityProfits: fiatAudit.periodMaturityProfits,
+    periodMaturityProfitsInr: usdToInr(fiatAudit.periodMaturityProfits, fx),
+    fiatBalanceAudit: fiatAudit,
+    statsPeriodLabel,
+    totalProfit,
+    totalProfitInr: usdToInr(totalProfit, fx),
     totalInvested,
+    totalInvestedInr: usdToInr(totalInvested, fx),
+    lifetimeInvested,
+    lifetimeInvestedInr: usdToInr(lifetimeInvested, fx),
     activeInvested,
+    activeInvestedInr: usdToInr(activeInvested, fx),
+    ledgerInvestedNet: walletSummary.totalInvested,
+    ledgerInvestedOut: walletSummary.totalInvestedOut,
+    ledgerInvestmentReturns: walletSummary.totalInvestmentReturns,
     netLedgerFlow: walletSummary.netLedgerFlow,
     balanceSource: walletSummary.source,
     exchangeRates: {
@@ -55,73 +119,101 @@ router.get("/summary", requireAuth, async (req, res) => {
       source: fx.source,
     },
     activeInvestments: activeInvestments.length,
-    profitPercentage: totalInvested > 0 ? (investmentProfit / totalInvested) * 100 : 0,
+    profitPercentage: lifetimeInvested > 0
+      ? Number(((totalProfit / lifetimeInvested) * 100).toFixed(2))
+      : 0,
     followedTraders: follows.length,
     activeAlgoStrategies: algoSubs.length,
     referralEarnings: Number(user.referralEarnings),
+    monthPortfolioChangePct: insights.monthPortfolioChangePct,
+    monthProfitChangePct: insights.monthProfitChangePct,
+    thisMonthProfit: insights.thisMonthProfit,
+    thisMonthProfitInr: usdToInr(insights.thisMonthProfit, fx),
+    pendingActions: insights.pendingActions,
+    nextPayoutDate: insights.nextPayoutDate,
+    nextPayoutAmountUsd: insights.nextPayoutAmountUsd,
+    nextPayoutAmountInr: insights.nextPayoutAmountUsd != null
+      ? usdToInr(insights.nextPayoutAmountUsd, fx)
+      : null,
+    nextPayoutPlanName: insights.nextPayoutPlanName,
+    nextPayoutInvestmentId: insights.nextPayoutInvestmentId,
+    nextPayoutDaysUntil: insights.nextPayoutDaysUntil,
+    portfolioAllocation: insights.portfolioAllocation,
   });
+});
+
+router.get("/monthly-returns", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const points = await computeMonthlyReturns(userId);
+  res.json(points);
 });
 
 router.get("/portfolio-chart", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
+  const { from, to } = parseQueryDateRange({
+    period: (req.query.period as string | undefined) || "day",
+    from: req.query.from as string | undefined,
+    to: req.query.to as string | undefined,
+  });
+  const days = daysForChartRange(from, to, 30);
 
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const [walletSummary, investments, ledgerRows] = await Promise.all([
+    getWalletFinancialSummary(userId),
+    dbRead.select().from(investmentsTable).where(eq(investmentsTable.userId, userId)),
+    dbRead.select().from(walletLedgerTable)
+      .where(eq(walletLedgerTable.userId, userId))
+      .orderBy(walletLedgerTable.createdAt),
+  ]);
 
-  const ledger = await db.select().from(walletLedgerTable)
-    .where(and(eq(walletLedgerTable.userId, userId), gte(walletLedgerTable.createdAt, thirtyDaysAgo)))
-    .orderBy(walletLedgerTable.createdAt);
+  const activeInvested = investments
+    .filter(i => i.status === "active")
+    .reduce((s, i) => s + Number(i.amount), 0);
+  const currentTotalPortfolio = walletSummary.totalBalance + activeInvested;
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  const currentBalance = user
-    ? (await getWalletFinancialSummary(userId)).totalBalance
-    : 0;
+  const filteredLedger = ledgerRows.filter(r => inDateRange(r.createdAt, from, to));
 
-  if (ledger.length === 0) {
+  if (filteredLedger.length === 0 && ledgerRows.length === 0) {
     const txns = await db.select().from(transactionsTable)
       .where(and(eq(transactionsTable.userId, userId), eq(transactionsTable.status, "approved")))
       .orderBy(transactionsTable.createdAt);
 
+    const rangeTxns = txns.filter(t => inDateRange(t.createdAt, from, to));
     let running = 0;
     const points: { date: string; value: number }[] = [];
-    const now = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
+    const endDate = to ?? new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(endDate);
+      d.setUTCDate(d.getUTCDate() - i);
       const dayStr = d.toISOString().slice(0, 10);
-      const dayTxns = txns.filter(t => t.createdAt.toISOString().slice(0, 10) <= dayStr);
+      const dayTxns = rangeTxns.filter(t => t.createdAt.toISOString().slice(0, 10) <= dayStr);
       running = dayTxns.reduce((s, t) => {
         const amt = Number(t.amount);
         return t.type === "deposit" ? s + amt : s - amt;
       }, 0);
       points.push({ date: dayStr, value: Math.max(0, running) });
     }
-    if (points.length) points[points.length - 1].value = currentBalance;
+    if (points.length) points[points.length - 1].value = currentTotalPortfolio;
     res.json(points);
     return;
   }
 
-  const byDay = new Map<string, number>();
-  for (const entry of ledger) {
-    const day = entry.createdAt.toISOString().slice(0, 10);
-    byDay.set(day, Number(entry.balanceAfter));
-  }
-
-  const points: { date: string; value: number }[] = [];
-  const now = new Date();
-  let lastValue = currentBalance;
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const dayStr = d.toISOString().slice(0, 10);
-    if (byDay.has(dayStr)) lastValue = byDay.get(dayStr)!;
-    points.push({ date: dayStr, value: lastValue });
-  }
+  const points = buildPortfolioChartSeries({
+    ledgerRows: filteredLedger.length ? filteredLedger : ledgerRows,
+    investments,
+    days,
+    currentTotalPortfolio,
+  });
   res.json(points);
 });
 
 router.get("/recent-activity", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
+  const { from, to } = parseQueryDateRange({
+    period: (req.query.period as string | undefined) || "day",
+    from: req.query.from as string | undefined,
+    to: req.query.to as string | undefined,
+  });
+  const limit = Math.min(Number(req.query.limit) || 8, 50);
 
   const txns = await db.select().from(transactionsTable)
     .where(and(
@@ -129,9 +221,12 @@ router.get("/recent-activity", requireAuth, async (req, res) => {
       inArray(transactionsTable.type, ["deposit", "withdrawal"]),
     ))
     .orderBy(desc(transactionsTable.createdAt))
-    .limit(8);
+    .limit(200);
 
-  const activities = txns.map((t) => ({
+  const activities = txns
+    .filter(t => inDateRange(t.createdAt, from, to))
+    .slice(0, limit)
+    .map((t) => ({
     id: t.id,
     transactionId: t.id,
     type: t.type,

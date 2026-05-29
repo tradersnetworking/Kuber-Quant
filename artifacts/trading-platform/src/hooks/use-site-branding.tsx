@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { DEFAULT_BRAND_LOGO_URL, resolveBrandLogoUrl } from "@/lib/brand-assets";
+import { publicFetchJson } from "@/lib/api-fetch";
+import { resolveBrandLogoUrl } from "@/lib/brand-assets";
 
 export type SiteBranding = {
   titleGold: string;
@@ -28,11 +29,7 @@ async function fetchSiteBranding(): Promise<SiteBranding> {
   if (cachedBranding) return cachedBranding;
   if (brandingPromise) return brandingPromise;
 
-  brandingPromise = fetch("/api/branding")
-    .then(async (res) => {
-      if (!res.ok) throw new Error("Failed to load branding");
-      return res.json() as Promise<SiteBranding>;
-    })
+  brandingPromise = publicFetchJson<SiteBranding>("/branding")
     .then((data) => {
       cachedBranding = {
         ...DEFAULT_SITE_BRANDING,

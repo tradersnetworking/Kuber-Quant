@@ -19,5 +19,23 @@ module.exports = {
         SERVE_SPA: "false",
       },
     },
+    {
+      name: "kuber-quant-worker",
+      script: "artifacts/api-server/dist/worker.mjs",
+      cwd: "/app",
+      node_args: "--enable-source-maps",
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      max_memory_restart: process.env.PM2_WORKER_MAX_MEMORY || "512M",
+      error_file: "/app/logs/pm2-worker-error.log",
+      out_file: "/app/logs/pm2-worker-out.log",
+      merge_logs: true,
+      time: true,
+      env: {
+        NODE_ENV: "production",
+        WORKER_MODE: "true",
+      },
+    },
   ],
 };

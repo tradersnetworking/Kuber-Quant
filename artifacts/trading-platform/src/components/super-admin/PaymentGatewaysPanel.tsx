@@ -8,26 +8,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PaymentMethodTabsList, PaymentMethodTabsTrigger } from "@/components/wallet/PaymentMethodField";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Plus, Edit2, Trash2, RefreshCw, QrCode, Building2, Wallet, Globe } from "lucide-react";
+import { CreditCard, Plus, Edit2, Trash2, RefreshCw, QrCode, Building2, Wallet, Globe, Loader2 } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
 import { CredentialRow } from "@/components/wallet/CredentialRow";
-import { enrichDepositAccount, ONLINE_GATEWAY_CATALOG, getOnlineGatewayMeta, isOnlineGatewayType, type DepositAccount } from "@/components/wallet/deposit-account-utils";
-import { CRYPTO_SYMBOLS, defaultNetworkForSymbol, networksForSymbol, USDT_CHAINS } from "@/components/wallet/crypto-networks";
+import { enrichDepositAccount, ONLINE_GATEWAY_CATALOG, getOnlineGatewayMeta, isOnlineGatewayType, type DepositAccount, minAmountLabelForGatewayType, formatGatewayMinAmount } from "@/components/wallet/deposit-account-utils";
+import { formatCryptoAssetLabel } from "@/components/wallet/crypto-asset-catalog";
+import { CryptoAssetPicker } from "@/components/wallet/CryptoAssetPicker";
+import { CryptoAssetIcon } from "@/components/wallet/CryptoAssetIcon";
+import { upiQrImageUrl, cryptoQrImageUrl, resolveDepositQrSrc, publicAssetUrl } from "@/components/wallet/deposit-account-utils";
+import { QrImage } from "@/components/wallet/QrImage";
+import { DepositQrUploadField } from "@/components/super-admin/DepositQrUploadField";
+import { CryptoWalletsOverviewTable } from "@/components/super-admin/CryptoWalletsOverviewTable";
+import { STAFF_PAGE_STACK, STAFF_HEADER_ROW, STAFF_CARD, STAFF_FORM_GRID, STAFF_CHART_GRID } from "@/lib/staff-dashboard-ui";
+import { cn } from "@/lib/utils";
 
-const USDT_CRYPTO_PRESETS = [
-  { label: "USDT TRC20", symbol: "USDT", network: "TRC20", name: "USDT (TRC20)" },
-  { label: "USDT ERC20", symbol: "USDT", network: "ERC20", name: "USDT (ERC20)" },
-  { label: "USDT BEP20", symbol: "USDT", network: "BEP20", name: "USDT (BEP20)" },
-] as const;
+const DEPOSIT_WITHDRAWAL_TITLE = "Deposit & Withdrawal Payment Accounts";
 
 type GwForm = {
   name: string;
   type: string;
   symbol: string;
   network: string;
+  coinName: string;
   description: string;
   walletAddress: string;
   upiId: string;
@@ -51,7 +57,7 @@ type GwForm = {
 };
 
 const emptyForm = (type: string): GwForm => ({
-  name: "", type, symbol: type === "crypto" ? "USDT" : "", network: type === "crypto" ? "TRC20" : "",
+  name: "", type, symbol: type === "crypto" ? "USDT" : "", network: type === "crypto" ? "TRC20" : "", coinName: type === "crypto" ? "Tether USD" : "",
   description: "", walletAddress: "", upiId: "", qrCodeUrl: "", minAmount: 10, isEnabled: true, sortOrder: 0,
   accountHolderName: "", bankName: "", accountNumber: "", ifscCode: "", branchName: "",
   accountType: "Current", swiftCode: "", micrCode: "", badge: "", note: "", logoUrl: "",
@@ -67,6 +73,7 @@ function formFromGateway(gw: DepositAccount, type: string): GwForm {
     type: gw.type,
     symbol: gw.symbol || "",
     network: gw.network || "",
+    coinName: ec.coinName || gw.extraConfig?.coinName || "",
     description: gw.description || "",
     walletAddress: gw.walletAddress || "",
     upiId: gw.upiId || "",
@@ -91,27 +98,52 @@ function formFromGateway(gw: DepositAccount, type: string): GwForm {
 }
 
 function buildPayload(form: GwForm) {
+  const trim = (v: string) => v.trim();
   const extraConfig: Record<string, string> = {};
   if (form.type === "bank") {
     Object.assign(extraConfig, {
-      accountHolderName: form.accountHolderName,
-      bankName: form.bankName || form.name,
-      accountNumber: form.accountNumber,
-      ifscCode: form.ifscCode,
-      branchName: form.branchName,
-      accountType: form.accountType,
-      swiftCode: form.swiftCode,
-      micrCode: form.micrCode,
+      accountHolderName: trim(form.accountHolderName),
+      bankName: trim(form.bankName || form.name),
+      accountNumber: trim(form.accountNumber),
+      ifscCode: trim(form.ifscCode).toUpperCase(),
+      branchName: trim(form.branchName),
+      accountType: trim(form.accountType),
+      swiftCode: trim(form.swiftCode),
+      micrCode: trim(form.micrCode),
     });
   }
-  if (form.badge) extraConfig.badge = form.badge;
-  if (form.note) extraConfig.note = form.note;
-  if (form.logoUrl) extraConfig.logoUrl = form.logoUrl;
+  if (form.badge.trim()) extraConfig.badge = trim(form.badge);
+  if (form.note.trim()) extraConfig.note = trim(form.note);
+  if (form.logoUrl.trim()) extraConfig.logoUrl = trim(form.logoUrl);
+  if (form.type === "crypto" && form.coinName.trim()) extraConfig.coinName = trim(form.coinName);
   if (isOnlineGatewayType(form.type)) {
-    if (form.merchantId) extraConfig.merchantId = form.merchantId;
-    if (form.publicKey) extraConfig.publicKey = form.publicKey;
+    if (form.merchantId.trim()) extraConfig.merchantId = trim(form.merchantId);
+    if (form.publicKey.trim()) extraConfig.publicKey = trim(form.publicKey);
   }
-  return { ...form, extraConfig };
+
+  const payload: Record<string, unknown> = {
+    name: trim(form.name),
+    type: form.type,
+    description: trim(form.description) || null,
+    minAmount: form.minAmount,
+    isEnabled: form.isEnabled,
+    sortOrder: form.sortOrder,
+    extraConfig,
+  };
+
+  if (form.type === "upi") {
+    payload.upiId = trim(form.upiId).toLowerCase();
+    payload.qrCodeUrl = trim(form.qrCodeUrl) || null;
+  } else if (form.type === "bank") {
+    payload.qrCodeUrl = trim(form.qrCodeUrl) || null;
+  } else if (form.type === "crypto") {
+    payload.symbol = trim(form.symbol).toUpperCase();
+    payload.network = trim(form.network);
+    payload.walletAddress = trim(form.walletAddress);
+    payload.qrCodeUrl = trim(form.qrCodeUrl) || null;
+  }
+
+  return payload;
 }
 
 function AdminAccountCard({
@@ -127,27 +159,37 @@ function AdminAccountCard({
 }) {
   const a = enrichDepositAccount(gw);
   return (
-    <Card className="bg-white/5 border-white/10">
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-semibold">{a.name}</p>
-              {a.badge && <Badge className="text-[10px] bg-amber-500/20 text-amber-400">{a.badge}</Badge>}
+    <Card className={cn(STAFF_CARD, "min-w-0 overflow-hidden")}>
+      <CardContent className="p-4 space-y-3 mobile-box-safe">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 min-w-0">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <p className="font-semibold truncate">{a.name}</p>
+              {a.badge && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400">{a.badge}</Badge>}
               {!a.isEnabled && <Badge variant="outline" className="text-[10px]">Disabled</Badge>}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">Min ${a.minAmount} · Order {a.sortOrder}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{formatGatewayMinAmount(a.type, a.minAmount)} · Order {a.sortOrder}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-start flex-wrap">
             <Switch checked={a.isEnabled} onCheckedChange={onToggle} />
             <Button size="icon" variant="outline" className="h-8 w-8" onClick={onEdit}><Edit2 className="h-3.5 w-3.5" /></Button>
             <Button size="icon" variant="outline" className="h-8 w-8 text-red-400" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
         </div>
 
-        <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-0">
+        <div className="rounded-lg border border-border dark:border-white/10 bg-muted/80 dark:bg-black/20 p-3 space-y-0">
           {a.type === "upi" && (
             <>
+              {(a.qrCodeUrl || a.upiId) && (
+                <div className="flex justify-center pb-2">
+                  <QrImage
+                    src={resolveDepositQrSrc({ qrCodeUrl: a.qrCodeUrl, upiId: a.upiId, payeeName: a.name })}
+                    fallbackSrc={a.upiId ? resolveDepositQrSrc({ upiId: a.upiId, payeeName: a.name }) : undefined}
+                    alt="UPI QR"
+                    className="h-24 w-24 object-contain rounded border border-border dark:border-white/10 bg-white p-1"
+                  />
+                </div>
+              )}
               <CredentialRow label="UPI ID" value={a.upiId} mono />
               {a.description && <CredentialRow label="Note" value={a.description} copyable={false} />}
             </>
@@ -166,7 +208,24 @@ function AdminAccountCard({
           )}
           {a.type === "crypto" && (
             <>
-              <CredentialRow label="Coin" value={`${a.symbol || "—"} (${a.network || "—"})`} copyable={false} />
+              <div className="flex items-center gap-2 pb-2 border-b border-border/80 dark:border-white/5 mb-1">
+                <CryptoAssetIcon symbol={a.symbol} network={a.network} coinName={a.extraConfig?.coinName} size="md" />
+                <div>
+                  <p className="text-sm font-semibold">{formatCryptoAssetLabel(a.symbol, a.network, a.extraConfig?.coinName)}</p>
+                  <p className="text-[11px] text-muted-foreground">{a.name}</p>
+                </div>
+              </div>
+              {(a.qrCodeUrl || a.walletAddress) && (
+                <div className="flex justify-center pb-2">
+                  <QrImage
+                    src={resolveDepositQrSrc({ qrCodeUrl: a.qrCodeUrl, walletAddress: a.walletAddress })}
+                    fallbackSrc={a.walletAddress ? resolveDepositQrSrc({ walletAddress: a.walletAddress }) : undefined}
+                    alt="Wallet QR"
+                    className="h-24 w-24 object-contain rounded border border-border dark:border-white/10 bg-white p-1"
+                  />
+                </div>
+              )}
+              <CredentialRow label="Coin" value={formatCryptoAssetLabel(a.symbol, a.network, a.extraConfig?.coinName)} copyable={false} />
               <CredentialRow label="Address" value={a.walletAddress} mono />
             </>
           )}
@@ -180,7 +239,7 @@ function AdminAccountCard({
               </p>
             </>
           )}
-          {a.note && <p className="text-[11px] text-amber-400/80 pt-2 border-t border-white/5">{a.note}</p>}
+          {a.note && <p className="text-[11px] text-amber-400/80 pt-2 border-t border-border/80 dark:border-white/5">{a.note}</p>}
         </div>
       </CardContent>
     </Card>
@@ -210,25 +269,26 @@ function AccountSection({
 }) {
   const items = gateways.filter(g => typeFilter(g.type));
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold flex items-center gap-2">
-            <Icon className="h-4 w-4 text-amber-400" /> {title}
-            <Badge variant="outline" className="text-[10px]">Multiple Supported</Badge>
+    <div className="space-y-4 min-w-0">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 min-w-0">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold flex flex-wrap items-center gap-2">
+            <Icon className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="min-w-0">{title}</span>
+            <Badge variant="outline" className="text-[10px] shrink-0">Multiple Supported</Badge>
           </h3>
-          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+          <p className="text-sm text-muted-foreground mt-1 break-words">{description}</p>
         </div>
-        <Button size="sm" className="bg-amber-500 text-black shrink-0" onClick={onAdd}>
+        <Button size="sm" className="bg-amber-500 text-black shrink-0 w-full md:w-auto" onClick={onAdd}>
           <Plus className="h-4 w-4 mr-1" /> Add
         </Button>
       </div>
       {items.length === 0 ? (
-        <Card className="bg-white/[0.02] border-dashed border-white/10 p-8 text-center text-sm text-muted-foreground">
+        <Card className="bg-muted/40 dark:bg-white/[0.02] border-dashed border-border dark:border-white/10 p-8 text-center text-sm text-muted-foreground">
           No {title.toLowerCase()} configured yet.
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className={STAFF_CHART_GRID}>
           {items.map(gw => (
             <AdminAccountCard
               key={gw.id}
@@ -252,6 +312,7 @@ export function PaymentGatewaysPanel() {
   const [editing, setEditing] = useState<DepositAccount | null>(null);
   const [form, setForm] = useState<GwForm>(emptyForm("upi"));
   const [tab, setTab] = useState("upi");
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -281,6 +342,18 @@ export function PaymentGatewaysPanel() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    if (form.type === "crypto") {
+      if (!form.symbol.trim() || !form.network.trim()) {
+        toast({ title: "Coin & chain required", description: "Select or enter a cryptocurrency and network.", variant: "destructive" });
+        return;
+      }
+      if (!form.walletAddress.trim()) {
+        toast({ title: "Wallet address required", variant: "destructive" });
+        return;
+      }
+    }
+    setSaving(true);
     try {
       const payload = buildPayload(form);
       if (editing) {
@@ -294,6 +367,8 @@ export function PaymentGatewaysPanel() {
       load();
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -320,31 +395,46 @@ export function PaymentGatewaysPanel() {
   if (loading) return <Skeleton className="h-48 w-full" />;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-purple-400" /> Deposit & Payment Accounts
+    <div className={cn(STAFF_PAGE_STACK, "min-w-0")}>
+      <div className={STAFF_HEADER_ROW}>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold flex flex-wrap items-center gap-2">
+            <CreditCard className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0" />
+            <span className="min-w-0">{DEPOSIT_WITHDRAWAL_TITLE}</span>
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Configure multiple UPI, bank, and crypto accounts for user deposits (like WP Payment Forms Pro). Users see copy buttons beside each credential.
+          <p className="text-sm text-muted-foreground break-words">
+            Configure UPI, bank, crypto, and online gateways for user deposits and withdrawal payouts. Crypto supports Trust Wallet–style coin/chain selection or custom tokens.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /></Button>
+        <Button variant="outline" size="sm" className="shrink-0 w-full md:w-auto" onClick={load}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto">
-          <TabsTrigger value="upi" className="gap-1"><QrCode className="h-3.5 w-3.5" /> UPI ({gateways.filter(g => g.type === "upi").length})</TabsTrigger>
-          <TabsTrigger value="bank" className="gap-1"><Building2 className="h-3.5 w-3.5" /> Bank ({gateways.filter(g => ["bank", "fiat"].includes(g.type)).length})</TabsTrigger>
-          <TabsTrigger value="crypto" className="gap-1"><Wallet className="h-3.5 w-3.5" /> Crypto ({gateways.filter(g => g.type === "crypto").length})</TabsTrigger>
-          <TabsTrigger value="online" className="gap-1"><Globe className="h-3.5 w-3.5" /> Online ({gateways.filter(g => isOnlineGatewayType(g.type)).length})</TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
+        <PaymentMethodTabsList className="mb-4">
+          <PaymentMethodTabsTrigger value="upi" tone="upi" className="gap-1.5">
+            <QrCode className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">UPI ({gateways.filter(g => g.type === "upi").length})</span>
+          </PaymentMethodTabsTrigger>
+          <PaymentMethodTabsTrigger value="bank" tone="bank" className="gap-1.5">
+            <Building2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Bank ({gateways.filter(g => ["bank", "fiat"].includes(g.type)).length})</span>
+          </PaymentMethodTabsTrigger>
+          <PaymentMethodTabsTrigger value="crypto" tone="crypto" className="gap-1.5">
+            <Wallet className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Crypto ({gateways.filter(g => g.type === "crypto").length})</span>
+          </PaymentMethodTabsTrigger>
+          <PaymentMethodTabsTrigger value="online" tone="gateway" className="gap-1.5">
+            <Globe className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Online ({gateways.filter(g => isOnlineGatewayType(g.type)).length})</span>
+          </PaymentMethodTabsTrigger>
+        </PaymentMethodTabsList>
 
         <TabsContent value="upi" className="mt-4">
           <AccountSection
             title="UPI / QR Accounts"
-            description="Add multiple UPI IDs. Customers copy the UPI ID or scan a dynamic QR when depositing."
+            description="Add multiple UPI IDs with optional QR images. Users scan the QR or copy the UPI ID to deposit."
             typeFilter={t => t === "upi"}
             gateways={gateways}
             icon={QrCode}
@@ -369,14 +459,24 @@ export function PaymentGatewaysPanel() {
           />
         </TabsContent>
 
-        <TabsContent value="crypto" className="mt-4">
-          <AccountSection
-            title="Cryptocurrency Wallets"
-            description="Add multiple coin/network wallets (USDT TRC20/ERC20/BEP20, BTC, ETH). Addresses are copyable with QR."
-            typeFilter={t => t === "crypto"}
+        <TabsContent value="crypto" className="mt-4 space-y-4 min-w-0">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 min-w-0">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold flex flex-wrap items-center gap-2">
+                <Wallet className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Cryptocurrency Wallets</span>
+                <Badge variant="outline" className="text-[10px] shrink-0">Multiple Supported</Badge>
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1 break-words">
+                All wallets listed here sync to Exchange admin rates and user Buy/Sell with coin icons and network/chain.
+              </p>
+            </div>
+            <Button size="sm" className="bg-amber-500 text-black shrink-0 w-full md:w-auto" onClick={() => openNew("crypto")}>
+              <Plus className="h-4 w-4 mr-1" /> Add wallet
+            </Button>
+          </div>
+          <CryptoWalletsOverviewTable
             gateways={gateways}
-            icon={Wallet}
-            onAdd={() => openNew("crypto")}
             onEdit={openEditGw}
             onDelete={remove}
             onToggle={toggle}
@@ -399,97 +499,73 @@ export function PaymentGatewaysPanel() {
       </Tabs>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[#050A14] border-white/10 max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="bg-background border-border dark:border-white/10 max-w-xl w-[calc(100vw-2rem)] p-0 gap-0 flex flex-col max-h-[min(90dvh,calc(100dvh-1.5rem))] overflow-hidden">
+          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0">
             <DialogTitle>{editing ? "Edit Account" : "Add Deposit Account"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={save} className="space-y-3">
+          <form onSubmit={save} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-2 space-y-3">
             <div className="space-y-1">
               <Label>Display Name *</Label>
-              <Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. PhonePe Business" className="bg-white/5 border-white/10" />
+              <Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. PhonePe Business" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
 
             {form.type === "upi" && (
               <>
-                <div className="space-y-1"><Label>UPI ID (VPA) *</Label><Input required value={form.upiId} onChange={e => setForm(f => ({ ...f, upiId: e.target.value }))} placeholder="merchant@ybl" className="bg-white/5 border-white/10 font-mono" /></div>
-                <div className="space-y-1"><Label>Static QR Image URL</Label><Input value={form.qrCodeUrl} onChange={e => setForm(f => ({ ...f, qrCodeUrl: e.target.value }))} placeholder="Optional — or dynamic QR generated for users" className="bg-white/5 border-white/10" /></div>
+                <div className="space-y-1"><Label>UPI ID (VPA) *</Label><Input required value={form.upiId} onChange={e => setForm(f => ({ ...f, upiId: e.target.value }))} placeholder="merchant@ybl" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" /></div>
+                <DepositQrUploadField
+                  inputId="upi-qr-upload"
+                  label="UPI QR code image"
+                  hint="QR is auto-generated when you save. Upload only if you want a custom static QR image."
+                  value={form.qrCodeUrl}
+                  onChange={url => setForm(f => ({ ...f, qrCodeUrl: url }))}
+                  fallbackPreview={form.upiId.trim() ? upiQrImageUrl(form.upiId.trim(), form.name || "UPI") : undefined}
+                />
               </>
             )}
 
             {form.type === "bank" && (
-              <div className="space-y-2 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
-                <Input required placeholder="Bank name *" value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} className="bg-white/5 border-white/10" />
-                <Input required placeholder="Account holder name *" value={form.accountHolderName} onChange={e => setForm(f => ({ ...f, accountHolderName: e.target.value }))} className="bg-white/5 border-white/10" />
-                <Input required placeholder="Account number *" value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} className="bg-white/5 border-white/10 font-mono" />
-                <Input required placeholder="IFSC code *" value={form.ifscCode} onChange={e => setForm(f => ({ ...f, ifscCode: e.target.value }))} className="bg-white/5 border-white/10 font-mono" />
-                <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="Account type" value={form.accountType} onChange={e => setForm(f => ({ ...f, accountType: e.target.value }))} className="bg-white/5 border-white/10" />
-                  <Input placeholder="Branch" value={form.branchName} onChange={e => setForm(f => ({ ...f, branchName: e.target.value }))} className="bg-white/5 border-white/10" />
+              <div className="space-y-2 p-3 rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02]">
+                <Input required placeholder="Bank name *" value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+                <Input required placeholder="Account holder name *" value={form.accountHolderName} onChange={e => setForm(f => ({ ...f, accountHolderName: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+                <Input required placeholder="Account number *" value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" />
+                <Input required placeholder="IFSC code *" value={form.ifscCode} onChange={e => setForm(f => ({ ...f, ifscCode: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" />
+                <div className={cn(STAFF_FORM_GRID, "gap-2")}>
+                  <Input placeholder="Account type" value={form.accountType} onChange={e => setForm(f => ({ ...f, accountType: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+                  <Input placeholder="Branch" value={form.branchName} onChange={e => setForm(f => ({ ...f, branchName: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="MICR code" value={form.micrCode} onChange={e => setForm(f => ({ ...f, micrCode: e.target.value }))} className="bg-white/5 border-white/10 font-mono" />
-                  <Input placeholder="SWIFT (international)" value={form.swiftCode} onChange={e => setForm(f => ({ ...f, swiftCode: e.target.value }))} className="bg-white/5 border-white/10 font-mono" />
+                <div className={cn(STAFF_FORM_GRID, "gap-2")}>
+                  <Input placeholder="MICR code" value={form.micrCode} onChange={e => setForm(f => ({ ...f, micrCode: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" />
+                  <Input placeholder="SWIFT (international)" value={form.swiftCode} onChange={e => setForm(f => ({ ...f, swiftCode: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono" />
                 </div>
-                <Input placeholder="Bank QR image URL" value={form.qrCodeUrl} onChange={e => setForm(f => ({ ...f, qrCodeUrl: e.target.value }))} className="bg-white/5 border-white/10" />
+                <Input placeholder="Bank QR image URL" value={form.qrCodeUrl} onChange={e => setForm(f => ({ ...f, qrCodeUrl: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
               </div>
             )}
 
             {form.type === "crypto" && (
-              <div className="space-y-2 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Quick add USDT</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {USDT_CRYPTO_PRESETS.map(p => (
-                      <Button
-                        key={p.network}
-                        type="button"
-                        size="sm"
-                        variant={form.symbol === p.symbol && form.network === p.network ? "default" : "outline"}
-                        className={form.symbol === p.symbol && form.network === p.network ? "bg-amber-500 text-black" : "border-white/10"}
-                        onClick={() => setForm(f => ({
-                          ...f,
-                          name: f.name || p.name,
-                          symbol: p.symbol,
-                          network: p.network,
-                        }))}
-                      >
-                        {p.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label>Coin *</Label>
-                  <Select value={form.symbol} onValueChange={v => setForm(f => ({ ...f, symbol: v, network: defaultNetworkForSymbol(v) }))}>
-                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                    <SelectContent>{CRYPTO_SYMBOLS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Network / Chain *</Label>
-                  <Select value={form.network} onValueChange={v => setForm(f => ({ ...f, network: v }))}>
-                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue placeholder="Chain" /></SelectTrigger>
-                    <SelectContent>
-                      {(form.symbol.toUpperCase() === "USDT" ? USDT_CHAINS : networksForSymbol(form.symbol)).map(n => (
-                        <SelectItem key={n.value} value={n.value}>
-                          {n.label}{n.hint ? ` — ${n.hint}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {form.symbol.toUpperCase() === "USDT" && (
-                    <p className="text-[11px] text-muted-foreground">USDT supports TRC20 (Tron), ERC20 (Ethereum), and BEP20 (BNB Chain).</p>
-                  )}
-                </div>
+              <div className="space-y-3 p-3 rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02]">
+                <CryptoAssetPicker
+                  value={{ symbol: form.symbol, network: form.network, coinName: form.coinName }}
+                  onChange={next => setForm(f => ({ ...f, symbol: next.symbol, network: next.network, coinName: next.coinName }))}
+                  onAutoName={label => setForm(f => ({ ...f, name: f.name.trim() ? f.name : label }))}
+                />
                 <div className="space-y-1">
                   <Label>Wallet address *</Label>
-                  <Input required placeholder="Wallet address *" value={form.walletAddress} onChange={e => setForm(f => ({ ...f, walletAddress: e.target.value }))} className="bg-white/5 border-white/10 font-mono text-sm" />
+                  <Input required placeholder="Paste deposit / payout wallet address" value={form.walletAddress} onChange={e => setForm(f => ({ ...f, walletAddress: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm" />
                 </div>
+                <DepositQrUploadField
+                  inputId="crypto-qr-upload"
+                  label="Wallet QR code image"
+                  hint="QR is auto-generated when you save. Upload only if you want a custom static QR image."
+                  value={form.qrCodeUrl}
+                  onChange={url => setForm(f => ({ ...f, qrCodeUrl: url }))}
+                  fallbackPreview={form.walletAddress.trim() ? cryptoQrImageUrl(form.walletAddress.trim()) : undefined}
+                />
               </div>
             )}
 
             {isOnlineGatewayType(form.type) && (
-              <div className="space-y-2 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
+              <div className="space-y-2 p-3 rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02]">
                 <div className="space-y-1">
                   <Label>Gateway Provider *</Label>
                   <Select
@@ -504,7 +580,7 @@ export function PaymentGatewaysPanel() {
                       }));
                     }}
                   >
-                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {ONLINE_GATEWAY_CATALOG.map(g => (
                         <SelectItem key={g.type} value={g.type}>{g.label}</SelectItem>
@@ -518,22 +594,31 @@ export function PaymentGatewaysPanel() {
                 <p className="text-[11px] text-amber-400/80">
                   Server env: {getOnlineGatewayMeta(form.type)?.envVars.join(", ") || "—"}
                 </p>
-                <Input placeholder="Merchant ID (reference / display)" value={form.merchantId} onChange={e => setForm(f => ({ ...f, merchantId: e.target.value }))} className="bg-white/5 border-white/10 font-mono text-sm" />
-                <Input placeholder="Public Key / Client ID (reference only — secrets go in .env)" value={form.publicKey} onChange={e => setForm(f => ({ ...f, publicKey: e.target.value }))} className="bg-white/5 border-white/10 font-mono text-sm" />
+                <Input placeholder="Merchant ID (reference / display)" value={form.merchantId} onChange={e => setForm(f => ({ ...f, merchantId: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm" />
+                <Input placeholder="Public Key / Client ID (reference only — secrets go in .env)" value={form.publicKey} onChange={e => setForm(f => ({ ...f, publicKey: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm" />
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Min Amount ($)</Label><Input type="number" value={form.minAmount} onChange={e => setForm(f => ({ ...f, minAmount: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Sort Order</Label><Input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
+            <div className={STAFF_FORM_GRID}>
+              <div className="space-y-1"><Label>{minAmountLabelForGatewayType(form.type)}</Label><Input type="number" value={form.minAmount} onChange={e => setForm(f => ({ ...f, minAmount: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Sort Order</Label><Input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
             </div>
-            <Input placeholder="Badge (e.g. Recommended, Instant)" value={form.badge} onChange={e => setForm(f => ({ ...f, badge: e.target.value }))} className="bg-white/5 border-white/10" />
-            <Textarea placeholder="Note to customer (shown on deposit page)" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} className="bg-white/5 border-white/10" rows={2} />
+            <Input placeholder="Badge (e.g. Recommended, Instant)" value={form.badge} onChange={e => setForm(f => ({ ...f, badge: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+            <Textarea placeholder="Note to customer (shown on deposit page)" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" rows={2} />
             <div className="flex items-center gap-2">
               <Switch checked={form.isEnabled} onCheckedChange={v => setForm(f => ({ ...f, isEnabled: v }))} />
               <Label>Enabled — visible to users</Label>
             </div>
-            <DialogFooter><Button type="submit" className="bg-amber-500 text-black w-full">Save Account</Button></DialogFooter>
+            </div>
+            <DialogFooter className="shrink-0 gap-2 sm:gap-2">
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-amber-500 text-black w-full sm:flex-1" disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Save Account
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

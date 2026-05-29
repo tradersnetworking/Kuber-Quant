@@ -1,79 +1,102 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
+import { KpiStatCard } from "@/components/ui/KpiStatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, TrendingUp, DollarSign, Users2 } from "lucide-react";
 import { useGetAdminReferralStats } from "@workspace/api-client-react";
-
-function StatCard({ title, value, prefix = "", isLoading, icon }: {
-  title: string; value?: number; prefix?: string; isLoading: boolean; icon: React.ReactNode;
-}) {
-  return (
-    <Card className="bg-white/5 border-white/10">
-      <CardContent className="p-4 flex items-center gap-4">
-        <div className="p-2 rounded-lg bg-amber-500/10">{icon}</div>
-        <div>
-          {isLoading ? <Skeleton className="h-7 w-20 mb-1" /> : (
-            <p className="text-2xl font-bold">{prefix}{value?.toLocaleString() ?? "0"}</p>
-          )}
-          <p className="text-xs text-muted-foreground">{title}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import { STAFF_CARD, STAFF_HEADER_ROW, STAFF_PAGE_STACK, STAFF_STAT_GRID } from "@/lib/staff-dashboard-ui";
+import { cn } from "@/lib/utils";
 
 export function PlatformReferralsPanel() {
   const { data: stats, isLoading } = useGetAdminReferralStats();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Users2 className="h-5 w-5 text-pink-400" />
-          Referral Program
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Platform-wide referral growth and commissions paid to users and managers.
-        </p>
+    <div className={STAFF_PAGE_STACK}>
+      <div className={STAFF_HEADER_ROW}>
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Users2 className="h-5 w-5 text-pink-600 dark:text-pink-400 shrink-0" />
+            Referral Program
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Platform-wide referral growth and commissions paid to users and managers.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Total Referrals" value={stats?.totalReferrals} isLoading={isLoading} icon={<Users className="w-5 h-5 text-amber-500" />} />
-        <StatCard title="Commissions Paid" value={stats?.totalCommissionPaid} prefix="$" isLoading={isLoading} icon={<DollarSign className="w-5 h-5 text-amber-500" />} />
-        <StatCard title="Active Referrers" value={stats?.topReferrers?.length || 0} isLoading={isLoading} icon={<TrendingUp className="w-5 h-5 text-amber-500" />} />
+      <div className={STAFF_STAT_GRID}>
+        <KpiStatCard
+          label="Total Referrals"
+          value={stats?.totalReferrals?.toLocaleString() ?? "0"}
+          loading={isLoading}
+          icon={<Users className="h-4 w-4" />}
+          iconClassName="text-amber-600 dark:text-amber-400"
+          compact
+        />
+        <KpiStatCard
+          label="Commissions Paid"
+          value={`$${Number(stats?.totalCommissionPaid || 0).toLocaleString()}`}
+          loading={isLoading}
+          icon={<DollarSign className="h-4 w-4" />}
+          iconClassName="text-emerald-600 dark:text-emerald-400"
+          compact
+        />
+        <KpiStatCard
+          label="Active Referrers"
+          value={stats?.topReferrers?.length ?? 0}
+          loading={isLoading}
+          icon={<TrendingUp className="h-4 w-4" />}
+          iconClassName="text-blue-600 dark:text-blue-400"
+          compact
+        />
       </div>
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className={cn(STAFF_CARD, "bg-muted/60 dark:bg-white/5")}>
         <CardHeader>
           <CardTitle className="text-base">Top Referrers</CardTitle>
           <CardDescription>Users and managers driving platform growth</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           {isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3].map(n => <Skeleton key={n} className="h-10 w-full" />)}
             </div>
           ) : stats?.topReferrers?.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/10">
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="text-right">Referrals</TableHead>
-                  <TableHead className="text-right">Earned</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.topReferrers.map((r: any) => (
-                  <TableRow key={r.userId} className="border-white/5">
-                    <TableCell className="font-medium">{r.fullName}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.email}</TableCell>
-                    <TableCell className="text-right">{r.referralCount}</TableCell>
-                    <TableCell className="text-right text-green-400">${Number(r.totalEarned || 0).toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ResponsiveDataView
+              caption="Top referrers"
+              data={stats.topReferrers}
+              rowKey={r => r.userId}
+              rowClassName="border-border/80 dark:border-white/5"
+              columns={[
+                {
+                  key: "user",
+                  header: "User",
+                  mobileTitle: true,
+                  cell: r => <span className="font-medium">{r.userName}</span>,
+                },
+                {
+                  key: "email",
+                  header: "Email",
+                  hideOnMobile: true,
+                  cellClassName: "text-muted-foreground",
+                  cell: r => `#${r.userId}`,
+                },
+                {
+                  key: "referrals",
+                  header: "Referrals",
+                  headerClassName: "text-right",
+                  cellClassName: "text-right tabular-nums",
+                  cell: r => r.referralCount,
+                },
+                {
+                  key: "earned",
+                  header: "Earned",
+                  headerClassName: "text-right",
+                  cellClassName: "text-right text-green-700 dark:text-green-400 tabular-nums",
+                  cell: r => `$${Number(r.earnings || 0).toFixed(2)}`,
+                },
+              ]}
+            />
           ) : (
             <p className="text-sm text-muted-foreground py-8 text-center">No referral data yet</p>
           )}

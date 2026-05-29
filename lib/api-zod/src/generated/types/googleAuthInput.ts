@@ -8,4 +8,6 @@
 
 export interface GoogleAuthInput {
   idToken: string;
+  /** Optional referral code to attribute a new Google signup */
+  referralCode?: string;
 }

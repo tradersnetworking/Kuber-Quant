@@ -1,4 +1,5 @@
-import { useGetManagerStats } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +15,21 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { motion } from "framer-motion";
-import { useManagerAnalytics } from "@/lib/staff-api";
+import { cn } from "@/lib/utils";
+import { useManagerAnalytics, staffFetch } from "@/lib/staff-api";
+import { CalendarPeriodFilter } from "@/components/finance/CalendarPeriodFilter";
+import { PeriodFinanceKpiGrid } from "@/components/finance/PeriodFinanceKpiGrid";
+import { appendPeriodQuery, defaultStaffFinancePeriod, todayIso } from "@/lib/finance-period";
 import { formatActivityTime } from "@/lib/format-activity-time";
 import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
 import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
 import { SafeBoundary } from "@/components/SafeBoundary";
+import { StaffEscalationsPanel } from "@/components/staff/StaffEscalationsPanel";
+import { StaffDashboardStatCard } from "@/components/staff/StaffDashboardStatCard";
+import { StaffQuickLinkTile } from "@/components/staff/StaffQuickLinkTile";
+import { STAFF_PAGE_STACK, STAFF_CARD, STAFF_STAT_GRID, STAFF_CHART_GRID, STAFF_DASHBOARD_SPLIT, STAFF_DASHBOARD_MAIN, STAFF_DASHBOARD_SIDE, STAFF_QUICK_ACTIONS_GRID, STAFF_LIST_ROW } from "@/lib/staff-dashboard-ui";
+import type { StaffStatTone } from "@/lib/staff-dashboard-ui";
+import { AppPage } from "@/components/layout/AppPage";
 
 const FALLBACK_CASH_FLOW = [
   { day: "Mon", deposits: 0, withdrawals: 0 },
@@ -38,24 +49,24 @@ const FALLBACK_INVESTOR_GROWTH = [
 ];
 
 const TYPE_CONFIG: Record<string, { icon: any; color: string; bg: string; label: string }> = {
-  deposit:    { icon: ArrowUpRight,  color: "text-green-400",  bg: "bg-green-500/10",  label: "Deposit" },
+  deposit:    { icon: ArrowUpRight,  color: "text-green-700 dark:text-green-400",  bg: "bg-green-500/10",  label: "Deposit" },
   withdrawal: { icon: ArrowDownLeft, color: "text-red-400",    bg: "bg-red-500/10",    label: "Withdrawal" },
-  kyc:        { icon: ShieldCheck,   color: "text-amber-400",  bg: "bg-amber-500/10",  label: "KYC" },
-  support:    { icon: Ticket,        color: "text-blue-400",   bg: "bg-blue-500/10",   label: "Support" },
+  kyc:        { icon: ShieldCheck,   color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-500/10",  label: "KYC" },
+  support:    { icon: Ticket,        color: "text-blue-600 dark:text-blue-400",   bg: "bg-blue-500/10",   label: "Support" },
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  pending:  "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  review:   "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  approved: "bg-green-500/20 text-green-400 border-green-500/30",
+  pending:  "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30",
+  review:   "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30",
+  approved: "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30",
   open:     "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
 const ChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#050A14] border border-white/10 rounded-lg px-4 py-3 shadow-xl text-xs">
-      <p className="text-zinc-400 mb-2">{label}</p>
+    <div className="bg-popover border border-border rounded-lg px-4 py-3 shadow-xl text-xs">
+      <p className="text-muted-foreground mb-2">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} style={{ color: p.color }} className="font-bold">
           {p.name}: ${p.value.toLocaleString()}
@@ -65,27 +76,23 @@ const ChartTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-function StatCard({ title, value, icon, href, color = "text-white", isLoading, sub }: any) {
-  const inner = (
-    <Card className="bg-white/5 border-white/10 hover:border-white/20 transition-all group cursor-pointer h-full">
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-start justify-between mb-3">
-          <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">{title}</p>
-          <div className="p-1.5 rounded-lg bg-white/5 group-hover:scale-110 transition-transform">{icon}</div>
-        </div>
-        {isLoading ? <Skeleton className="h-8 w-20" /> : (
-          <p className={`text-3xl font-black ${color}`}>{value ?? "—"}</p>
-        )}
-        {sub && <p className="text-[11px] text-zinc-600 mt-1">{sub}</p>}
-      </CardContent>
-    </Card>
-  );
-  return href ? <Link href={href}>{inner}</Link> : inner;
-}
-
 export default function ManagerDashboard() {
-  const { data: stats, isLoading, refetch: refetchStats } = useGetManagerStats({
-    query: financeQueryOptions as any,
+  const [period, setPeriod] = useState(defaultStaffFinancePeriod());
+  const [customFrom, setCustomFrom] = useState(todayIso());
+  const [customTo, setCustomTo] = useState(todayIso());
+  const [appliedCustom, setAppliedCustom] = useState({ from: customFrom, to: customTo });
+
+  const periodQuery = appendPeriodQuery(
+    "",
+    period,
+    period === "custom" ? appliedCustom.from : undefined,
+    period === "custom" ? appliedCustom.to : undefined,
+  );
+
+  const { data: stats, isLoading, refetch: refetchStats } = useQuery({
+    queryKey: ["/api/manager/stats", period, appliedCustom],
+    queryFn: () => staffFetch<any>(`/manager/stats${periodQuery}`),
+    ...financeQueryOptions,
   });
   const { data: analytics, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics } = useManagerAnalytics();
 
@@ -97,42 +104,42 @@ export default function ManagerDashboard() {
   }));
 
   const cards = [
-    { title: "Assigned Clients", value: stats?.totalClients, icon: <Users className="h-4 w-4 text-blue-400" />, href: "/manager/clients", color: "text-white", sub: "Total investors assigned" },
-    { title: "Pending KYC", value: stats?.pendingKyc, icon: <ShieldCheck className="h-4 w-4 text-amber-400" />, href: "/manager/kyc", color: "text-amber-400", sub: "Awaiting review" },
-    { title: "Open Tickets", value: stats?.pendingTickets, icon: <Ticket className="h-4 w-4 text-red-400" />, href: "/manager/tickets", color: "text-red-400", sub: "Active support requests" },
-    { title: "Pending Transactions", value: stats?.pendingTransactions, icon: <ArrowRightLeft className="h-4 w-4 text-green-400" />, href: "/manager/transactions", color: "text-green-400", sub: "Awaiting approval" },
+    { title: "Assigned Clients", value: stats?.totalClients, icon: Users, href: "/manager/clients", tone: "blue" as const, sub: "Total investors assigned" },
+    { title: "Pending KYC", value: stats?.pendingKyc, icon: ShieldCheck, href: "/manager/kyc", tone: "amber" as const, sub: "Awaiting review" },
+    { title: "Open Tickets", value: stats?.pendingTickets, icon: Ticket, href: "/manager/tickets", tone: "rose" as const, sub: "Active support requests" },
+    { title: "Pending Transactions", value: stats?.pendingTransactions, icon: ArrowRightLeft, href: "/manager/upcoming-transactions", tone: "emerald" as const, sub: "Awaiting approval" },
   ];
 
-  const quickLinks = [
-    { href: "/manager/clients",     label: "Manage Clients",    icon: Users,         color: "bg-blue-500/10   text-blue-400   border-blue-500/20" },
-    { href: "/manager/kyc",         label: "KYC Review",        icon: ShieldCheck,   color: "bg-amber-500/10 text-amber-400  border-amber-500/20" },
-    { href: "/manager/transactions",label: "Transactions",      icon: ArrowRightLeft,color: "bg-green-500/10  text-green-400  border-green-500/20" },
-    { href: "/manager/tickets",     label: "Support Tickets",   icon: Ticket,        color: "bg-red-500/10    text-red-400    border-red-500/20" },
-    { href: "/copy-trading",        label: "Copy Trading",      icon: Users,         color: "bg-cyan-500/10   text-cyan-400   border-cyan-500/20" },
-    { href: "/mt5-relay",           label: "MT4/MT5 Handling",  icon: BarChart3,     color: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
+  const quickLinks: { href: string; label: string; icon: typeof Users; tone: StaffStatTone }[] = [
+    { href: "/manager/clients", label: "Manage Clients", icon: Users, tone: "blue" },
+    { href: "/manager/kyc", label: "KYC Review", icon: ShieldCheck, tone: "amber" },
+    { href: "/manager/upcoming-transactions", label: "Upcoming Txns", icon: Clock, tone: "amber" },
+    { href: "/manager/transactions", label: "All Transactions", icon: ArrowRightLeft, tone: "emerald" },
+    { href: "/manager/tickets", label: "Support Tickets", icon: Ticket, tone: "rose" },
+    { href: "/copy-trading", label: "Copy Trading", icon: Users, tone: "cyan" },
+    { href: "/mt5-relay", label: "MT4/MT5 Handling", icon: BarChart3, tone: "violet" },
   ];
 
   return (
-    <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-              Manager Dashboard
-            </h1>
-            <p className="text-sm text-zinc-500 mt-0.5">
-              {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs px-3 py-1.5">
-              <CheckCircle2 className="h-3 w-3 mr-1.5" /> Active
-            </Badge>
-            <Button size="sm" variant="outline" className="border-white/10 hover:bg-white/5 text-xs gap-1.5" onClick={() => { refetchStats(); refetchAnalytics(); }}>
-              <RefreshCw className="h-3 w-3" /> Refresh
-            </Button>
-          </div>
-        </div>
+    <AppPage
+      stackClassName={STAFF_PAGE_STACK}
+      title={
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 dark:from-amber-400 dark:to-yellow-600 bg-clip-text text-transparent">
+          Manager Dashboard
+        </h1>
+      }
+      subtitle="View assigned client KYC, transactions & investments (read-only). Report issues to Super Admin."
+      actions={
+        <>
+          <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30 text-xs px-3 py-1.5 w-full xs:w-auto justify-center">
+            <CheckCircle2 className="h-3 w-3 mr-1.5" /> Active
+          </Badge>
+          <Button size="sm" variant="outline" className="border-border dark:border-white/10 hover:bg-muted/80 dark:hover:bg-muted/60 dark:bg-white/5 text-xs gap-1.5 w-full xs:w-auto" onClick={() => { refetchStats(); refetchAnalytics(); }}>
+            <RefreshCw className="h-3 w-3" /> Refresh
+          </Button>
+        </>
+      }
+    >
 
         {analyticsError && (
           <Card className="border-red-500/30 bg-red-500/10">
@@ -146,30 +153,74 @@ export default function ManagerDashboard() {
           </Card>
         )}
 
+        <Card className={STAFF_CARD}>
+          <CardContent className="py-3 px-4">
+            <CalendarPeriodFilter
+              period={period}
+              customFrom={customFrom}
+              customTo={customTo}
+              periodLabel={stats?.periodLabel}
+              onPeriodChange={setPeriod}
+              onCustomFromChange={setCustomFrom}
+              onCustomToChange={setCustomTo}
+              onApplyCustom={() => setAppliedCustom({ from: customFrom, to: customTo })}
+            />
+          </CardContent>
+        </Card>
+
+        <PeriodFinanceKpiGrid
+          loading={isLoading}
+          variant="staff"
+          data={{
+            period,
+            periodLabel: stats?.periodLabel,
+            fiatBalance: stats?.fiatBalance,
+            fiatBalanceInr: stats?.fiatBalanceInr,
+            periodInvested: stats?.periodInvested,
+            periodInvestedInr: stats?.periodInvestedInr,
+            periodFiatDeposits: stats?.periodFiatDeposits,
+            periodFiatWithdrawals: stats?.periodFiatWithdrawals,
+            periodCryptoDeposits: stats?.periodCryptoDeposits,
+            periodCryptoWithdrawals: stats?.periodCryptoWithdrawals,
+            periodFiatDepositsInr: stats?.periodFiatDepositsInr,
+            periodFiatWithdrawalsInr: stats?.periodFiatWithdrawalsInr,
+            periodCryptoDepositsInr: stats?.periodCryptoDepositsInr,
+            periodCryptoWithdrawalsInr: stats?.periodCryptoWithdrawalsInr,
+          }}
+        />
+
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className={STAFF_STAT_GRID}>
           {cards.map((card, i) => (
             <motion.div key={card.title} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
-              <StatCard {...card} isLoading={isLoading} />
+              <StaffDashboardStatCard
+                label={card.title}
+                value={card.value}
+                subValue={card.sub}
+                icon={card.icon}
+                href={card.href}
+                tone={card.tone}
+                loading={isLoading}
+              />
             </motion.div>
           ))}
         </div>
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-white/5 border-white/10">
+        <div className={STAFF_CHART_GRID}>
+          <Card className={STAFF_CARD}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-amber-400" /> Weekly Cash Flow
+                <BarChart3 className="h-4 w-4 text-amber-600 dark:text-amber-400" /> Weekly Cash Flow
               </CardTitle>
-              <p className="text-xs text-zinc-500">Your clients' deposits vs withdrawals</p>
+              <p className="text-xs text-muted-foreground">Your clients' deposits vs withdrawals</p>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={cashFlow} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="day" stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
+                  <XAxis dataKey="day" className="text-muted-foreground" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis className="text-muted-foreground" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                   <Tooltip content={<ChartTooltip />} />
                   <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
                   <Bar dataKey="deposits" name="Deposits" fill="#22c55e" fillOpacity={0.85} radius={[3, 3, 0, 0]} maxBarSize={24} />
@@ -179,12 +230,12 @@ export default function ManagerDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className={STAFF_CARD}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-blue-400" /> Investor Growth
+                <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Investor Growth
               </CardTitle>
-              <p className="text-xs text-zinc-500">New investors added weekly</p>
+              <p className="text-xs text-muted-foreground">New investors added weekly</p>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
@@ -195,10 +246,10 @@ export default function ManagerDashboard() {
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="week" stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: '#050A14', borderColor: 'rgba(255,255,255,0.1)', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
+                  <XAxis dataKey="week" className="text-muted-foreground" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis className="text-muted-foreground" fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", borderColor: "hsl(var(--border))", fontSize: 12 }} />
                   <Area type="monotone" dataKey="investors" name="Investors" stroke="#6366f1" strokeWidth={2} fill="url(#invGrad)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -207,12 +258,12 @@ export default function ManagerDashboard() {
         </div>
 
         {/* Activity + Quick Links */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 bg-white/5 border-white/10">
+        <div className={STAFF_DASHBOARD_SPLIT}>
+          <Card className={cn(STAFF_CARD, STAFF_DASHBOARD_MAIN)}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-green-400" /> Recent Activity
+                  <Activity className="h-4 w-4 text-green-700 dark:text-green-400" /> Recent Activity
                 </CardTitle>
                 <Link href="/manager/transactions">
                   <Button variant="link" className="text-amber-500 p-0 h-auto text-xs">View All →</Button>
@@ -230,19 +281,20 @@ export default function ManagerDashboard() {
                 return (
                   <motion.div key={i}
                     initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.07 }}
-                    className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
+                    className={cn(STAFF_LIST_ROW, "hover:border-primary/20 transition-colors")}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className={`p-2 rounded-lg ${cfg.bg} shrink-0`}>
                         <Icon className={`h-3.5 w-3.5 ${cfg.color}`} />
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold">{cfg.label} — {item.user}</p>
-                        {item.amount && <p className="text-[11px] text-zinc-500">{item.amount}</p>}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold truncate">{cfg.label} — {item.user}</p>
+                        {item.amount && <p className="text-[11px] text-muted-foreground">{item.amount}</p>}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
                       <Badge className={`text-[10px] border ${STATUS_BADGE[item.status] || ""}`}>{item.status}</Badge>
-                      <span className="text-[10px] text-zinc-600">{item.time}</span>
+                      <span className="text-[10px] text-muted-foreground">{item.time}</span>
                     </div>
                   </motion.div>
                 );
@@ -250,25 +302,21 @@ export default function ManagerDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className={cn(STAFF_CARD, STAFF_DASHBOARD_SIDE)}>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className={STAFF_QUICK_ACTIONS_GRID}>
               <SafeBoundary label="Wallet actions unavailable">
                 <WalletQuickActions />
               </SafeBoundary>
-              {quickLinks.map(({ href, label, icon: Icon, color }) => (
-                <Link key={href} href={href}>
-                  <div className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:opacity-80 transition-all ${color} mb-2`}>
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="text-xs font-semibold">{label}</span>
-                  </div>
-                </Link>
+              {quickLinks.map(link => (
+                <StaffQuickLinkTile key={link.href} {...link} />
               ))}
+              <StaffEscalationsPanel role="manager" />
             </CardContent>
           </Card>
         </div>
-      </div>
-);
+    </AppPage>
+  );
 }

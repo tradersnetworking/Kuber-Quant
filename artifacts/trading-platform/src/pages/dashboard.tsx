@@ -3,30 +3,40 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveDataView } from "@/components/ui/responsive-data-view";
+import { KpiStatCard } from "@/components/ui/KpiStatCard";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, Legend,
-} from "recharts";
-import {
-  ArrowUpRight, ArrowDownLeft, Users, Bell, Wallet,
-  TrendingUp, ShieldAlert, Plus, ArrowRightLeft,
-  Activity, Target, BarChart3, PieChart as PieIcon,
-  Coins, Award, LineChart,
+  ArrowUpRight, ArrowDownLeft, Bell,
+  ShieldAlert, Plus, ArrowRightLeft,
+  Target, Coins, Award, LineChart, Activity,
 } from "lucide-react";
+import { LazyInvestorDashboardCharts } from "@/components/dashboard/LazyInvestorDashboardCharts";
+import { InvestorKpiStrip } from "@/components/dashboard/InvestorKpiStrip";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 import { WalletQuickActions } from "@/components/wallet/WalletQuickActions";
-import { SafeBoundary } from "@/components/SafeBoundary";
+import { DownloadAppButton } from "@/components/pwa/DownloadAppButton";
+import { TradingQuickActions } from "@/components/dashboard/TradingQuickActions";
 import { financeQueryOptions } from "@/lib/invalidate-finance-queries";
+import { formatWalletFiatDisplay, resolveWalletFiatInr } from "@/lib/format-money";
 import { format } from "date-fns";
-
-const CRYPTO_COLORS = ["#F59E0B", "#6366f1", "#22c55e", "#f43f5e"];
+import { useTranslation } from "react-i18next";
+import { formatLocaleDate, translateStatus } from "@/lib/i18n/translate-helpers";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { authFetchJson } from "@/lib/token-store";
+import { CalendarPeriodFilter } from "@/components/finance/CalendarPeriodFilter";
+import { PeriodFinanceKpiGrid, mapFiatAuditToBreakdown } from "@/components/finance/PeriodFinanceKpiGrid";
+import { appendPeriodQuery, defaultFinancePeriod, isPresentPeriod, todayIso, type StatsPeriod } from "@/lib/finance-period";
+import { ReferralShareDialog } from "@/components/referral/ReferralShareDialog";
+import { getShareUserDisplayName } from "@/lib/user-display-name";
+import { cn } from "@/lib/utils";
+import { APP_PAGE_STACK, APP_STAT_GRID, APP_DASHBOARD_SPLIT, APP_DASHBOARD_MAIN } from "@/lib/ui-system";
+import { AppPage } from "@/components/layout/AppPage";
 
 const STATUS_BADGE: Record<string, string> = {
-  approved: "bg-green-500/20 text-green-400 border-green-500/30",
-  pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  approved: "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30",
+  pending: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30",
   rejected: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
@@ -35,82 +45,50 @@ function fmtTxnAmount(amount: number, currency: string) {
   return `${prefix}${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-const MONTHLY_DATA = [
-  { month: "Jan", return: 4.2, invested: 12000 },
-  { month: "Feb", return: 5.8, invested: 15000 },
-  { month: "Mar", return: 3.1, invested: 18000 },
-  { month: "Apr", return: 7.4, invested: 22000 },
-  { month: "May", return: 6.2, invested: 25000 },
-  { month: "Jun", return: 8.9, invested: 30000 },
-];
+import { DualCurrencyValue } from "@/components/ui/DualCurrencyValue";
 
-function StatCard({
-  title, value, isLoading, prefix = "", suffix = "", icon, trend, trendValue, gradient = false,
-  secondaryValue, secondaryPrefix = "₹",
-}: {
-  title: string; value?: number; isLoading: boolean; prefix?: string; suffix?: string;
-  icon?: React.ReactNode; trend?: "up" | "down"; trendValue?: string; gradient?: boolean;
-  secondaryValue?: number; secondaryPrefix?: string;
-}) {
-  const formatted = value !== undefined
-    ? `${prefix}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`
-    : "—";
-  const secondary = secondaryValue !== undefined
-    ? `${secondaryPrefix}${secondaryValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : null;
-  return (
-    <Card className={`${gradient ? "bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border-amber-500/30" : "bg-white/5 border-white/10"} backdrop-blur-sm`}>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between mb-3">
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <div className={`p-2 rounded-lg ${gradient ? "bg-amber-500/20" : "bg-white/5"}`}>{icon}</div>
-        </div>
-        {isLoading ? (
-          <Skeleton className="h-9 w-32" />
-        ) : (
-          <div>
-            <p className={`text-3xl font-black tracking-tight ${gradient ? "text-amber-400" : "text-white"}`}>{formatted}</p>
-            {secondary && (
-              <p className="text-sm text-muted-foreground mt-1 font-medium">{secondary}</p>
-            )}
-            {trend && trendValue && (
-              <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend === "up" ? "text-green-400" : "text-red-400"}`}>
-                {trend === "up" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
-                {trendValue} this month
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+function fmtUsdKpi(n?: number, inr?: number) {
+  return <DualCurrencyValue usd={n} inr={inr} />;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-[#050A14] border border-white/10 rounded-lg px-4 py-3 shadow-xl">
-        <p className="text-xs text-zinc-400 mb-2">{label}</p>
-        {payload.map((p: any, i: number) => (
-          <p key={i} className="text-sm font-bold" style={{ color: p.color }}>
-            {p.name}: {typeof p.value === "number" ? (p.name?.includes("%") || p.dataKey === "return" ? `${p.value}%` : `$${p.value.toLocaleString()}`) : p.value}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
+const ALLOCATION_LABEL_KEYS: Record<string, string> = {
+  invested: "dashboard.invested",
+  fiat: "dashboard.fiat",
+  crypto: "dashboard.crypto",
 };
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { data: summary, isLoading: isLoadingSummary } = ApiHooks.useGetDashboardSummary({
-    query: financeQueryOptions as any,
+  const { t, i18n } = useTranslation();
+  const [referralShareOpen, setReferralShareOpen] = useState(false);
+  const [period, setPeriod] = useState<StatsPeriod>(defaultFinancePeriod());
+  const [customFrom, setCustomFrom] = useState(todayIso());
+  const [customTo, setCustomTo] = useState(todayIso());
+  const [appliedCustom, setAppliedCustom] = useState({ from: customFrom, to: customTo });
+
+  const periodQuery = appendPeriodQuery(
+    "",
+    period,
+    period === "custom" ? appliedCustom.from : undefined,
+    period === "custom" ? appliedCustom.to : undefined,
+  );
+
+  const { data: summary, isLoading: isLoadingSummary } = useQuery({
+    queryKey: ["/api/dashboard/summary", period, appliedCustom],
+    queryFn: () => authFetchJson(`/dashboard/summary${periodQuery}`),
+    ...financeQueryOptions,
   });
-  const { data: chartData, isLoading: isLoadingChart } = ApiHooks.useGetPortfolioChart({
-    query: financeQueryOptions as any,
+  const { data: chartData, isLoading: isLoadingChart } = useQuery({
+    queryKey: ["/api/dashboard/portfolio-chart", period, appliedCustom],
+    queryFn: () => authFetchJson(`/dashboard/portfolio-chart${periodQuery}`),
+    ...financeQueryOptions,
   });
-  const { data: activity, isLoading: isLoadingActivity } = ApiHooks.useGetRecentActivity({
+  const { data: activity, isLoading: isLoadingActivity } = useQuery({
+    queryKey: ["/api/dashboard/recent-activity", period, appliedCustom],
+    queryFn: () => authFetchJson(`/dashboard/recent-activity${periodQuery}`),
+    ...financeQueryOptions,
+  });
+  const { data: monthlyReturns, isLoading: isLoadingMonthlyReturns } = ApiHooks.useGetMonthlyReturns({
     query: financeQueryOptions as any,
   });
 
@@ -127,330 +105,289 @@ export default function DashboardPage() {
   const unreadCount = (notifications as any[])?.filter((n: any) => !n.isRead).length || 0;
 
   const summaryAny = summary as any;
-  const walletAny = wallet as any;
+  const fiatDual = formatWalletFiatDisplay(wallet);
 
-  const portfolioPie = [
-    { name: "Fiat USD", value: Number(wallet?.fiatBalance || 0) },
-    { name: "Crypto", value: Number(wallet?.cryptoBalance || 0) },
-    { name: "Invested", value: Number(summary?.totalInvested || 0) },
-    { name: "Profit", value: Number(summary?.totalProfit || 0) },
-  ].filter(d => d.value > 0);
+  const totalPortfolio = summaryAny?.totalPortfolio ?? summaryAny?.totalBalance;
+  const totalPortfolioInr = summaryAny?.totalPortfolioInr;
+  const totalProfitInr = summaryAny?.totalProfitInr;
+  const totalInvestedInr = summaryAny?.totalInvestedInr;
+  const activeInvestedInr = summaryAny?.activeInvestedInr;
+
+  const portfolioTrend = summaryAny?.monthPortfolioChangePct;
+  const profitTrend = summaryAny?.monthProfitChangePct;
+  const portfolioAllocation = summaryAny?.portfolioAllocation || [];
+
+  const portfolioPie = portfolioAllocation.length > 0
+    ? portfolioAllocation.map(({ label, value }: { label: string; value: number }) => ({
+        name: t(ALLOCATION_LABEL_KEYS[label] || label, { defaultValue: label }),
+        value,
+        key: label,
+      }))
+    : [
+        { name: t("dashboard.fiatUsdLabel"), value: Number(wallet?.fiatBalance || 0), key: "fiat" },
+        { name: t("dashboard.crypto"), value: Number(wallet?.cryptoBalance || 0), key: "crypto" },
+        { name: t("dashboard.invested"), value: Number(summaryAny?.activeInvested || 0), key: "invested" },
+      ].filter(d => d.value > 0);
 
   const hasPortfolioData = portfolioPie.length > 0;
+  const present = isPresentPeriod(period);
+  const fiatBreakdown = mapFiatAuditToBreakdown(summaryAny?.fiatBalanceAudit, present);
 
   return (
-    <div className="space-y-6">
-        {/* ── Header ── */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-              Welcome back, {user?.fullName?.split(" ")[0]}
-            </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <SafeBoundary label="Wallet actions unavailable">
-              <WalletQuickActions layout="row" />
-            </SafeBoundary>
-            <Link href="/referral">
-              <Button variant="ghost" className="text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 h-9">
-                <Users className="mr-2 h-4 w-4" /> Refer
+    <AppPage
+      stackClassName={APP_PAGE_STACK}
+      title={
+        <div className="min-w-0 w-full max-w-full">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent break-words">
+            {t("dashboard.welcomeBack", { name: user?.fullName?.split(" ")[0] || "" })}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 w-full max-w-full whitespace-normal">
+            {formatLocaleDate(new Date(), i18n.language)}
+          </p>
+        </div>
+      }
+      actions={
+        <div className={cn("flex flex-row flex-wrap items-center gap-1.5 sm:gap-2 min-w-0")}>
+          <WalletQuickActions layout="inline" compact />
+          <DownloadAppButton compact />
+          <Link href="/referral">
+            <Button variant="outline" size="sm" className="h-8 sm:h-9 px-2.5 text-xs sm:text-sm shrink-0">
+              {t("dashboard.refer")}
+            </Button>
+          </Link>
+          {unreadCount > 0 && (
+            <Link href="/notifications">
+              <Button variant="outline" size="sm" className="h-8 sm:h-9 px-2.5 relative shrink-0">
+                <Bell className="h-3.5 w-3.5" />
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-black text-[10px] font-bold flex items-center justify-center">
+                  {unreadCount}
+                </span>
               </Button>
             </Link>
-            {unreadCount > 0 && (
-              <Link href="/notifications">
-                <Button variant="ghost" className="text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 h-9 relative">
-                  <Bell className="h-4 w-4" />
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-black text-[10px] font-bold flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                </Button>
-              </Link>
-            )}
-          </div>
+          )}
         </div>
-
-        {/* ── KYC Banner ── */}
+      }
+    >
         {user?.kycStatus !== "verified" && (
           <Card className="border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-yellow-600/5">
             <CardContent className="py-4">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-amber-500/20 rounded-full">
-                    <ShieldAlert className="h-5 w-5 text-amber-400" />
+                    <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-amber-400">Complete KYC Verification</h3>
-                    <p className="text-xs text-muted-foreground">Unlock full platform features, higher limits, and withdrawals.</p>
+                    <h3 className="font-bold text-amber-600 dark:text-amber-400">{t("dashboard.completeKycTitle")}</h3>
+                    <p className="text-xs text-muted-foreground">{t("dashboard.completeKycDesc")}</p>
                   </div>
                 </div>
                 <Link href="/kyc">
-                  <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-black font-bold">Verify Now →</Button>
+                  <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-black font-bold">{t("dashboard.verifyNow")}</Button>
                 </Link>
               </div>
             </CardContent>
           </Card>
         )}
 
+        <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
+          <CardContent className="py-3 px-3 sm:px-4">
+            <CalendarPeriodFilter
+              period={period}
+              customFrom={customFrom}
+              customTo={customTo}
+              periodLabel={summaryAny?.statsPeriodLabel}
+              onPeriodChange={setPeriod}
+              onCustomFromChange={setCustomFrom}
+              onCustomToChange={setCustomTo}
+              onApplyCustom={() => setAppliedCustom({ from: customFrom, to: customTo })}
+            />
+          </CardContent>
+        </Card>
+
+        <PeriodFinanceKpiGrid
+          loading={isLoadingSummary}
+          data={{
+            period,
+            periodLabel: summaryAny?.statsPeriodLabel,
+            fiatBalance: summaryAny?.fiatBalance,
+            fiatBalanceInr: summaryAny?.fiatBalanceInr,
+            periodInvested: summaryAny?.periodInvested ?? 0,
+            periodInvestedInr: summaryAny?.periodInvestedInr,
+            periodFiatDeposits: summaryAny?.periodFiatDeposits ?? summaryAny?.monthFiatDeposits,
+            periodFiatWithdrawals: summaryAny?.periodFiatWithdrawals ?? summaryAny?.monthFiatWithdrawals,
+            periodCryptoDeposits: summaryAny?.periodCryptoDeposits ?? summaryAny?.monthCryptoDeposits,
+            periodCryptoWithdrawals: summaryAny?.periodCryptoWithdrawals ?? summaryAny?.monthCryptoWithdrawals,
+            periodFiatDepositsInr: summaryAny?.periodFiatDepositsInr ?? summaryAny?.monthFiatDepositsInr,
+            periodFiatWithdrawalsInr: summaryAny?.periodFiatWithdrawalsInr ?? summaryAny?.monthFiatWithdrawalsInr,
+            periodCryptoDepositsInr: summaryAny?.periodCryptoDepositsInr ?? summaryAny?.monthCryptoDepositsInr,
+            periodCryptoWithdrawalsInr: summaryAny?.periodCryptoWithdrawalsInr ?? summaryAny?.monthCryptoWithdrawalsInr,
+            cryptoBalance: summaryAny?.cryptoBalance,
+            cryptoBalanceInr: summaryAny?.cryptoBalance != null && summaryAny?.exchangeRates?.USD_INR
+              ? Number(summaryAny.cryptoBalance) * Number(summaryAny.exchangeRates.USD_INR)
+              : undefined,
+            fiatBreakdown,
+          }}
+        />
+
+        <p className="text-[11px] sm:text-xs text-muted-foreground text-center -mt-1 px-2 leading-relaxed break-words [overflow-wrap:break-word]">
+          {t("dashboard.depositWithdrawalMonthNote", {
+            defaultValue: "Approved deposit & withdrawal totals for {{period}} · USD equivalent",
+            period: summaryAny?.statsPeriodLabel || t("dashboard.today", { defaultValue: "Today" }),
+          })}
+        </p>
+
+        <InvestorKpiStrip
+          t={t}
+          isLoading={isLoadingSummary}
+          totalPortfolio={totalPortfolio}
+          totalPortfolioInr={totalPortfolioInr}
+          walletBalance={summaryAny?.totalBalance ?? wallet?.totalBalance}
+          activeInvested={summaryAny?.activeInvested}
+          totalProfit={summaryAny?.totalProfit}
+          totalProfitInr={totalProfitInr}
+          totalInvested={summaryAny?.totalInvested}
+          totalInvestedInr={totalInvestedInr}
+          monthPortfolioChangePct={portfolioTrend}
+          monthProfitChangePct={profitTrend}
+          nextPayoutDate={summaryAny?.nextPayoutDate}
+          nextPayoutAmountUsd={summaryAny?.nextPayoutAmountUsd}
+          nextPayoutAmountInr={summaryAny?.nextPayoutAmountInr}
+          nextPayoutPlanName={summaryAny?.nextPayoutPlanName}
+          nextPayoutInvestmentId={summaryAny?.nextPayoutInvestmentId}
+          nextPayoutDaysUntil={summaryAny?.nextPayoutDaysUntil}
+        />
+
         {/* ── Top Stats ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Portfolio"
-            value={summaryAny?.totalPortfolio ?? summary?.totalBalance}
-            secondaryValue={summaryAny?.totalPortfolioInr}
-            isLoading={isLoadingSummary}
-            prefix="$" icon={<Wallet className="h-4 w-4 text-amber-400" />}
-            trend="up" trendValue="+12.4%" gradient
+        <div className={APP_STAT_GRID}>
+          <KpiStatCard
+            label={t("dashboard.fiatBalance")}
+            value={fmtUsdKpi(wallet?.fiatBalance, resolveWalletFiatInr(wallet))}
+            loading={isLoadingWallet}
+            icon={<Coins className="h-4 w-4" />}
+            iconClassName="text-blue-600 dark:text-blue-400"
+            compact
           />
-          <StatCard
-            title="Fiat Balance"
-            value={wallet?.fiatBalance}
-            secondaryValue={walletAny?.fiatBalanceInr ?? walletAny?.inrBalance}
-            isLoading={isLoadingWallet}
-            prefix="$" icon={<Coins className="h-4 w-4 text-blue-400" />}
+          <KpiStatCard
+            label={t("dashboard.activeInvestments")}
+            value={summaryAny?.activeInvestments ?? "—"}
+            loading={isLoadingSummary}
+            icon={<Target className="h-4 w-4" />}
+            iconClassName="text-amber-600 dark:text-amber-400"
+            compact
           />
-          <StatCard
-            title="Total Profit"
-            value={summary?.totalProfit}
-            secondaryValue={summaryAny?.totalProfitInr}
-            isLoading={isLoadingSummary}
-            prefix="$" icon={<TrendingUp className="h-4 w-4 text-green-400" />}
-            trend="up" trendValue="+8.2%"
+          <KpiStatCard
+            label={t("dashboard.totalInvested")}
+            value={fmtUsdKpi(summaryAny?.totalInvested, totalInvestedInr)}
+            loading={isLoadingSummary}
+            icon={<LineChart className="h-4 w-4" />}
+            iconClassName="text-amber-600 dark:text-amber-400"
+            compact
           />
-          <StatCard
-            title="Referral Earnings" value={referralStats?.totalEarnings} isLoading={false}
-            prefix="$" icon={<Award className="h-4 w-4 text-purple-400" />}
+          <KpiStatCard
+            label={t("dashboard.referralEarnings")}
+            value={fmtUsdKpi(referralStats?.totalEarnings ?? summaryAny?.referralEarnings)}
+            icon={<Award className="h-4 w-4" />}
+            iconClassName="text-purple-600 dark:text-purple-400"
+            compact
           />
         </div>
-
-        {(summaryAny?.exchangeRates?.USD_INR || walletAny?.exchangeRates?.USD_INR) && (
-          <p className="text-[11px] text-muted-foreground text-center">
-            INR estimates use live rate 1 USD = ₹{Number(summaryAny?.exchangeRates?.USD_INR ?? walletAny?.exchangeRates?.USD_INR).toFixed(2)}
-            {summaryAny?.exchangeRates?.updatedAt && (
-              <> · updated {new Date(summaryAny.exchangeRates.updatedAt).toLocaleDateString()}</>
-            )}
-          </p>
-        )}
 
         {/* ── Secondary Stats ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="col-span-2 lg:col-span-1">
-            <Card className="bg-white/5 border-white/10 h-full">
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">Active Investments</p>
-                  <Target className="h-4 w-4 text-amber-400" />
+        <div className={cn(APP_STAT_GRID, "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2")}>
+          <Link href="/investments">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-full min-w-0 overflow-hidden hover:border-amber-500/30 transition-colors cursor-pointer">
+              <CardContent className="pt-4 px-3 pb-4 sm:pt-6 sm:px-6 space-y-3 sm:space-y-4">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2 min-w-0">{t("dashboard.activeInvestments")}</p>
+                  <Target className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 </div>
-                <div className="text-4xl font-black text-white">{isLoadingSummary ? <Skeleton className="h-10 w-16" /> : (summary?.activeInvestments || 0)}</div>
-                <div className="text-xs text-muted-foreground">Total invested: <span className="text-amber-400 font-semibold">${Number(summary?.totalInvested || 0).toLocaleString()}</span></div>
+                <div className="mobile-stat-value text-foreground">
+                  {isLoadingSummary ? <Skeleton className="h-8 w-16" /> : (summaryAny?.activeInvestments || 0)}
+                </div>
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-[11px] sm:text-xs text-muted-foreground">
+                    {t("dashboard.totalInvested")}:{" "}
+                    <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                      ${Number(summaryAny?.totalInvested || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </p>
+                  {totalInvestedInr !== undefined && (
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                      ₹{totalInvestedInr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  )}
+                  {summaryAny?.activeInvested != null && summaryAny.activeInvested > 0 && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {t("dashboard.activeInvested", { defaultValue: "Active principal" })}: ${Number(summaryAny.activeInvested).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {activeInvestedInr !== undefined && ` · ₹${activeInvestedInr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
-          </div>
-          <div className="col-span-2 lg:col-span-1">
-            <Card className="bg-white/5 border-white/10 h-full">
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">Crypto (USD)</p>
-                  <ArrowRightLeft className="h-4 w-4 text-purple-400" />
+          </Link>
+          <div className="min-w-0">
+            <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-full min-w-0 overflow-hidden">
+              <CardContent className="pt-4 px-3 pb-4 sm:pt-6 sm:px-6 space-y-3 sm:space-y-4">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2 min-w-0">{t("dashboard.cryptoUsd")}</p>
+                  <ArrowRightLeft className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
                 </div>
-                <div className="text-4xl font-black text-white">
-                  {isLoadingWallet ? <Skeleton className="h-10 w-16" /> : `$${Number(wallet?.cryptoBalance || 0).toLocaleString()}`}
+                <div className="mobile-stat-value text-foreground">
+                  {isLoadingWallet ? <Skeleton className="h-8 w-20" /> : `$${Number(wallet?.cryptoBalance || 0).toLocaleString()}`}
                 </div>
-                <div className="flex gap-2 text-xs text-muted-foreground">
-                  <span>BTC: <span className="text-orange-400">{wallet?.btcBalance?.toFixed(4) || "0"}</span></span>
-                  <span>ETH: <span className="text-blue-400">{wallet?.ethBalance?.toFixed(4) || "0"}</span></span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="col-span-2">
-            <Card className="bg-white/5 border-white/10 h-full">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-muted-foreground">Portfolio Growth</p>
-                  <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">+12.5% YTD</Badge>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { label: "Investments", pct: 65, color: "bg-amber-500" },
-                    { label: "Fiat", pct: 25, color: "bg-blue-500" },
-                    { label: "Crypto", pct: 10, color: "bg-purple-500" },
-                  ].map(({ label, pct, color }) => (
-                    <div key={label} className="space-y-1">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>{label}</span><span>{pct}%</span>
-                      </div>
-                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] sm:text-xs text-muted-foreground min-w-0">
+                  <span className="truncate">BTC: <span className="text-orange-600 dark:text-orange-400">{wallet?.btcBalance?.toFixed(4) || "0"}</span></span>
+                  <span className="truncate">ETH: <span className="text-blue-600 dark:text-blue-400">{wallet?.ethBalance?.toFixed(4) || "0"}</span></span>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
 
-        {/* ── Main Charts Row ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Portfolio Performance Area Chart */}
-          <Card className="lg:col-span-2 bg-white/5 backdrop-blur-sm border-white/10">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-amber-400" />
-                    Portfolio Performance
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">30-day value trend</p>
-                </div>
-                <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">Live</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoadingChart ? (
-                <Skeleton className="h-[260px] w-full" />
-              ) : chartData && chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `$${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
-                    <RechartsTooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="value" name="Value" stroke="#F59E0B" strokeWidth={2.5} fillOpacity={1} fill="url(#areaGrad)" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[260px] flex flex-col items-center justify-center text-muted-foreground gap-3">
-                  <BarChart3 className="h-10 w-10 opacity-20" />
-                  <p className="text-sm">Make your first investment to see performance data</p>
-                  <Link href="/plans">
-                    <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-black font-semibold">
-                      View Plans
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <LazyInvestorDashboardCharts
+          t={t}
+          chartData={chartData as { date: string; value: number }[] | undefined}
+          isLoadingChart={isLoadingChart}
+          portfolioPie={portfolioPie}
+          hasPortfolioData={hasPortfolioData}
+          isLoadingWallet={isLoadingWallet}
+          isLoadingSummary={isLoadingSummary}
+          monthlyReturns={monthlyReturns as any}
+          isLoadingMonthlyReturns={isLoadingMonthlyReturns}
+          portfolioAllocation={portfolioAllocation}
+        />
 
-          {/* Portfolio Allocation Pie */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <PieIcon className="h-4 w-4 text-amber-400" />
-                Asset Allocation
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">Portfolio breakdown</p>
-            </CardHeader>
-            <CardContent>
-              {isLoadingWallet || isLoadingSummary ? (
-                <div className="h-[200px] flex items-center justify-center">
-                  <Skeleton className="h-36 w-36 rounded-full" />
-                </div>
-              ) : hasPortfolioData ? (
-                <>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie data={portfolioPie} cx="50%" cy="50%" innerRadius={50} outerRadius={75}
-                        dataKey="value" stroke="none" paddingAngle={3}>
-                        {portfolioPie.map((_, i) => (
-                          <Cell key={i} fill={CRYPTO_COLORS[i % CRYPTO_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip content={<CustomTooltip />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="space-y-2 mt-2">
-                    {portfolioPie.map((item, i) => {
-                      const total = portfolioPie.reduce((s, d) => s + d.value, 0);
-                      const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
-                      return (
-                        <div key={item.name} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: CRYPTO_COLORS[i % CRYPTO_COLORS.length] }} />
-                            <span className="text-zinc-400">{item.name}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-semibold">${item.value.toLocaleString()}</span>
-                            <span className="text-zinc-600 ml-1">({pct}%)</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground gap-2">
-                  <PieIcon className="h-8 w-8 opacity-20" />
-                  <p className="text-xs text-center">Deposit funds to see your allocation</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ── Monthly Returns Bar Chart + Wallet ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 bg-white/5 backdrop-blur-sm border-white/10">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-amber-400" />
-                Monthly Returns (%)
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">Historical return performance</p>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={MONTHLY_DATA} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="month" stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
-                  <RechartsTooltip content={<CustomTooltip />} />
-                  <Bar dataKey="return" name="Return %" radius={[4, 4, 0, 0]} fill="#F59E0B" maxBarSize={32}>
-                    {MONTHLY_DATA.map((d, i) => (
-                      <Cell key={i} fill={d.return >= 6 ? "#22c55e" : "#F59E0B"} fillOpacity={0.9} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Wallet Overview */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+        {/* ── Wallet Overview ── */}
+        <div className={cn(APP_DASHBOARD_SPLIT, "lg:grid-cols-1")}>
+          <Card className="lg:col-span-3 bg-muted/60 dark:bg-white/5 backdrop-blur-sm border-border dark:border-white/10 min-w-0 overflow-hidden">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold">Wallet Balances</CardTitle>
-                <Link href="/wallet">
-                  <Button variant="link" className="text-amber-500 p-0 h-auto text-xs">Manage →</Button>
+                <CardTitle className="text-base font-bold">{t("dashboard.walletBalances")}</CardTitle>
+                <Link href="/money">
+                  <Button variant="link" className="text-amber-500 p-0 h-auto text-xs">{t("common.manage")} →</Button>
                 </Link>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {[
-                { icon: "$", label: "USD Fiat", sub: "Primary", val: `$${Number(wallet?.fiatBalance || 0).toLocaleString()}`, color: "bg-blue-500/20 text-blue-400" },
-                { icon: "₿", label: "Bitcoin", sub: "BTC", val: `${wallet?.btcBalance?.toFixed(6) || "0"} BTC`, color: "bg-orange-500/20 text-orange-400" },
-                { icon: "Ξ", label: "Ethereum", sub: "ETH", val: `${wallet?.ethBalance?.toFixed(4) || "0"} ETH`, color: "bg-indigo-500/20 text-indigo-400" },
-                { icon: "₮", label: "Tether", sub: "USDT", val: `$${Number(wallet?.usdtBalance || 0).toLocaleString()}`, color: "bg-green-500/20 text-green-400" },
-              ].map(({ icon, label, sub, val, color }) => (
-                <div key={label} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-full ${color} flex items-center justify-center font-bold text-sm`}>{icon}</div>
-                    <div>
-                      <p className="text-xs font-semibold">{label}</p>
-                      <p className="text-[10px] text-muted-foreground">{sub}</p>
+                { icon: "$", label: t("dashboard.usdFiat"), sub: t("common.primary"), val: fiatDual.primary, subVal: fiatDual.secondary, color: "bg-blue-500/20 text-blue-600 dark:text-blue-400" },
+                { icon: "₿", label: t("dashboard.bitcoin"), sub: "BTC", val: `${wallet?.btcBalance?.toFixed(6) || "0"} BTC`, color: "bg-orange-500/20 text-orange-600 dark:text-orange-400" },
+                { icon: "Ξ", label: t("dashboard.ethereum"), sub: "ETH", val: `${wallet?.ethBalance?.toFixed(4) || "0"} ETH`, color: "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400" },
+                { icon: "₮", label: t("dashboard.tether"), sub: "USDT", val: `$${Number(wallet?.usdtBalance || 0).toLocaleString()}`, color: "bg-green-500/20 text-green-700 dark:text-green-400" },
+              ].map(({ icon, label, sub, val, subVal, color }) => (
+                <div key={label} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 dark:bg-white/[0.03] border border-border/80 dark:border-white/5 hover:border-border dark:border-white/10 transition-colors min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className={`h-8 w-8 rounded-full ${color} flex items-center justify-center font-bold text-sm shrink-0`}>{icon}</div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold truncate">{label}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{sub}</p>
                     </div>
                   </div>
-                  <p className="text-sm font-bold">{val}</p>
+                  <div className="text-right min-w-0 shrink max-w-[55%]">
+                    <p className="mobile-stat-value text-sm sm:text-base font-bold">{val}</p>
+                    {subVal && <p className="kpi-currency-secondary">{subVal}</p>}
+                  </div>
                 </div>
               ))}
             </CardContent>
@@ -458,69 +395,114 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Activity + Quick Actions ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={APP_DASHBOARD_SPLIT}>
           {/* Recent Activity */}
-          <Card className="lg:col-span-2 bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className={cn(APP_DASHBOARD_MAIN, "bg-muted/60 dark:bg-white/5 backdrop-blur-sm border-border dark:border-white/10")}>
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-amber-400" />
-                  Recent Activity
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base font-bold flex items-center gap-2 min-w-0">
+                  <Activity className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="truncate">{t("dashboard.recentActivity")}</span>
                 </CardTitle>
                 <Link href="/transactions">
-                  <Button variant="link" className="text-amber-500 p-0 h-auto text-xs">View All →</Button>
+                  <Button variant="link" className="text-amber-500 p-0 h-auto text-xs shrink-0">{t("common.viewAll")} →</Button>
                 </Link>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               {isLoadingActivity ? (
                 <Skeleton className="h-40 w-full" />
-              ) : activity && activity.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/10 hover:bg-transparent">
-                        <TableHead className="text-xs">TXN ID</TableHead>
-                        <TableHead className="text-xs">Date</TableHead>
-                        <TableHead className="text-xs">Type</TableHead>
-                        <TableHead className="text-xs">Amount</TableHead>
-                        <TableHead className="text-xs">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(activity as any[]).map(item => (
-                        <TableRow key={item.id} className="border-white/10">
-                          <TableCell className="text-xs font-mono text-muted-foreground">#{item.transactionId ?? item.id}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {format(new Date(item.createdAt), "dd/MM/yyyy HH:mm")}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`inline-flex items-center gap-1 text-xs capitalize font-medium ${
-                              item.type === "deposit" ? "text-green-400" : "text-red-400"
-                            }`}>
-                              {item.type === "deposit" ? <ArrowDownLeft className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
-                              {item.type}
-                            </span>
-                          </TableCell>
-                          <TableCell className={`text-sm font-semibold ${
-                            item.type === "deposit" ? "text-green-400" : "text-red-400"
-                          }`}>
+              ) : Array.isArray(activity) && activity.length > 0 ? (
+                <ResponsiveDataView
+                  caption={t("dashboard.recentActivity")}
+                  data={activity as any[]}
+                  rowKey={(item: any) => item.id}
+                  columns={[
+                    {
+                      key: "id",
+                      header: t("dashboard.txnId"),
+                      mobileTitle: true,
+                      cell: (item: any) => (
+                        <span className="font-mono text-muted-foreground text-xs">#{item.transactionId ?? item.id}</span>
+                      ),
+                    },
+                    {
+                      key: "date",
+                      header: t("common.date"),
+                      hideOnMobile: true,
+                      cell: (item: any) => (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {format(new Date(item.createdAt), "dd/MM/yyyy HH:mm")}
+                        </span>
+                      ),
+                    },
+                    {
+                      key: "type",
+                      header: t("common.type"),
+                      cell: (item: any) => {
+                        const isDeposit = item.type === "deposit";
+                        return (
+                          <span className={cn(
+                            "inline-flex items-center gap-1 text-xs capitalize font-medium",
+                            isDeposit ? "text-green-700 dark:text-green-400" : "text-red-400",
+                          )}>
+                            {isDeposit ? <ArrowDownLeft className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
+                            {translateStatus(t, item.type)}
+                          </span>
+                        );
+                      },
+                    },
+                    {
+                      key: "amount",
+                      header: t("common.amount"),
+                      headerClassName: "text-right",
+                      cellClassName: "text-right",
+                      cell: (item: any) => {
+                        const isDeposit = item.type === "deposit";
+                        return (
+                          <span className={cn(
+                            "text-sm font-semibold tabular-nums",
+                            isDeposit ? "text-green-700 dark:text-green-400" : "text-red-400",
+                          )}>
                             {fmtTxnAmount(item.amount, item.currency)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`text-[10px] border capitalize ${STATUS_BADGE[item.status] || "bg-white/10 text-zinc-400 border-white/10"}`}>
-                              {item.status || "—"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                          </span>
+                        );
+                      },
+                    },
+                    {
+                      key: "status",
+                      header: t("common.status"),
+                      cell: (item: any) => (
+                        <Badge className={cn(
+                          "text-[10px] border capitalize",
+                          STATUS_BADGE[item.status] || "bg-muted dark:bg-white/10 text-zinc-400 border-border dark:border-white/10",
+                        )}>
+                          {translateStatus(t, item.status)}
+                        </Badge>
+                      ),
+                    },
+                  ]}
+                  mobileHeader={(item: any) => (
+                    <div className="flex items-start justify-between gap-2 min-w-0 mb-2">
+                      <p className="text-[11px] font-mono text-muted-foreground truncate">#{item.transactionId ?? item.id}</p>
+                      <Badge className={cn(
+                        "text-[10px] border capitalize shrink-0",
+                        STATUS_BADGE[item.status] || "bg-muted dark:bg-white/10 text-zinc-400 border-border dark:border-white/10",
+                      )}>
+                        {translateStatus(t, item.status)}
+                      </Badge>
+                    </div>
+                  )}
+                  mobileFooter={(item: any) => (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      {format(new Date(item.createdAt), "dd/MM/yyyy · HH:mm")}
+                    </p>
+                  )}
+                />
               ) : (
                 <div className="py-10 text-center text-muted-foreground">
                   <Activity className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                  <p className="text-sm">No deposit or withdrawal activity yet</p>
+                  <p className="text-sm">{t("dashboard.noActivity")}</p>
                 </div>
               )}
             </CardContent>
@@ -528,56 +510,51 @@ export default function DashboardPage() {
 
           {/* Quick Actions + Investment Summary */}
           <div className="space-y-4">
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+            <Card className="bg-muted/60 dark:bg-white/5 backdrop-blur-sm border-border dark:border-white/10">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold">Quick Actions</CardTitle>
+                <CardTitle className="text-base font-bold">{t("dashboard.quickActions")}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <SafeBoundary label="Wallet actions unavailable">
-                  <WalletQuickActions />
-                </SafeBoundary>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  {[
-                    { href: "/copy-trading", icon: Users, label: "Copy Trading", cls: "bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300" },
-                    { href: "/mt5-relay", icon: LineChart, label: "MT4/MT5", cls: "bg-violet-500/15 hover:bg-violet-500/25 text-violet-300" },
-                    { href: "/plans", icon: TrendingUp, label: "Invest", cls: "bg-white/10 hover:bg-white/15 text-white" },
-                    { href: "/support", icon: Activity, label: "Support", cls: "bg-white/10 hover:bg-white/15 text-white" },
-                  ].map(({ href, icon: Icon, label, cls }) => (
-                    <Link key={label} href={href}>
-                      <Button className={`w-full h-10 text-xs font-semibold ${cls}`}>
-                        <Icon className="h-3.5 w-3.5 mr-1.5" />{label}
-                      </Button>
-                    </Link>
-                  ))}
-                </div>
+              <CardContent className="space-y-3 lg:space-y-4 min-w-0">
+                <TradingQuickActions />
               </CardContent>
             </Card>
 
             <Card className="bg-gradient-to-br from-amber-500/10 to-yellow-600/5 border-amber-500/20">
               <CardContent className="pt-5 pb-5 space-y-3">
                 <div className="flex items-center gap-2 mb-3">
-                  <Award className="h-4 w-4 text-amber-400" />
-                  <p className="text-sm font-bold text-amber-400">Referral Program</p>
+                  <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{t("dashboard.referralProgram")}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-center">
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <p className="text-xl font-black text-white">{user?.referralCount || 0}</p>
-                    <p className="text-[10px] text-muted-foreground">Referrals</p>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 text-center min-w-0">
+                  <div className="p-2 rounded-lg bg-muted/60 dark:bg-white/5 min-w-0 overflow-hidden">
+                    <p className="mobile-stat-value text-foreground">{user?.referralCount || 0}</p>
+                    <p className="text-[10px] text-muted-foreground line-clamp-2">{t("common.referrals")}</p>
                   </div>
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <p className="text-xl font-black text-amber-400">${Number(user?.referralEarnings || 0).toLocaleString()}</p>
-                    <p className="text-[10px] text-muted-foreground">Earned</p>
+                  <div className="p-2 rounded-lg bg-muted/60 dark:bg-white/5 min-w-0 overflow-hidden">
+                    <p className="mobile-stat-value text-amber-600 dark:text-amber-400">${Number((referralStats?.totalEarnings ?? summaryAny?.referralEarnings ?? user?.referralEarnings) || 0).toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground line-clamp-2">{t("common.earned")}</p>
                   </div>
                 </div>
-                <Link href="/referral" className="block">
-                  <Button size="sm" className="w-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/20 font-semibold text-xs">
-                    Share Referral Link
-                  </Button>
-                </Link>
+                <Button
+                  size="sm"
+                  className="w-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-semibold text-xs"
+                  onClick={() => setReferralShareOpen(true)}
+                  disabled={!(user as any)?.referralCode}
+                >
+                  {t("dashboard.shareReferralLink")}
+                </Button>
               </CardContent>
             </Card>
           </div>
         </div>
-      </div>
+
+        <ReferralShareDialog
+          open={referralShareOpen}
+          onOpenChange={setReferralShareOpen}
+          referralCode={(user as any)?.referralCode || ""}
+          inviterName={getShareUserDisplayName(user)}
+          avatarUrl={user?.avatarUrl}
+        />
+    </AppPage>
 );
 }

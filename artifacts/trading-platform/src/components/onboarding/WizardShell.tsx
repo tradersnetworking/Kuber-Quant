@@ -1,10 +1,9 @@
 import { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, ChevronRight, Moon, Sun } from "lucide-react";
+import { CheckCircle2, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { useTheme } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 
 type Step = { num: number; label: string };
@@ -27,19 +26,16 @@ export function WizardShell({
   title, subtitle, steps, currentStep, totalSteps, children, footer,
   loginHref = "/login", alternateHref, lastSaved, saving,
 }: Props) {
-  const { theme, toggle } = useTheme();
   const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
+    <div className="min-h-screen min-h-[100dvh] bg-background text-foreground flex flex-col md:flex-row overflow-x-hidden max-w-full">
       <aside className="hidden md:flex md:w-[36%] flex-col border-r border-border bg-card/50 p-10 relative overflow-hidden">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="relative z-10 w-full max-w-xs mx-auto">
           <div className="flex items-center justify-between mb-6">
             <BrandLogo className="h-20 w-auto max-w-[220px]" />
-            <Button type="button" variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
+            <ThemeToggle className="bg-card/60 border border-border/60" />
           </div>
           <h1 className="text-2xl font-black mb-1 sr-only">Kuber Quant</h1>
           <p className="text-muted-foreground text-xs uppercase tracking-widest mb-8">{title}</p>
@@ -72,24 +68,41 @@ export function WizardShell({
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-h-screen">
-        <div className="h-1 bg-muted sticky top-0 z-10">
+      <main className="flex-1 flex flex-col min-h-screen min-h-[100dvh] min-w-0 max-w-full overflow-x-hidden">
+        <div className="h-1 bg-muted sticky top-0 z-10 shrink-0">
           <motion.div className="h-full bg-primary" animate={{ width: `${progress}%` }} transition={{ duration: 0.35 }} />
         </div>
-        <div className="flex items-center justify-between px-4 py-3 md:hidden border-b border-border">
-          <BrandLogo className="h-9 w-auto max-w-[110px]" />
-          <div className="flex gap-1">
-            {steps.map(s => (
-              <div key={s.num} className={`h-1.5 rounded-full transition-all ${s.num <= currentStep ? "bg-primary w-6" : "bg-muted w-3"}`} />
-            ))}
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-3 md:hidden border-b border-border shrink-0 min-w-0">
+          <BrandLogo className="h-9 w-auto max-w-[100px] shrink-0" />
+          <div className="flex-1 min-w-0 px-2 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Step {currentStep} of {totalSteps}</p>
+            <p className="text-xs font-semibold truncate">{steps[currentStep - 1]?.label ?? subtitle}</p>
           </div>
-          <Button type="button" variant="ghost" size="icon" onClick={toggle}><Sun className="h-4 w-4" /></Button>
+          <ThemeToggle className="shrink-0 bg-card/60 border border-border/60" />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-10">
-          <div className="max-w-2xl mx-auto">
-            <Badge variant="outline" className="mb-3 text-xs">Step {currentStep} of {totalSteps}</Badge>
-            <h2 className="text-2xl font-bold">{subtitle}</h2>
+        <div className="md:hidden px-3 sm:px-4 pb-2 shrink-0 min-w-0 overflow-x-auto touch-pan-x">
+          <div className="flex gap-1.5 min-w-max">
+            {steps.map(s => {
+              const done = currentStep > s.num;
+              const active = currentStep === s.num;
+              return (
+                <div
+                  key={s.num}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold whitespace-nowrap ${active ? "bg-primary/10 border-primary/30 text-primary" : done ? "bg-green-500/10 border-green-500/20 text-green-600" : "border-border/60 text-muted-foreground"}`}
+                >
+                  {done ? <CheckCircle2 className="h-3 w-3 shrink-0" /> : <span className="tabular-nums">{s.num}</span>}
+                  <span className="max-w-[8rem] truncate">{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 md:p-10 min-w-0">
+          <div className="max-w-2xl mx-auto min-w-0 w-full">
+            <Badge variant="outline" className="mb-3 text-xs hidden md:inline-flex">Step {currentStep} of {totalSteps}</Badge>
+            <h2 className="text-xl sm:text-2xl font-bold break-words">{subtitle}</h2>
             {(saving || lastSaved) && (
               <p className="text-xs text-muted-foreground mt-1">
                 {saving ? "Saving draft…" : `Draft saved ${lastSaved?.toLocaleTimeString()}`}

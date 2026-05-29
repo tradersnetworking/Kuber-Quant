@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db, copyTradersTable, copyFollowsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { generateAgreement } from "../helpers/agreementEngine";
 import { linkMtTradingAccount, validateMtTradingCredentials } from "../helpers/mtAccountLink";
+import { assertTradingServiceDeposit } from "../helpers/tradingServiceDepositGate";
 
 const router = Router();
 
@@ -47,6 +48,9 @@ router.get("/:id", requireAuth, async (req, res) => {
 
 router.post("/:id/follow", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
+  const { respondIfServiceBlocked } = await import("../helpers/userAccessControl");
+  if (await respondIfServiceBlocked(userId, "copy", res)) return;
+
   const traderId = parseInt(String(req.params.id));
   const {
     amount, currency, mt5Login, platform, profitSharingPercent,
@@ -65,6 +69,13 @@ router.post("/:id/follow", requireAuth, async (req, res) => {
 
   const [trader] = await db.select().from(copyTradersTable).where(eq(copyTradersTable.id, traderId)).limit(1);
   if (!trader) { res.status(404).json({ error: "Trader not found" }); return; }
+
+  try {
+    await assertTradingServiceDeposit(userId);
+  } catch (err: any) {
+    res.status(402).json({ error: err.message, code: err.code || "TRADING_DEPOSIT_REQUIRED" });
+    return;
+  }
 
   try {
     await linkMtTradingAccount(userId, mtCreds);

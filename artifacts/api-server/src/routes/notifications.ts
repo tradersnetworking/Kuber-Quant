@@ -7,8 +7,9 @@ import {
   mapNotification,
 } from "../helpers/notificationService";
 import { getVapidPublicKey, subscribePush, unsubscribePush } from "../helpers/pushService";
+import { subscribeUserNotifications } from "../helpers/notificationStreamService";
 import { db, notificationsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and } from "@workspace/db/orm";
 
 const router = Router();
 
@@ -24,6 +25,29 @@ router.get("/unread-count", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
   const count = await getUnreadCount(userId);
   res.json({ count });
+});
+
+router.get("/stream", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+
+  const heartbeat = setInterval(() => {
+    res.write(": ping\n\n");
+  }, 30_000);
+
+  const unsubscribe = await subscribeUserNotifications(userId, (message) => {
+    res.write(`data: ${message}\n\n`);
+  });
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+  });
 });
 
 router.get("/since/:id", requireAuth, async (req, res) => {

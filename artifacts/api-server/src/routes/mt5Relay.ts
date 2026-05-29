@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { db, mt5RequestsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { getMt5RelayFormConfig } from "../helpers/mt5RelayFormSettings";
 import { buildMt5RelayDetails, validateMt5RelayPayload } from "../lib/mt5RelayFormConfig";
 import { generateAgreement } from "../helpers/agreementEngine";
 import { linkMtTradingAccount, getLatestMtAccountForUser, getMtTradingPassword } from "../helpers/mtAccountLink";
+import { assertTradingServiceDeposit } from "../helpers/tradingServiceDepositGate";
 
 const router = Router();
 
@@ -36,6 +37,13 @@ router.post("/", requireAuth, async (req, res) => {
   const validationError = validateMt5RelayPayload(req.body, config);
   if (validationError) {
     res.status(400).json({ error: validationError }); return;
+  }
+
+  try {
+    await assertTradingServiceDeposit(userId);
+  } catch (err: any) {
+    res.status(402).json({ error: err.message, code: err.code || "TRADING_DEPOSIT_REQUIRED" });
+    return;
   }
 
   const accountRaw = accountNumber ?? mt5AccountId;

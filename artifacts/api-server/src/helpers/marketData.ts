@@ -41,7 +41,7 @@ export type MarketDataConfig = {
 async function getSetting(key: string): Promise<string> {
   try {
     const { db, siteSettingsTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
+    const { eq } = await import("@workspace/db/orm");
     const [row] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, key)).limit(1);
     return row?.value || "";
   } catch {
@@ -51,7 +51,7 @@ async function getSetting(key: string): Promise<string> {
 
 async function saveSetting(key: string, value: string, label: string, category = "market_data") {
   const { db, siteSettingsTable } = await import("@workspace/db");
-  const { eq } = await import("drizzle-orm");
+  const { eq } = await import("@workspace/db/orm");
   const existing = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, key)).limit(1);
   if (existing.length) {
     await db.update(siteSettingsTable).set({ value }).where(eq(siteSettingsTable.key, key));
@@ -119,7 +119,7 @@ export async function getUserWatchlist(userId: number): Promise<string[]> {
   // Legacy: user_profiles.securitySettings.dashboardWatchlist
   try {
     const { db, userProfilesTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
+    const { eq } = await import("@workspace/db/orm");
     const [profile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId)).limit(1);
     const list = (profile?.securitySettings as Record<string, unknown> | null)?.dashboardWatchlist;
     if (Array.isArray(list) && list.length) {
@@ -151,7 +151,7 @@ export async function saveUserWatchlist(userId: number, pairs: unknown[]): Promi
   // Keep profile in sync when the row exists (optional, non-blocking)
   try {
     const { db, userProfilesTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
+    const { eq } = await import("@workspace/db/orm");
     const [profile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId)).limit(1);
     if (profile) {
       const settings = {

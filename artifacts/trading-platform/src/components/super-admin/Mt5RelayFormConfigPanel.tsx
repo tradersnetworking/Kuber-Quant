@@ -15,6 +15,8 @@ import {
   type Mt5RelayFormConfig,
 } from "@/lib/mt5-relay-form-config";
 import { Settings2, Save } from "lucide-react";
+import { STAFF_FORM_GRID } from "@/lib/staff-dashboard-ui";
+import { cn } from "@/lib/utils";
 
 const FIELD_KEYS: Mt5RelayFieldKey[] = ["platform", "accountNumber", "brokerName", "serverName", "tradingPassword", "details"];
 
@@ -72,10 +74,10 @@ export function Mt5RelayFormConfigPanel() {
   }
 
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Settings2 className="h-4 w-4 text-amber-400" />
+          <Settings2 className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           MT4/MT5 Request Form Fields
         </CardTitle>
         <CardDescription>
@@ -90,7 +92,7 @@ export function Mt5RelayFormConfigPanel() {
             {FIELD_KEYS.map(key => {
               const field = config.fields[key];
               return (
-                <div key={key} className="rounded-lg border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                <div key={key} className="rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02] p-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium capitalize">{key.replace(/([A-Z])/g, " $1")}</p>
@@ -121,7 +123,7 @@ export function Mt5RelayFormConfigPanel() {
                         <Input
                           value={field.label}
                           onChange={e => updateField(key, { label: e.target.value })}
-                          className="bg-white/5 border-white/10 h-9"
+                          className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-9"
                         />
                       </div>
                       {key !== "platform" && (
@@ -130,7 +132,7 @@ export function Mt5RelayFormConfigPanel() {
                           <Input
                             value={field.placeholder || ""}
                             onChange={e => updateField(key, { placeholder: e.target.value })}
-                            className="bg-white/5 border-white/10 h-9"
+                            className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-9"
                           />
                         </div>
                       )}
@@ -141,7 +143,7 @@ export function Mt5RelayFormConfigPanel() {
             })}
           </div>
 
-          <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4 space-y-3">
+          <div className="rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02] p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium">Profit sharing slider</p>
@@ -169,30 +171,30 @@ export function Mt5RelayFormConfigPanel() {
               </div>
             </div>
             {config.profitSharing.enabled && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className={cn(STAFF_FORM_GRID, "sm:grid-cols-2 lg:grid-cols-4")}>
                 <div className="space-y-1">
                   <Label className="text-xs">Min %</Label>
                   <Input type="number" value={config.profitSharing.min}
                     onChange={e => setConfig(c => ({ ...c, profitSharing: { ...c.profitSharing, min: Number(e.target.value) } }))}
-                    className="bg-white/5 border-white/10 h-9" />
+                    className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-9" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Max %</Label>
                   <Input type="number" value={config.profitSharing.max}
                     onChange={e => setConfig(c => ({ ...c, profitSharing: { ...c.profitSharing, max: Number(e.target.value) } }))}
-                    className="bg-white/5 border-white/10 h-9" />
+                    className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-9" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Default %</Label>
                   <Input type="number" value={config.profitSharing.default}
                     onChange={e => setConfig(c => ({ ...c, profitSharing: { ...c.profitSharing, default: Number(e.target.value) } }))}
-                    className="bg-white/5 border-white/10 h-9" />
+                    className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-9" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Step</Label>
                   <Input type="number" value={config.profitSharing.step}
                     onChange={e => setConfig(c => ({ ...c, profitSharing: { ...c.profitSharing, step: Number(e.target.value) } }))}
-                    className="bg-white/5 border-white/10 h-9" />
+                    className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 h-9" />
                 </div>
               </div>
             )}
@@ -204,7 +206,7 @@ export function Mt5RelayFormConfigPanel() {
               <Textarea
                 value={config.copyTradingDetailsPlaceholder}
                 onChange={e => setConfig(c => ({ ...c, copyTradingDetailsPlaceholder: e.target.value }))}
-                className="bg-white/5 border-white/10 min-h-[72px]"
+                className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 min-h-[72px]"
                 rows={2}
               />
             </div>
@@ -213,7 +215,7 @@ export function Mt5RelayFormConfigPanel() {
               <Textarea
                 value={config.accountHandlingDetailsPlaceholder}
                 onChange={e => setConfig(c => ({ ...c, accountHandlingDetailsPlaceholder: e.target.value }))}
-                className="bg-white/5 border-white/10 min-h-[72px]"
+                className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 min-h-[72px]"
                 rows={2}
               />
             </div>

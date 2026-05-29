@@ -10,29 +10,18 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Switch } from "@/components/ui/switch";
 import { authFetchJson } from "@/lib/token-store";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2, Star, Building2, QrCode, Wallet } from "lucide-react";
-import {
-  CRYPTO_SYMBOLS,
-  defaultNetworkForSymbol,
-  formatCryptoLabel,
-  networksForSymbol,
-} from "./crypto-networks";
+import { Plus, Edit2, Trash2, Star, Building2, QrCode, Wallet, Loader2 } from "lucide-react";
+import { formatCryptoLabel } from "./crypto-networks";
+import { CryptoAssetPicker } from "./CryptoAssetPicker";
+import { CryptoAssetIcon } from "./CryptoAssetIcon";
+import { findCatalogAsset } from "./crypto-asset-catalog";
+import { UserQrUploadButton } from "./UserQrUploadButton";
+import { PayoutAccountDetailsCard } from "./PayoutAccountDetailsCard";
+import { resolvePayoutQrSrc } from "./deposit-account-utils";
+import { QrImage } from "@/components/wallet/QrImage";
+import type { PaymentAccount } from "./payout-account-types";
 
-export type PaymentAccount = {
-  id: number;
-  label: string;
-  accountType: "bank" | "upi" | "crypto";
-  accountHolderName?: string | null;
-  bankName?: string | null;
-  accountNumber?: string | null;
-  ifscCode?: string | null;
-  branchName?: string | null;
-  upiId?: string | null;
-  cryptoSymbol?: string | null;
-  cryptoNetwork?: string | null;
-  walletAddress?: string | null;
-  isDefault: boolean;
-};
+export type { PaymentAccount };
 
 type AccountForm = {
   label: string;
@@ -43,19 +32,55 @@ type AccountForm = {
   ifscCode: string;
   branchName: string;
   upiId: string;
+  upiQrUrl: string;
   cryptoSymbol: string;
   cryptoNetwork: string;
   walletAddress: string;
+  walletQrUrl: string;
   isDefault: boolean;
 };
 
 const EMPTY: AccountForm = {
   label: "", accountType: "bank", accountHolderName: "", bankName: "",
-  accountNumber: "", ifscCode: "", branchName: "", upiId: "",
-  cryptoSymbol: "USDT", cryptoNetwork: "TRC20", walletAddress: "", isDefault: false,
+  accountNumber: "", ifscCode: "", branchName: "", upiId: "", upiQrUrl: "",
+  cryptoSymbol: "USDT", cryptoNetwork: "TRC20", walletAddress: "", walletQrUrl: "", isDefault: false,
 };
 
+const EMPTY_CRYPTO_META = { coinName: "Tether USD" };
+
 const TYPE_ICON = { bank: Building2, upi: QrCode, crypto: Wallet };
+
+function buildAccountPayload(form: AccountForm) {
+  const base = {
+    label: form.label.trim(),
+    accountType: form.accountType,
+    isDefault: form.isDefault,
+  };
+  if (form.accountType === "bank") {
+    return {
+      ...base,
+      accountHolderName: form.accountHolderName.trim(),
+      bankName: form.bankName.trim(),
+      accountNumber: form.accountNumber.trim(),
+      ifscCode: form.ifscCode.trim().toUpperCase() || undefined,
+      branchName: form.branchName.trim() || undefined,
+    };
+  }
+  if (form.accountType === "upi") {
+    return {
+      ...base,
+      upiId: form.upiId.trim().toLowerCase(),
+      upiQrUrl: form.upiQrUrl?.trim() || undefined,
+    };
+  }
+  return {
+    ...base,
+    cryptoSymbol: form.cryptoSymbol.trim().toUpperCase(),
+    cryptoNetwork: form.cryptoNetwork.trim(),
+    walletAddress: form.walletAddress.trim(),
+    walletQrUrl: form.walletQrUrl?.trim() || undefined,
+  };
+}
 
 export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: PaymentAccount) => void }) {
   const { toast } = useToast();
@@ -63,6 +88,8 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PaymentAccount | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
+  const [cryptoMeta, setCryptoMeta] = useState(EMPTY_CRYPTO_META);
+  const [saving, setSaving] = useState(false);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ["/api/wallet/payment-accounts"],
@@ -72,6 +99,7 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
   function openNew(type?: PaymentAccount["accountType"]) {
     setEditing(null);
     setForm({ ...EMPTY, accountType: type || "bank" });
+    setCryptoMeta(EMPTY_CRYPTO_META);
     setOpen(true);
   }
 
@@ -86,22 +114,43 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
       ifscCode: acc.ifscCode || "",
       branchName: acc.branchName || "",
       upiId: acc.upiId || "",
+      upiQrUrl: acc.upiQrUrl || "",
       cryptoSymbol: acc.cryptoSymbol || "USDT",
       cryptoNetwork: acc.cryptoNetwork || "",
       walletAddress: acc.walletAddress || "",
+      walletQrUrl: acc.walletQrUrl || "",
       isDefault: acc.isDefault,
     });
+    setCryptoMeta({ coinName: findCatalogAsset(acc.cryptoSymbol || "")?.name || acc.cryptoSymbol || "" });
     setOpen(true);
   }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
+    if (!form.label.trim()) {
+      toast({ title: "Label required", description: "Give this account a name (e.g. Primary UPI).", variant: "destructive" });
+      return;
+    }
+    if (form.accountType === "bank" && (!form.accountHolderName.trim() || !form.bankName.trim() || !form.accountNumber.trim())) {
+      toast({ title: "Bank details required", description: "Account holder, bank name, and account number are required.", variant: "destructive" });
+      return;
+    }
+    if (form.accountType === "upi" && !form.upiId.trim()) {
+      toast({ title: "UPI ID required", variant: "destructive" });
+      return;
+    }
+    if (form.accountType === "crypto" && !form.walletAddress.trim()) {
+      toast({ title: "Wallet address required", variant: "destructive" });
+      return;
+    }
     if (form.accountType === "crypto" && !form.cryptoNetwork?.trim()) {
       toast({ title: "Chain required", description: "Select a network (e.g. TRC20, ERC20, BEP20 for USDT).", variant: "destructive" });
       return;
     }
+    setSaving(true);
     try {
-      const body = { ...form };
+      const body = buildAccountPayload(form);
       if (editing) {
         await authFetchJson(`/wallet/payment-accounts/${editing.id}`, { method: "PATCH", body: JSON.stringify(body) });
         toast({ title: "Account updated" });
@@ -113,6 +162,8 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
       qc.invalidateQueries({ queryKey: ["/api/wallet/payment-accounts"] });
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -128,12 +179,12 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
   }
 
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10">
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <div>
             <CardTitle className="text-base">My Payout Accounts</CardTitle>
-            <CardDescription>Save bank, UPI, and crypto accounts for withdrawals. Available to all roles.</CardDescription>
+            <CardDescription>Save bank, UPI, and crypto wallets for withdrawals and exchange payouts. You can edit QR codes and addresses anytime.</CardDescription>
           </div>
           <Button size="sm" className="bg-amber-500 text-black shrink-0" onClick={() => openNew()}>
             <Plus className="h-4 w-4 mr-1" /> Add
@@ -161,25 +212,36 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
                 ? acc.upiId
                 : `${formatCryptoLabel(acc.cryptoSymbol, acc.cryptoNetwork)} · ${acc.walletAddress?.slice(0, 12)}…`;
             return (
-              <div key={acc.id} className="flex items-center gap-3 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
-                <div className="p-2 rounded-lg bg-primary/10"><Icon className="h-4 w-4 text-primary" /></div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-sm truncate">{acc.label}</p>
-                    <Badge variant="outline" className="text-[10px] capitalize">{acc.accountType}</Badge>
-                    {acc.accountType === "crypto" && acc.cryptoNetwork && (
-                      <Badge variant="outline" className="text-[10px]">{acc.cryptoNetwork.toUpperCase()}</Badge>
+              <div key={acc.id} className="rounded-lg border border-border dark:border-white/10 bg-muted/40 dark:bg-white/[0.02] overflow-hidden">
+                <div className="flex items-center gap-3 p-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    {acc.accountType === "crypto" ? (
+                      <CryptoAssetIcon symbol={acc.cryptoSymbol} network={acc.cryptoNetwork} size="sm" />
+                    ) : (
+                      <Icon className="h-4 w-4 text-primary" />
                     )}
-                    {acc.isDefault && <Badge className="text-[10px] bg-amber-500/20 text-amber-400"><Star className="h-3 w-3 mr-0.5" />Default</Badge>}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{detail}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-sm truncate">{acc.label}</p>
+                      <Badge variant="outline" className="text-[10px] capitalize">{acc.accountType}</Badge>
+                      {acc.accountType === "crypto" && acc.cryptoNetwork && (
+                        <Badge variant="outline" className="text-[10px]">{acc.cryptoNetwork.toUpperCase()}</Badge>
+                      )}
+                      {acc.isDefault && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400"><Star className="h-3 w-3 mr-0.5" />Default</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{detail}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    {onSelect && (
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onSelect(acc)}>Use</Button>
+                    )}
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(acc)} title="Edit account"><Edit2 className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => remove(acc.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
                 </div>
-                <div className="flex gap-1 shrink-0">
-                  {onSelect && (
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onSelect(acc)}>Use</Button>
-                  )}
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(acc)}><Edit2 className="h-3.5 w-3.5" /></Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => remove(acc.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                <div className="px-3 pb-3">
+                  <PayoutAccountDetailsCard account={acc} compact className="border-border/80 dark:border-white/5 bg-black/15" />
                 </div>
               </div>
             );
@@ -188,19 +250,20 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
       </CardContent>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[#050A14] border-white/10 max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="bg-background border-border dark:border-white/10 max-w-md w-[calc(100vw-2rem)] p-0 gap-0 flex flex-col max-h-[min(90dvh,calc(100dvh-1.5rem))] overflow-hidden">
+          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0">
             <DialogTitle>{editing ? "Edit Account" : "Add Payout Account"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={save} className="space-y-3">
+          <form onSubmit={save} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-2 space-y-3">
             <div className="space-y-1">
               <Label>Label</Label>
-              <Input required value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="Primary Bank" className="bg-white/5 border-white/10" />
+              <Input required value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="Primary Bank" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
             </div>
             <div className="space-y-1">
               <Label>Type</Label>
               <Select value={form.accountType} onValueChange={v => setForm(f => ({ ...f, accountType: v as any }))}>
-                <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="bank">Bank Account</SelectItem>
                   <SelectItem value="upi">UPI</SelectItem>
@@ -211,60 +274,74 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
 
             {form.accountType === "bank" && (
               <>
-                <Input required placeholder="Account holder name" value={form.accountHolderName} onChange={e => setForm(f => ({ ...f, accountHolderName: e.target.value }))} className="bg-white/5 border-white/10" />
-                <Input required placeholder="Bank name" value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} className="bg-white/5 border-white/10" />
-                <Input required placeholder="Account number" value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} className="bg-white/5 border-white/10" />
-                <Input placeholder="IFSC / SWIFT" value={form.ifscCode} onChange={e => setForm(f => ({ ...f, ifscCode: e.target.value }))} className="bg-white/5 border-white/10" />
-                <Input placeholder="Branch" value={form.branchName} onChange={e => setForm(f => ({ ...f, branchName: e.target.value }))} className="bg-white/5 border-white/10" />
+                <Input required placeholder="Account holder name" value={form.accountHolderName} onChange={e => setForm(f => ({ ...f, accountHolderName: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+                <Input required placeholder="Bank name" value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+                <Input required placeholder="Account number" value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+                <Input placeholder="IFSC / SWIFT" value={form.ifscCode} onChange={e => setForm(f => ({ ...f, ifscCode: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+                <Input placeholder="Branch" value={form.branchName} onChange={e => setForm(f => ({ ...f, branchName: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
               </>
             )}
 
             {form.accountType === "upi" && (
-              <Input required placeholder="UPI ID (name@bank)" value={form.upiId} onChange={e => setForm(f => ({ ...f, upiId: e.target.value }))} className="bg-white/5 border-white/10" />
+              <>
+                <Input required placeholder="UPI ID (name@bank)" value={form.upiId} onChange={e => setForm(f => ({ ...f, upiId: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">UPI QR code (optional — auto-generated if not uploaded)</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <UserQrUploadButton onUploaded={url => setForm(f => ({ ...f, upiQrUrl: url }))} />
+                    {(form.upiQrUrl || form.upiId) && (
+                      <QrImage
+                        src={resolvePayoutQrSrc({
+                          accountType: "upi",
+                          label: form.label || "UPI",
+                          upiId: form.upiId,
+                          upiQrUrl: form.upiQrUrl,
+                        })}
+                        fallbackSrc={form.upiId ? resolvePayoutQrSrc({ accountType: "upi", label: form.label || "UPI", upiId: form.upiId }) : undefined}
+                        alt="UPI QR preview"
+                        className="h-16 w-16 rounded border border-border dark:border-white/10 bg-white p-0.5 object-contain"
+                      />
+                    )}
+                  </div>
+                </div>
+              </>
             )}
 
             {form.accountType === "crypto" && (
               <>
-                <div className="space-y-1">
-                  <Label>Asset</Label>
-                  <Select
-                    value={form.cryptoSymbol}
-                    onValueChange={v => setForm(f => ({
-                      ...f,
-                      cryptoSymbol: v,
-                      cryptoNetwork: defaultNetworkForSymbol(v),
-                    }))}
-                  >
-                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CRYPTO_SYMBOLS.map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <CryptoAssetPicker
+                  value={{ symbol: form.cryptoSymbol, network: form.cryptoNetwork, coinName: cryptoMeta.coinName }}
+                  onChange={next => {
+                    setForm(f => ({ ...f, cryptoSymbol: next.symbol, cryptoNetwork: next.network }));
+                    setCryptoMeta({ coinName: next.coinName });
+                  }}
+                  onAutoName={label => setForm(f => ({ ...f, label: f.label.trim() ? f.label : label }))}
+                />
+                <Input required placeholder="Wallet address" value={form.walletAddress} onChange={e => setForm(f => ({ ...f, walletAddress: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10 font-mono text-sm" />
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Wallet QR code (optional — auto-generated if not uploaded)</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <UserQrUploadButton
+                      label="Upload wallet QR"
+                      uploadPath="/wallet/payment-accounts/upload/wallet-qr"
+                      onUploaded={url => setForm(f => ({ ...f, walletQrUrl: url }))}
+                    />
+                    {(form.walletQrUrl || form.walletAddress) && (
+                      <QrImage
+                        src={resolvePayoutQrSrc({
+                          accountType: "crypto",
+                          label: form.label || "Wallet",
+                          walletAddress: form.walletAddress,
+                          walletQrUrl: form.walletQrUrl,
+                        })}
+                        fallbackSrc={form.walletAddress ? resolvePayoutQrSrc({ accountType: "crypto", walletAddress: form.walletAddress }) : undefined}
+                        alt="Wallet QR preview"
+                        className="h-16 w-16 rounded border border-border dark:border-white/10 bg-white p-0.5 object-contain"
+                      />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Upload your wallet QR or we generate one from the address. Edit anytime from this screen.</p>
                 </div>
-                <div className="space-y-1">
-                  <Label>Chain / Network {form.cryptoSymbol === "USDT" && <span className="text-amber-400">*</span>}</Label>
-                  <Select
-                    value={form.cryptoNetwork}
-                    onValueChange={v => setForm(f => ({ ...f, cryptoNetwork: v }))}
-                  >
-                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue placeholder="Select chain" /></SelectTrigger>
-                    <SelectContent>
-                      {networksForSymbol(form.cryptoSymbol).map(n => (
-                        <SelectItem key={n.value} value={n.value}>
-                          {n.label}{n.hint ? ` — ${n.hint}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {form.cryptoSymbol === "USDT" && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Choose TRC20, ERC20, or BEP20 — must match your wallet address network.
-                    </p>
-                  )}
-                </div>
-                <Input required placeholder="Wallet address" value={form.walletAddress} onChange={e => setForm(f => ({ ...f, walletAddress: e.target.value }))} className="bg-white/5 border-white/10 font-mono text-sm" />
               </>
             )}
 
@@ -272,9 +349,16 @@ export function PersonalPaymentAccounts({ onSelect }: { onSelect?: (acc: Payment
               <Switch checked={form.isDefault} onCheckedChange={v => setForm(f => ({ ...f, isDefault: v }))} />
               <Label className="text-sm">Set as default withdrawal account</Label>
             </div>
+            </div>
 
-            <DialogFooter>
-              <Button type="submit" className="w-full bg-amber-500 text-black">{editing ? "Save Changes" : "Add Account"}</Button>
+            <DialogFooter className="shrink-0 gap-2 sm:gap-2">
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" className="w-full sm:flex-1 bg-amber-500 text-black" disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {editing ? "Save Changes" : "Add Account"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

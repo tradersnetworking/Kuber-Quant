@@ -14,6 +14,8 @@ export const userPaymentAccountsTable = pgTable("user_payment_accounts", {
   cryptoSymbol: text("crypto_symbol"),
   cryptoNetwork: text("crypto_network"),
   walletAddress: text("wallet_address"),
+  upiQrUrl: text("upi_qr_url"),
+  walletQrUrl: text("wallet_qr_url"),
   isDefault: boolean("is_default").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

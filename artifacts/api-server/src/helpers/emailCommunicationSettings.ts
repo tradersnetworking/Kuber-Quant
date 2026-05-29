@@ -1,5 +1,5 @@
 import { db, siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq } from "@workspace/db/orm";
 import { getSmtpConfig } from "./smtpSettings";
 
 export type EmailPurpose =
@@ -17,6 +17,7 @@ export type EmailPurpose =
   | "kyc_rejected"
   | "investment"
   | "ticket_reply"
+  | "ticket_acknowledgment"
   | "broadcast"
   | "generic";
 
@@ -55,6 +56,7 @@ export const EMAIL_PURPOSE_META: Record<EmailPurpose, { label: string; descripti
   kyc_rejected: { label: "KYC Rejected", description: "When KYC is rejected", group: "Compliance" },
   investment: { label: "Investment", description: "Investment plan confirmations", group: "Trading" },
   ticket_reply: { label: "Support Ticket Reply", description: "When staff replies to a support ticket", group: "Support" },
+  ticket_acknowledgment: { label: "Ticket Auto-Acknowledgment", description: "AI or template email when a complaint/query ticket is created", group: "Support" },
   broadcast: { label: "Admin Broadcast", description: "Bulk announcements from admin", group: "Support" },
   generic: { label: "Generic / Other", description: "Fallback for uncategorized mail", group: "Other" },
 };
@@ -122,6 +124,7 @@ export const DEFAULT_AUTO_EMAILS: Record<EmailPurpose, AutoEmailSetting> = {
   kyc_rejected: { enabled: true, subject: "KYC verification update" },
   investment: { enabled: true, subject: "Investment confirmation" },
   ticket_reply: { enabled: true, subject: "Support ticket update" },
+  ticket_acknowledgment: { enabled: true, subject: "We received your support request" },
   broadcast: { enabled: true, subject: "Message from Kuber Quant" },
   generic: { enabled: true, subject: "Notification from Kuber Quant" },
 };

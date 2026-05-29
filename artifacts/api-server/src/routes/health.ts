@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { sql } from "@workspace/db/orm";
 import { pingRedis } from "../helpers/redis";
 
 const router: IRouter = Router();

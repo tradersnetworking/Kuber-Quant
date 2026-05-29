@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Inbox, RefreshCw, Save } from "lucide-react";
 import { authFetchJson } from "@/lib/token-store";
+import { STAFF_CARD, STAFF_FORM_GRID } from "@/lib/staff-dashboard-ui";
+import { APP_ACTION_ROW } from "@/lib/ui-system";
 
 type SupportInboxConfig = {
   enabled: boolean;
@@ -79,22 +81,22 @@ export function SupportInboxSettingsPanel() {
   if (loading || !config) return <Skeleton className="h-64 w-full" />;
 
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className={STAFF_CARD}>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Inbox className="h-4 w-4 text-sky-400" />
+          <Inbox className="h-4 w-4 text-sky-600 dark:text-sky-400" />
           Support Inbox (IMAP)
         </CardTitle>
         <CardDescription>
           Connect support@kuberquant.com via IMAP so support and admin teams can read and reply to client emails from the dashboard.
         </CardDescription>
         <div className="flex gap-2 pt-2">
-          {config.configured && <Badge variant="outline" className="text-green-400 border-green-500/30">Configured</Badge>}
-          {config.envFallback && <Badge variant="outline" className="text-amber-400 border-amber-500/30">Using environment variables</Badge>}
+          {config.configured && <Badge variant="outline" className="text-green-700 dark:text-green-400 border-green-500/30">Configured</Badge>}
+          {config.envFallback && <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-500/30">Using environment variables</Badge>}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-between rounded-lg border border-white/10 p-3">
+        <div className="flex items-center justify-between rounded-lg border border-border dark:border-white/10 p-3">
           <div>
             <p className="text-sm font-medium">Enable IMAP sync</p>
             <p className="text-xs text-muted-foreground">Allow support/admin to pull new emails into the dashboard inbox</p>
@@ -102,33 +104,33 @@ export function SupportInboxSettingsPanel() {
           <Switch checked={config.enabled} onCheckedChange={v => setConfig({ ...config, enabled: v })} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={STAFF_FORM_GRID}>
           <div>
             <Label>Inbox address</Label>
             <Input
               value={config.inboxAddress}
               onChange={e => setConfig({ ...config, inboxAddress: e.target.value })}
               placeholder="support@kuberquant.com"
-              className="bg-white/5 border-white/10"
+              className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"
             />
           </div>
           <div>
             <Label>IMAP Host</Label>
-            <Input value={config.host} onChange={e => setConfig({ ...config, host: e.target.value })} placeholder="imap.kuberquant.com" className="bg-white/5 border-white/10" />
+            <Input value={config.host} onChange={e => setConfig({ ...config, host: e.target.value })} placeholder="imap.kuberquant.com" className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
           </div>
           <div>
             <Label>Port</Label>
-            <Input type="number" value={config.port} onChange={e => setConfig({ ...config, port: Number(e.target.value) })} className="bg-white/5 border-white/10" />
+            <Input type="number" value={config.port} onChange={e => setConfig({ ...config, port: Number(e.target.value) })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
           </div>
           <div>
             <Label>Username</Label>
-            <Input value={config.user} onChange={e => setConfig({ ...config, user: e.target.value })} className="bg-white/5 border-white/10" />
+            <Input value={config.user} onChange={e => setConfig({ ...config, user: e.target.value })} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
           </div>
           <div>
             <Label>Password</Label>
-            <Input type="password" value={config.pass} onChange={e => setConfig({ ...config, pass: e.target.value })} placeholder={config.pass ? "••••••••" : ""} className="bg-white/5 border-white/10" />
+            <Input type="password" value={config.pass} onChange={e => setConfig({ ...config, pass: e.target.value })} placeholder={config.pass ? "••••••••" : ""} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" />
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-white/10 p-3">
+          <div className="flex items-center justify-between rounded-lg border border-border dark:border-white/10 p-3">
             <div>
               <p className="text-sm">SSL / TLS</p>
               <p className="text-xs text-muted-foreground">Use secure connection (port 993)</p>
@@ -137,7 +139,7 @@ export function SupportInboxSettingsPanel() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className={APP_ACTION_ROW}>
           <Button size="sm" className="bg-amber-500 text-black" onClick={save} disabled={saving}>
             <Save className="h-4 w-4 mr-1" />{saving ? "Saving..." : "Save Inbox Settings"}
           </Button>

@@ -7,7 +7,7 @@ import {
   managerApplicationsTable, kycRecordsTable, notificationsTable,
   siteSettingsTable,
 } from "@workspace/db";
-import { eq, or, desc } from "drizzle-orm";
+import { eq, or, desc } from "@workspace/db/orm";
 import {
   createEmailOtp, verifyEmailOtp, sendOtpEmail,
 } from "../helpers/authHelpers";
@@ -15,11 +15,22 @@ import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
 import { encryptSensitive, generateInvestorId } from "../helpers/encryption";
 import { seedPaymentAccountsFromOnboarding } from "../helpers/paymentAccountSync";
 import { linkMtTradingAccount } from "../helpers/mtAccountLink";
+import { assertTradingServiceDeposit } from "../helpers/tradingServiceDepositGate";
 import { createCaptchaChallenge, verifyCaptchaChallenge } from "../helpers/captchaStore";
 import { issueRegistrationVerification, consumeRegistrationVerification } from "../helpers/registrationVerification";
 import { sendTransactionalEmail, buildWelcomeEmail } from "../helpers/mailer";
+import { emitN8nEvent } from "../helpers/n8nWebhookService";
 import { issueTokens, mapUser, generateReferralCode } from "./auth";
 import { requireAuth, requireSuperAdmin, requireAdmin } from "../middlewares/auth";
+import { isIndianUser } from "../helpers/kycRegion";
+import { validateBody, validateMultipartJsonField, getValidatedBody } from "../middlewares/validate";
+import {
+  CheckDuplicateBody,
+  SendOtpBody,
+  VerifyOtpBody,
+  InvestorCompleteBody,
+  type InvestorCompleteInput,
+} from "../lib/routeBodySchemas";
 
 const router = Router();
 const upload = createUploadMiddleware("kyc_documents");
@@ -39,6 +50,8 @@ const DEFAULT_CONFIG = {
   requireMobileOtp: false,
   requireCaptcha: true,
   kycRequired: true,
+  progressiveOnboarding: true,
+  requiredStepCount: 3,
 };
 
 async function getOnboardingConfig() {
@@ -60,12 +73,15 @@ function draftExpiry() {
 }
 
 router.get("/config", async (_req, res) => {
-  const config = await getOnboardingConfig();
-  res.json(config);
+  const [config, otpPublic] = await Promise.all([
+    getOnboardingConfig(),
+    import("../helpers/otpCommunicationSettings").then(m => m.getPublicOtpConfig()),
+  ]);
+  res.json({ ...config, otpChannels: otpPublic });
 });
 
 router.get("/captcha", async (_req, res) => {
-  const { captchaToken, question } = createCaptchaChallenge();
+  const { captchaToken, question } = await createCaptchaChallenge();
   res.json({ captchaToken, question });
 });
 
@@ -128,8 +144,8 @@ router.post("/draft", async (req, res) => {
   res.status(201).json({ draftToken: created.draftToken, currentStep: created.currentStep, savedAt: created.createdAt });
 });
 
-router.post("/check-duplicate", async (req, res) => {
-  const { email, username } = req.body;
+router.post("/check-duplicate", validateBody(CheckDuplicateBody), async (req, res) => {
+  const { email, username } = getValidatedBody<{ email?: string; username?: string }>(req);
   const result: { emailTaken?: boolean; usernameTaken?: boolean } = {};
   if (email) {
     const [u] = await db.select({ id: usersTable.id }).from(usersTable)
@@ -144,22 +160,59 @@ router.post("/check-duplicate", async (req, res) => {
   res.json(result);
 });
 
-router.post("/send-otp", otpLimiter, async (req, res) => {
-  const { email, phone, channel, fullName } = req.body;
-  const config = await getOnboardingConfig();
-  const purpose = channel === "mobile" ? "mobile_verify" as const : "registration" as const;
-  const target = channel === "mobile" ? `sms:${phone}` : email?.toLowerCase();
+router.post("/send-otp", otpLimiter, validateBody(SendOtpBody), async (req, res) => {
+  const { email, phone, channel, fullName, firebaseIdToken } = getValidatedBody<{
+    email?: string;
+    phone?: string;
+    channel?: string;
+    fullName?: string;
+    firebaseIdToken?: string;
+  }>(req);
+  const { resolveMobileChannel, sendOtpViaChannel, verifyFirebasePhoneToken } = await import("../helpers/otpDeliveryService");
+
+  if (channel === "firebase" && firebaseIdToken && phone) {
+    const valid = await verifyFirebasePhoneToken(String(firebaseIdToken), String(phone));
+    if (!valid) {
+      res.status(400).json({ error: "Firebase phone verification failed" });
+      return;
+    }
+    const target = `sms:${phone}`;
+    const verificationToken = await issueRegistrationVerification(target, "firebase");
+    res.json({ verified: true, channel: "firebase", verificationToken, message: "Phone verified via Firebase." });
+    return;
+  }
+
+  let deliveryChannel: "email" | "sms" | "whatsapp" | "firebase" = "email";
+  if (channel === "sms") deliveryChannel = "sms";
+  else if (channel === "whatsapp") deliveryChannel = "whatsapp";
+  else if (channel === "firebase") deliveryChannel = "firebase";
+  else if (channel === "mobile") {
+    const mobile = await resolveMobileChannel();
+    if (!mobile) {
+      res.status(503).json({ error: "No mobile OTP channel is enabled. Enable SMS, WhatsApp, or Firebase in Super Admin → Communication → OTP Channels." });
+      return;
+    }
+    deliveryChannel = mobile;
+  }
+
+  const purpose = deliveryChannel === "email" ? "registration" as const : "mobile_verify" as const;
+  const target = deliveryChannel === "email" ? email?.toLowerCase() : `sms:${phone}`;
 
   if (!target) {
     res.status(400).json({ error: "email or phone is required" });
     return;
   }
-  if (channel !== "mobile" && email) {
+  if (deliveryChannel === "email" && email) {
     const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);
     if (existing) {
       res.status(400).json({ error: "Email already registered" });
       return;
     }
+  }
+
+  if (deliveryChannel === "firebase") {
+    res.json({ message: "Complete Firebase phone verification on the client, then submit the Firebase ID token.", channel: "firebase" });
+    return;
   }
 
   const { otp } = await createEmailOtp({
@@ -168,30 +221,40 @@ router.post("/send-otp", otpLimiter, async (req, res) => {
     ttlMinutes: 15,
   });
 
-  if (channel === "mobile") {
-    // SMS integration placeholder — OTP logged in dev
-    if (process.env.NODE_ENV !== "production") {
-      console.info(`[DEV] Mobile OTP for ${phone}: ${otp}`);
-    }
-    res.json({ message: "Verification code sent to your mobile.", devOtp: process.env.NODE_ENV !== "production" ? otp : undefined });
-    return;
-  }
-
-  await sendOtpEmail({
-    to: email,
+  const delivery = await sendOtpViaChannel({
+    channel: deliveryChannel,
+    email,
+    phone,
     name: fullName || "Investor",
     otp,
     purpose: "Registration",
+    ttlMinutes: 15,
   });
-  res.json({ message: "Verification code sent to your email.", devOtp: process.env.NODE_ENV !== "production" ? otp : undefined });
+
+  if (!delivery.ok) {
+    res.status(503).json({ error: delivery.message });
+    return;
+  }
+
+  res.json({
+    message: delivery.message,
+    channel: delivery.channel,
+    devOtp: delivery.devOtp,
+  });
 });
 
-router.post("/verify-otp", otpLimiter, async (req, res) => {
-  const { email, phone, otp, channel } = req.body;
-  const purpose = channel === "mobile" ? "mobile_verify" as const : "registration" as const;
-  const target = channel === "mobile" ? `sms:${phone}` : email?.toLowerCase();
-  if (!target || !otp) {
-    res.status(400).json({ error: "target and otp are required" });
+router.post("/verify-otp", otpLimiter, validateBody(VerifyOtpBody), async (req, res) => {
+  const { email, phone, otp, channel } = getValidatedBody<{
+    email?: string;
+    phone?: string;
+    otp: string;
+    channel?: string;
+  }>(req);
+  const isMobile = channel === "mobile" || channel === "sms" || channel === "whatsapp" || channel === "firebase";
+  const purpose = isMobile ? "mobile_verify" as const : "registration" as const;
+  const target = isMobile ? `sms:${phone}` : email?.toLowerCase();
+  if (!target) {
+    res.status(400).json({ error: "email or phone is required" });
     return;
   }
   const valid = await verifyEmailOtp({ email: target, otp, purpose });
@@ -199,7 +262,7 @@ router.post("/verify-otp", otpLimiter, async (req, res) => {
     res.status(400).json({ error: "Invalid or expired verification code" });
     return;
   }
-  const verificationToken = issueRegistrationVerification(target, channel || "email");
+  const verificationToken = await issueRegistrationVerification(target, channel || "email");
   res.json({ verified: true, channel: channel || "email", verificationToken });
 });
 
@@ -208,24 +271,19 @@ router.post("/investor/complete", upload.fields([
   { name: "aadhaarFront", maxCount: 1 },
   { name: "aadhaarBack", maxCount: 1 },
   { name: "passportDocument", maxCount: 1 },
+  { name: "driversLicenseDocument", maxCount: 1 },
   { name: "selfie", maxCount: 1 },
   { name: "addressProof", maxCount: 1 },
   { name: "signature", maxCount: 1 },
   { name: "cancelledCheque", maxCount: 1 },
   { name: "resume", maxCount: 1 },
-]), async (req, res) => {
-  let payload: Record<string, unknown>;
-  try {
-    payload = JSON.parse(req.body.data || "{}");
-  } catch {
-    res.status(400).json({ error: "Invalid onboarding data" });
-    return;
-  }
+]), validateMultipartJsonField("data", InvestorCompleteBody), async (req, res) => {
+  const payload = getValidatedBody<InvestorCompleteInput>(req) as Record<string, any>;
 
   const {
     fullName, username, email, password, phone, referralCode,
     dateOfBirth, gender, nationality, country, state, city, address, postalCode,
-    panCard, aadhaarNumber, taxId, passportNumber,
+    panCard, aadhaarNumber, taxId, passportNumber, driversLicenseNumber,
     accountHolderName, bankName, accountNumber, ifscCode, branchName, upiId,
     cryptoWallets, occupation, annualIncomeRange, investmentExperience,
     riskAppetite, preferredInvestmentType, sourceOfFunds, tradingInterests,
@@ -233,7 +291,7 @@ router.post("/investor/complete", upload.fields([
     emailVerificationToken, mobileVerificationToken,
     captchaAnswer, captchaToken,
     mtPlatform, mtAccountNumber, mtBroker, mtServer, mtPassword, linkMtLater,
-  } = payload as Record<string, any>;
+  } = payload;
 
   const config = await getOnboardingConfig();
   if (!config.investorRegistrationEnabled) {
@@ -245,23 +303,60 @@ router.post("/investor/complete", upload.fields([
     return;
   }
   if (config.requireEmailOtp) {
-    if (!emailVerificationToken || !consumeRegistrationVerification(emailVerificationToken, email, "email")) {
+    if (!emailVerificationToken || !(await consumeRegistrationVerification(emailVerificationToken, email, "email"))) {
       res.status(400).json({ error: "Email OTP verification required — please verify your email again" });
       return;
     }
   }
   if (config.requireMobileOtp && phone) {
     const mobileTarget = `sms:${phone}`;
-    if (!mobileVerificationToken || !consumeRegistrationVerification(mobileVerificationToken, mobileTarget, "mobile")) {
+    if (!mobileVerificationToken || !(await consumeRegistrationVerification(mobileVerificationToken, mobileTarget, "mobile"))) {
       res.status(400).json({ error: "Mobile OTP verification required" });
       return;
     }
   }
   if (config.requireCaptcha) {
-    if (!captchaToken || !verifyCaptchaChallenge(captchaToken, captchaAnswer)) {
+    if (!captchaToken || !(await verifyCaptchaChallenge(captchaToken, captchaAnswer))) {
       res.status(400).json({ error: "CAPTCHA verification failed" });
       return;
     }
+  }
+
+  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+  const hasFile = (field: string) => Boolean(files?.[field]?.[0]);
+  const indian = isIndianUser(country, nationality);
+
+  if (indian) {
+    if (!panCard?.trim()) {
+      res.status(400).json({ error: "PAN card number is required for Indian users" });
+      return;
+    }
+    if (!aadhaarNumber?.trim()) {
+      res.status(400).json({ error: "Aadhaar number is required for Indian users" });
+      return;
+    }
+    if (!hasFile("panDocument") || !hasFile("aadhaarFront") || !hasFile("aadhaarBack")) {
+      res.status(400).json({ error: "PAN card and Aadhaar front/back documents are required for Indian users" });
+      return;
+    }
+  } else {
+    if (!passportNumber?.trim()) {
+      res.status(400).json({ error: "Passport number is required for international users" });
+      return;
+    }
+    if (!driversLicenseNumber?.trim()) {
+      res.status(400).json({ error: "Driving license number is required for international users" });
+      return;
+    }
+    if (!hasFile("passportDocument") || !hasFile("driversLicenseDocument")) {
+      res.status(400).json({ error: "Passport and driving license documents are required for international users" });
+      return;
+    }
+  }
+
+  if (!hasFile("selfie") || !hasFile("addressProof") || !hasFile("signature")) {
+    res.status(400).json({ error: "Selfie, address proof, and signature are required" });
+    return;
   }
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);
@@ -335,7 +430,6 @@ router.post("/investor/complete", upload.fields([
     cryptoWallets,
   });
 
-  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
   const url = (field: string) => files?.[field]?.[0] ? getUploadUrl("kyc_documents", files[field][0].filename) : null;
 
   await db.insert(kycRecordsTable).values({
@@ -343,10 +437,11 @@ router.post("/investor/complete", upload.fields([
     fullName,
     address: address || "",
     country: country || "",
-    panCard: panCard || null,
-    aadhaarNumber: aadhaarNumber || null,
-    idNumber: passportNumber || aadhaarNumber || null,
-    idType: passportNumber ? "passport" : aadhaarNumber ? "national_id" : null,
+    panCard: indian ? (panCard || null) : null,
+    aadhaarNumber: indian ? (aadhaarNumber || null) : null,
+    idNumber: indian ? (aadhaarNumber || null) : (passportNumber || null),
+    idType: indian ? "national_id" : "passport",
+    driversLicenseNumber: indian ? null : (driversLicenseNumber || null),
     taxId: taxId || null,
     bankAccountNumber: accountNumber ? `****${String(accountNumber).slice(-4)}` : null,
     bankName: bankName || null,
@@ -357,6 +452,7 @@ router.post("/investor/complete", upload.fields([
     aadhaarFrontUrl: url("aadhaarFront"),
     aadhaarBackUrl: url("aadhaarBack"),
     passportDocumentUrl: url("passportDocument"),
+    driversLicenseDocumentUrl: url("driversLicenseDocument"),
     selfieUrl: url("selfie"),
     addressProofUrl: url("addressProof"),
     signatureUrl: url("signature"),
@@ -367,19 +463,29 @@ router.post("/investor/complete", upload.fields([
   const mtServices = ["account_handling", "algo_trading", "copy_trading"];
   const wantsMt = Array.isArray(tradingInterests) && tradingInterests.some((s: string) => mtServices.includes(s));
   if (!linkMtLater && mtAccountNumber && mtBroker && mtServer && mtPassword) {
-    await linkMtTradingAccount(user.id, {
-      accountNumber: String(mtAccountNumber),
-      broker: String(mtBroker),
-      serverName: String(mtServer),
-      platform: mtPlatform === "mt4" ? "mt4" : "mt5",
-      tradingPassword: String(mtPassword),
-    });
-    await db.insert(notificationsTable).values({
-      userId: user.id,
-      title: "MT4/MT5 Account Submitted",
-      message: `Account #${mtAccountNumber} is pending review for ${wantsMt ? "your selected trading services" : "linking"}.`,
-      type: "info",
-    });
+    try {
+      await assertTradingServiceDeposit(user.id);
+      await linkMtTradingAccount(user.id, {
+        accountNumber: String(mtAccountNumber),
+        broker: String(mtBroker),
+        serverName: String(mtServer),
+        platform: mtPlatform === "mt4" ? "mt4" : "mt5",
+        tradingPassword: String(mtPassword),
+      });
+      await db.insert(notificationsTable).values({
+        userId: user.id,
+        title: "MT4/MT5 Account Submitted",
+        message: `Account #${mtAccountNumber} is pending review for ${wantsMt ? "your selected trading services" : "linking"}.`,
+        type: "info",
+      });
+    } catch {
+      await db.insert(notificationsTable).values({
+        userId: user.id,
+        title: "Initial deposit required",
+        message: "Deposit at least ₹10,000 or $100 / 100 USDT to your wallet, then link MT4/MT5 from MT Accounts to activate copy trading, algo trading, or account handling.",
+        type: "warning",
+      });
+    }
   } else if (wantsMt && linkMtLater) {
     await db.insert(notificationsTable).values({
       userId: user.id,
@@ -404,7 +510,16 @@ router.post("/investor/complete", upload.fields([
     html: buildWelcomeEmail({ name: user.fullName, loginUrl: `${appUrl}/login` }),
   });
 
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, { login: true });
+
+  emitN8nEvent("user.registered", {
+    userId: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    investorId,
+    referredBy,
+  });
+
   res.status(201).json({
     user: mapUser(user),
     investorId,

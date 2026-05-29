@@ -22,7 +22,9 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "db:push": "pnpm --filter @workspace/db run push-force",
     "db:generate": "pnpm --filter @workspace/db run generate",
+    "db:migrate": "pnpm --filter @workspace/db run migrate",
     "db:seed": "pnpm exec tsx --env-file=.env scripts/src/seed.ts",
+    "db:refresh-sample": "pnpm exec tsx --env-file=.env scripts/src/refresh-sample-data.ts",
     "test": "pnpm exec tsx --test scripts/src/*.test.ts",
     "build:web": "pnpm --filter @workspace/trading-platform run build",
     "build:api": "pnpm --filter @workspace/api-server run build",
@@ -34,7 +36,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:ps": "docker compose ps",
-    "docker:db:push": "docker compose exec backend ./node_modules/.bin/pnpm run db:push"
+    "docker:db:push": "docker compose exec backend ./node_modules/.bin/pnpm run db:push",
+    "smoke:test": "node scripts/smoke-test.mjs"
   },
   "dependencies": {
     "express": "^5.2.1"

@@ -66,7 +66,7 @@ export default function PrivacyPolicyPage() {
           <li>Data portability — receive your data in a structured format</li>
           <li>Withdraw consent for optional processing at any time</li>
         </ul>
-        <p>To exercise your rights, contact us at <span className="text-amber-400">privacy@kuberquant.com</span></p>
+        <p>To exercise your rights, contact us at <span className="text-amber-600 dark:text-amber-400">privacy@kuberquant.com</span></p>
       </section>
 
       <section>
@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
       <section>
         <h2>8. Cookies</h2>
         <p>
-          We use cookies and similar tracking technologies to maintain session state, analyse platform usage, and improve performance. See our <a href="/cookie-policy" className="text-amber-400 hover:underline">Cookie Policy</a> for details.
+          We use cookies and similar tracking technologies to maintain session state, analyse platform usage, and improve performance. See our <a href="/cookie-policy" className="text-amber-600 dark:text-amber-400 hover:underline">Cookie Policy</a> for details.
         </p>
       </section>
 
@@ -93,7 +93,7 @@ export default function PrivacyPolicyPage() {
       <section>
         <h2>10. Contact Us</h2>
         <p>
-          For privacy-related queries or complaints, contact our Data Protection Officer at <span className="text-amber-400">privacy@kuberquant.com</span> or via our <a href="/support" className="text-amber-400 hover:underline">Support Centre</a>.
+          For privacy-related queries or complaints, contact our Data Protection Officer at <span className="text-amber-600 dark:text-amber-400">privacy@kuberquant.com</span> or open a ticket after <a href="/login?redirect=/support" className="text-amber-600 dark:text-amber-400 hover:underline">signing in to Support</a>.
         </p>
       </section>
     </LegalLayout>

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { publicFetchJson } from "@/lib/api-fetch";
 
 export type GoogleAuthConfig = {
   googleOAuthEnabled: boolean;
@@ -8,11 +9,7 @@ export type GoogleAuthConfig = {
 export function useGoogleAuthConfig() {
   return useQuery<GoogleAuthConfig>({
     queryKey: ["auth-config"],
-    queryFn: async () => {
-      const res = await fetch("/api/auth/config");
-      if (!res.ok) throw new Error("Failed to load auth config");
-      return res.json();
-    },
+    queryFn: () => publicFetchJson<GoogleAuthConfig>("/auth/config"),
     staleTime: 60_000,
     retry: 1,
   });

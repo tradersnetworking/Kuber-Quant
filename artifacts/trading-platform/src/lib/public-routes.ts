@@ -10,6 +10,7 @@ const PUBLIC_EXACT = new Set([
   "/terms-of-service",
   "/risk-disclosure",
   "/cookie-policy",
+  "/aml-policy",
 ]);
 
 function normalizePath(location: string): string {

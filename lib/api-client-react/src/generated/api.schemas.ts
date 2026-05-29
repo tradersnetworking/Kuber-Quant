@@ -43,6 +43,8 @@ export interface LoginInput {
 
 export interface GoogleAuthInput {
   idToken: string;
+  /** Optional referral code to attribute a new Google signup */
+  referralCode?: string;
 }
 
 export type UserRole = typeof UserRole[keyof typeof UserRole];
@@ -129,19 +131,78 @@ export interface AdminUserUpdate {
   managerId?: number | null;
 }
 
+export interface PortfolioAllocationSlice {
+  label: string;
+  pct: number;
+  value: number;
+}
+
 export interface DashboardSummary {
   totalBalance: number;
+  totalPortfolio?: number;
+  totalPortfolioInr?: number;
   totalProfit: number;
+  totalProfitInr?: number;
   totalInvested: number;
+  totalInvestedInr?: number;
+  activeInvested?: number;
+  activeInvestedInr?: number;
   activeInvestments: number;
   profitPercentage: number;
   fiatBalance: number;
+  fiatBalanceInr?: number;
   cryptoBalance: number;
+  totalFiatDeposits?: number;
+  totalFiatWithdrawals?: number;
+  totalCryptoDeposits?: number;
+  totalCryptoWithdrawals?: number;
+  totalFiatDepositsInr?: number;
+  totalFiatWithdrawalsInr?: number;
+  totalCryptoDepositsInr?: number;
+  totalCryptoWithdrawalsInr?: number;
   followedTraders?: number;
   activeAlgoStrategies?: number;
   referralEarnings?: number;
   pendingWithdrawals?: number;
   unreadNotifications?: number;
+  monthPortfolioChangePct?: number;
+  monthProfitChangePct?: number;
+  pendingActions?: number;
+  thisMonthProfit?: number;
+  thisMonthProfitInr?: number;
+  /** @nullable */
+  nextPayoutDate?: string | null;
+  /** @nullable */
+  nextPayoutAmountUsd?: number | null;
+  /** @nullable */
+  nextPayoutAmountInr?: number | null;
+  /** @nullable */
+  nextPayoutPlanName?: string | null;
+  /** @nullable */
+  nextPayoutInvestmentId?: number | null;
+  /** @nullable */
+  nextPayoutDaysUntil?: number | null;
+  lifetimeInvested?: number;
+  lifetimeInvestedInr?: number;
+  ledgerInvestedNet?: number;
+  ledgerInvestedOut?: number;
+  ledgerInvestmentReturns?: number;
+  monthFiatDeposits?: number;
+  monthFiatWithdrawals?: number;
+  monthCryptoDeposits?: number;
+  monthCryptoWithdrawals?: number;
+  monthFiatDepositsInr?: number;
+  monthFiatWithdrawalsInr?: number;
+  monthCryptoDepositsInr?: number;
+  monthCryptoWithdrawalsInr?: number;
+  statsPeriodLabel?: string;
+  portfolioAllocation?: PortfolioAllocationSlice[];
+}
+
+export interface MonthlyReturnPoint {
+  month: string;
+  return: number;
+  invested: number;
 }
 
 export interface ChartPoint {
@@ -155,18 +216,25 @@ export type ActivityItemType = typeof ActivityItemType[keyof typeof ActivityItem
 export const ActivityItemType = {
   deposit: 'deposit',
   withdrawal: 'withdrawal',
-  profit: 'profit',
-  investment: 'investment',
-  trade: 'trade',
-  referral: 'referral',
+} as const;
+
+export type ActivityItemStatus = typeof ActivityItemStatus[keyof typeof ActivityItemStatus];
+
+
+export const ActivityItemStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
 } as const;
 
 export interface ActivityItem {
   id: number;
+  transactionId?: number;
   type: ActivityItemType;
-  description: string;
   amount: number;
   currency: string;
+  status: ActivityItemStatus;
+  paymentMethod?: string | null;
   createdAt: string;
 }
 
@@ -447,7 +515,21 @@ export interface AlgoStrategy {
   status: AlgoStrategyStatus;
   minInvestment?: number;
   currency?: string;
+  priceMonthly?: number;
+  priceQuarterly?: number;
+  priceBiannual?: number;
+  priceAnnual?: number;
 }
+
+export type StrategySubscriptionPlan = typeof StrategySubscriptionPlan[keyof typeof StrategySubscriptionPlan];
+
+
+export const StrategySubscriptionPlan = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  biannual: 'biannual',
+  annual: 'annual',
+} as const;
 
 export type StrategySubscriptionPlatform = typeof StrategySubscriptionPlatform[keyof typeof StrategySubscriptionPlatform];
 
@@ -460,6 +542,7 @@ export const StrategySubscriptionPlatform = {
 export interface StrategySubscription {
   amount: number;
   currency?: string;
+  plan?: StrategySubscriptionPlan;
   accountNumber: string;
   brokerName: string;
   serverName: string;

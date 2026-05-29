@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db, mt5AccountsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc } from "@workspace/db/orm";
 import { requireAuth } from "../middlewares/auth";
 import { linkMtTradingAccount } from "../helpers/mtAccountLink";
+import { assertTradingServiceDeposit } from "../helpers/tradingServiceDepositGate";
 
 const router = Router();
 
@@ -33,6 +34,9 @@ router.get("/", requireAuth, async (req, res) => {
 
 router.post("/", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
+  const { respondIfServiceBlocked } = await import("../helpers/userAccessControl");
+  if (await respondIfServiceBlocked(userId, "mt5", res)) return;
+
   const { accountNumber, broker, serverName, platform, password } = req.body;
   if (!accountNumber || !broker) {
     res.status(400).json({ error: "accountNumber and broker are required" });
@@ -44,6 +48,12 @@ router.post("/", requireAuth, async (req, res) => {
   }
   if (!password || String(password).length < 4) {
     res.status(400).json({ error: "MT4/MT5 trading password is required" });
+    return;
+  }
+  try {
+    await assertTradingServiceDeposit(userId);
+  } catch (err: any) {
+    res.status(402).json({ error: err.message, code: err.code || "TRADING_DEPOSIT_REQUIRED" });
     return;
   }
   try {

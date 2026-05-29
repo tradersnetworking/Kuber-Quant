@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit2, Trash2, RefreshCw, Users, Copy } from "lucide-react";
 import { staffFetch } from "@/lib/staff-api";
+import { STAFF_CARD, STAFF_FORM_GRID, STAFF_HEADER_ROW, STAFF_PAGE_STACK } from "@/lib/staff-dashboard-ui";
+import { APP_MODAL_MD } from "@/lib/ui-system";
+import { cn } from "@/lib/utils";
 
 const emptyTrader = {
   name: "", bio: "", roi: 0, monthlyRoi: 0, winRate: 0, totalTrades: 0,
@@ -75,13 +78,13 @@ export function CopyTradersPanel() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2"><Users className="h-5 w-5 text-cyan-400" />Copy Trading Profiles</h2>
+    <div className={STAFF_PAGE_STACK}>
+      <div className={STAFF_HEADER_ROW}>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold flex items-center gap-2"><Users className="h-5 w-5 text-cyan-600 dark:text-cyan-400 shrink-0" />Copy Trading Profiles</h2>
           <p className="text-sm text-muted-foreground">Manage master traders users can follow for copy trading.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col xs:flex-row gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
           <Button size="sm" className="bg-amber-500 text-black" onClick={() => { setEditing(null); setForm({ ...emptyTrader }); setOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" />Add Trader
@@ -92,16 +95,16 @@ export function CopyTradersPanel() {
       {loading ? (
         <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
       ) : traders.length === 0 ? (
-        <Card className="bg-white/5 border-white/10 p-8 text-center text-muted-foreground">No copy traders configured. Add master trader profiles for users to follow.</Card>
+        <Card className={cn(STAFF_CARD, "p-8 text-center text-muted-foreground")}>No copy traders configured. Add master trader profiles for users to follow.</Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           {traders.map(t => (
-            <Card key={t.id} className="bg-white/5 border-white/10">
+            <Card key={t.id} className={STAFF_CARD}>
               <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium">{t.name}</p>
-                    <Badge className={t.status === "active" ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}>{t.status}</Badge>
+                    <Badge className={t.status === "active" ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground"}>{t.status}</Badge>
                     <Badge variant="outline" className="text-xs capitalize">{t.riskLevel} risk</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{t.bio || "No bio"}</p>
@@ -125,20 +128,20 @@ export function CopyTradersPanel() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[#050A14] border-white/10 max-w-lg">
+        <DialogContent className={cn(APP_MODAL_MD, "bg-background border-border dark:border-white/10")}>
           <DialogHeader><DialogTitle>{editing ? "Edit Copy Trader" : "New Copy Trader"}</DialogTitle></DialogHeader>
           <form onSubmit={save} className="space-y-3">
-            <div className="space-y-1"><Label>Name</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-            <div className="space-y-1"><Label>Bio</Label><Textarea value={form.bio || ""} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} className="bg-white/5 border-white/10" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>ROI %</Label><Input type="number" step="0.1" value={form.roi} onChange={e => setForm(f => ({ ...f, roi: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Monthly ROI %</Label><Input type="number" step="0.1" value={form.monthlyRoi} onChange={e => setForm(f => ({ ...f, monthlyRoi: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Win Rate %</Label><Input type="number" step="0.1" value={form.winRate} onChange={e => setForm(f => ({ ...f, winRate: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
-              <div className="space-y-1"><Label>Min Investment ($)</Label><Input type="number" value={form.minInvestment} onChange={e => setForm(f => ({ ...f, minInvestment: Number(e.target.value) }))} className="bg-white/5 border-white/10" /></div>
+            <div className="space-y-1"><Label>Name</Label><Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <div className="space-y-1"><Label>Bio</Label><Textarea value={form.bio || ""} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+            <div className={STAFF_FORM_GRID}>
+              <div className="space-y-1"><Label>ROI %</Label><Input type="number" step="0.1" value={form.roi} onChange={e => setForm(f => ({ ...f, roi: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Monthly ROI %</Label><Input type="number" step="0.1" value={form.monthlyRoi} onChange={e => setForm(f => ({ ...f, monthlyRoi: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Win Rate %</Label><Input type="number" step="0.1" value={form.winRate} onChange={e => setForm(f => ({ ...f, winRate: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
+              <div className="space-y-1"><Label>Min Investment ($)</Label><Input type="number" value={form.minInvestment} onChange={e => setForm(f => ({ ...f, minInvestment: Number(e.target.value) }))} className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10" /></div>
               <div className="space-y-1">
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
@@ -148,7 +151,7 @@ export function CopyTradersPanel() {
               <div className="space-y-1">
                 <Label>Risk Level</Label>
                 <Select value={form.riskLevel} onValueChange={v => setForm(f => ({ ...f, riskLevel: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-muted/60 dark:bg-white/5 border-border dark:border-white/10"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {["low", "medium", "high"].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   </SelectContent>

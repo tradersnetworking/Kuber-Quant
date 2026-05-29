@@ -1,5 +1,6 @@
 import { db, auditLogsTable } from "@workspace/db";
 import type { Request } from "express";
+import { siemFromAudit } from "./siemExportService";
 
 export async function logAudit(opts: {
   req?: Request;
@@ -26,6 +27,16 @@ export async function logAudit(opts: {
       details: opts.details as any,
       ipAddress,
       userAgent,
+    });
+
+    siemFromAudit({
+      action: opts.action,
+      userId: opts.userId,
+      role: opts.role,
+      entity: opts.entity,
+      entityId: opts.entityId,
+      ipAddress,
+      details: opts.details,
     });
   } catch {
     // never let audit failure break the main flow
