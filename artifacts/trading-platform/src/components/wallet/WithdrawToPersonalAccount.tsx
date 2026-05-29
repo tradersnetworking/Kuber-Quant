@@ -29,6 +29,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { ProfitShareDialog } from "@/components/profit/ProfitShareDialog";
 import type { ProfitSharePayload } from "@/lib/profit-share";
 import { getShareUserDisplayName } from "@/lib/user-display-name";
+import { fetchBiometricSettings, verifyPasskeyAction } from "@/lib/webauthn-api";
+import { Fingerprint } from "lucide-react";
 
 type FormProps = {
   onSuccess?: () => void;
@@ -62,6 +64,10 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
   const [maskedEmail, setMaskedEmail] = useState("");
   const [showWithdrawPassword, setShowWithdrawPassword] = useState(false);
+  const [biometricRequired, setBiometricRequired] = useState(false);
+  const [biometricThreshold, setBiometricThreshold] = useState(10000);
+  const [biometricActionToken, setBiometricActionToken] = useState<string | null>(null);
+  const [biometricVerifying, setBiometricVerifying] = useState(false);
 
   function payoutLabel(account: PaymentAccount): string {
     if (account.accountType === "upi") return `${account.label} · UPI ${account.upiId || ""}`.trim();
@@ -154,11 +160,43 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
     setWithdrawTotp("");
     setEmailOtp("");
     setConfirmationToken(null);
+    setBiometricActionToken(null);
+    void (async () => {
+      try {
+        const { preferences } = await fetchBiometricSettings();
+        const threshold = Number(preferences.withdrawalThresholdInr ?? 10000);
+        const needs =
+          Boolean(preferences.biometricWithdrawalsEnabled) &&
+          currency === "INR" &&
+          numAmount >= threshold;
+        setBiometricRequired(needs);
+        setBiometricThreshold(threshold);
+      } catch {
+        setBiometricRequired(false);
+      }
+    })();
     setSecurityOpen(true);
+  }
+
+  async function verifyBiometricForWithdrawal() {
+    setBiometricVerifying(true);
+    try {
+      const token = await verifyPasskeyAction();
+      setBiometricActionToken(token);
+      toast({ title: "Biometric verified", description: "You can continue with withdrawal authorization." });
+    } catch (err: any) {
+      toast({ title: "Verification failed", description: err?.message || "Passkey verification failed.", variant: "destructive" });
+    } finally {
+      setBiometricVerifying(false);
+    }
   }
 
   async function initiateWithdrawalSecurity() {
     if (!selected) return;
+    if (biometricRequired && !biometricActionToken) {
+      toast({ title: "Biometric required", description: "Verify with fingerprint before continuing.", variant: "destructive" });
+      return;
+    }
     const numAmount = Number(amount);
     setLoading(true);
     try {
@@ -171,6 +209,7 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
           cryptoNetwork: isCrypto ? cryptoChain : undefined,
           password: withdrawPassword,
           totpCode: withdrawTotp,
+          biometricActionToken: biometricActionToken || undefined,
         }),
       });
       if (data.requiresEmailConfirmation) {
@@ -392,6 +431,27 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
         </DialogHeader>
         {securityStep === "auth" ? (
           <div className="space-y-4 py-2">
+            {biometricRequired && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-3">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Fingerprint verification required for withdrawals of ₹{biometricThreshold.toLocaleString("en-IN")} or more.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-amber-500/40"
+                  disabled={biometricVerifying || Boolean(biometricActionToken)}
+                  onClick={verifyBiometricForWithdrawal}
+                >
+                  {biometricVerifying ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Fingerprint className="h-4 w-4 mr-2" />
+                  )}
+                  {biometricActionToken ? "Biometric Verified ✓" : "Verify with Fingerprint"}
+                </Button>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Account Password</Label>
               <div className="relative">
@@ -410,7 +470,7 @@ export function WithdrawToPersonalAccountForm({ onSuccess, compact }: FormProps)
                 className="text-center text-xl tracking-[0.4em] font-mono" />
             </div>
             <Button className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold"
-              disabled={loading || !withdrawPassword || withdrawTotp.length !== 6}
+              disabled={loading || !withdrawPassword || withdrawTotp.length !== 6 || (biometricRequired && !biometricActionToken)}
               onClick={initiateWithdrawalSecurity}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue — Send Email Confirmation"}
             </Button>

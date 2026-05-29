@@ -10,6 +10,9 @@ import {
 } from "../helpers/withdrawalConfirmationService";
 import { createEmailOtp, verifyEmailOtp, sendOtpEmail } from "../helpers/authHelpers";
 import { clientIp } from "../helpers/trustedDeviceService";
+import jwt from "jsonwebtoken";
+import { JWT_SECRET } from "../lib/jwtSecret";
+import { getUserBiometricPrefs } from "../helpers/webauthnService";
 
 import { createUploadMiddleware, getUploadUrl } from "../middlewares/upload";
 import {
@@ -118,7 +121,7 @@ router.post("/withdraw", requireAuth, validateBody(WithdrawRequestBody), async (
   }
 
   const {
-    paymentAccountId, amount, currency: bodyCurrency, cryptoNetwork, password, totpCode,
+    paymentAccountId, amount, currency: bodyCurrency, cryptoNetwork, password, totpCode, biometricActionToken,
   } = body as {
     paymentAccountId: number;
     amount: number;
@@ -126,6 +129,7 @@ router.post("/withdraw", requireAuth, validateBody(WithdrawRequestBody), async (
     cryptoNetwork?: string;
     password: string;
     totpCode: string;
+    biometricActionToken?: string;
   };
 
   // Step 1: password + TOTP → send email confirmation
@@ -149,6 +153,34 @@ router.post("/withdraw", requireAuth, validateBody(WithdrawRequestBody), async (
   if (numAmount <= 0) {
     res.status(400).json({ error: "Amount must be positive" });
     return;
+  }
+
+  const withdrawCurrency = (bodyCurrency || "INR").toUpperCase();
+  const biometricPrefs = await getUserBiometricPrefs(userId);
+  const biometricThreshold = Number(biometricPrefs.withdrawalThresholdInr ?? 10000);
+  if (
+    biometricPrefs.biometricWithdrawalsEnabled &&
+    withdrawCurrency === "INR" &&
+    numAmount >= biometricThreshold
+  ) {
+    if (!biometricActionToken) {
+      res.status(400).json({
+        error: `Fingerprint verification required for withdrawals of ₹${biometricThreshold.toLocaleString("en-IN")} or more.`,
+        code: "BIOMETRIC_REQUIRED",
+        thresholdInr: biometricThreshold,
+      });
+      return;
+    }
+    try {
+      const payload = jwt.verify(String(biometricActionToken), JWT_SECRET) as { userId?: number; purpose?: string };
+      if (payload.userId !== userId || payload.purpose !== "biometric_action") {
+        res.status(400).json({ error: "Invalid biometric verification.", code: "BIOMETRIC_INVALID" });
+        return;
+      }
+    } catch {
+      res.status(400).json({ error: "Biometric verification expired. Please verify again.", code: "BIOMETRIC_EXPIRED" });
+      return;
+    }
   }
 
   const [account] = await db.select().from(userPaymentAccountsTable)

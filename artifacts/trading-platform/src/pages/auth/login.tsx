@@ -18,6 +18,8 @@ import { useGoogleAuthConfig } from "@/hooks/use-google-auth-config";
 import { captureReferralFromSearch, readReferralCode, clearReferralCode } from "@/lib/referral-attribution";
 import { getTrustedDeviceToken } from "@/lib/trusted-device";
 import { TwoFactorVerifyForm, handleTrustedDeviceResponse } from "@/components/auth/TwoFactorVerifyForm";
+import { BiometricLoginButton } from "@/components/auth/biometric/BiometricLoginButton";
+import { verifyPasskey2fa } from "@/lib/webauthn-api";
 import { AUTH_CARD, AUTH_INPUT, AUTH_PRIMARY_BTN } from "@/lib/ui-system";
 import { cn } from "@/lib/utils";
 import { apiPath } from "@/lib/token-store";
@@ -118,6 +120,11 @@ export default function LoginPage() {
     );
   };
 
+  const handlePasskeyLogin = (data: { token: string; user: any; refreshToken?: string }) => {
+    login(data.token, data.user, data.refreshToken);
+    setLocation(getLoginSuccessPath(data.user.role));
+  };
+
   const handleVerify2FA = async (payload: {
     tempToken: string;
     code: string;
@@ -133,6 +140,21 @@ export default function LoginPage() {
       setLocation(getLoginSuccessPath(data.user.role));
     } catch (err: any) {
       setLoginError(err?.message || "Invalid verification code.");
+    } finally {
+      setVerifyPending(false);
+    }
+  };
+
+  const handlePasskey2FA = async (payload: { tempToken: string; trustDevice?: boolean }) => {
+    setLoginError(null);
+    setVerifyPending(true);
+    try {
+      const data = await verifyPasskey2fa(payload);
+      handleTrustedDeviceResponse(data);
+      login(data.token, data.user, data.refreshToken);
+      setLocation(getLoginSuccessPath(data.user.role));
+    } catch (err: any) {
+      setLoginError(err?.message || "Passkey verification failed.");
     } finally {
       setVerifyPending(false);
     }
@@ -263,6 +285,12 @@ export default function LoginPage() {
                 {loginMutation.isPending ? "Signing in..." : "Sign In"}
               </Button>
             </form>
+            <BiometricLoginButton
+              email={email}
+              disabled={loginMutation.isPending}
+              onSuccess={handlePasskeyLogin}
+              onError={setLoginError}
+            />
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
             <p className="text-sm text-muted-foreground text-center w-full">
@@ -296,6 +324,7 @@ export default function LoginPage() {
               availableMethods={twoFactorMethods}
               verifyPending={verifyPending}
               onVerify={handleVerify2FA}
+              onPasskeyVerify={handlePasskey2FA}
               onSendOtp={sendLoginOtp}
               onSuccess={() => {}}
               onError={setLoginError}

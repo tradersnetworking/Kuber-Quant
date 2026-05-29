@@ -51,7 +51,7 @@ export async function generateAgreementPDF(opts: {
 
     const pageWidth = doc.page.width;
     const contentWidth = pageWidth - MARGIN * 2;
-    let pageNum = 1;
+    let firstPageAdded = true;
 
     function fillPlaceholders(text: string): string {
       return text.replace(/\{\{(\w+)\}\}/g, (_, key) => filledData[key] || `[${key}]`);
@@ -61,16 +61,20 @@ export async function generateAgreementPDF(opts: {
       return doc.page.height - MARGIN - FOOTER_H;
     }
 
-    /** Keep manual page counter aligned with PDFKit after auto-pagination. */
     function syncPageCount() {
-      const range = doc.bufferedPageRange();
-      pageNum = range.start + range.count;
+      /* PDFKit buffered page range — kept for future diagnostics */
+      doc.bufferedPageRange();
     }
 
-    function addPageNumber() {
-      const y = doc.page.height - MARGIN - 10;
-      doc.font("Helvetica").fontSize(8).fillColor(MUTED);
-      doc.text(`Page ${pageNum}`, MARGIN, y, { width: contentWidth, align: "center", lineBreak: false });
+    function stampPageFooters() {
+      const range = doc.bufferedPageRange();
+      const total = range.count;
+      for (let i = 0; i < total; i++) {
+        doc.switchToPage(range.start + i);
+        const y = doc.page.height - MARGIN - 10;
+        doc.font("Helvetica").fontSize(8).fillColor(MUTED);
+        doc.text(`Page ${i + 1} of ${total}`, MARGIN, y, { width: contentWidth, align: "center", lineBreak: false });
+      }
     }
 
     function drawRunningHeader() {
@@ -91,14 +95,21 @@ export async function generateAgreementPDF(opts: {
       doc.y += HEADER_BODY_GAP;
     }
 
+    /** Headers on auto-added pages; avoid duplicate header on the first page. */
+    doc.on("pageAdded", () => {
+      syncPageCount();
+      if (firstPageAdded) {
+        firstPageAdded = false;
+        return;
+      }
+      drawRunningHeader();
+    });
+
     function startNewPage() {
-      addPageNumber();
       doc.addPage();
       syncPageCount();
-      drawRunningHeader();
     }
 
-    /** Reserve space for at least one line; never pre-reserve full multi-page block height. */
     function ensureLineSpace(extra = 4) {
       const lineH = doc.currentLineHeight(true);
       if (doc.y + lineH + extra > bottomLimit()) {
@@ -118,7 +129,7 @@ export async function generateAgreementPDF(opts: {
       const width = contentWidth - indent;
       const fontName = bold ? `${font}-Bold` : font;
       doc.font(fontName).fontSize(size).fillColor(color);
-      ensureLineSpace(gap);
+      // Let PDFKit paginate flowing text — do not pre-addPage (avoids blank even pages).
       doc.text(text, MARGIN + indent, doc.y, { width, align: "left", lineGap: 3 });
       syncPageCount();
       doc.y += gap;
@@ -313,7 +324,7 @@ export async function generateAgreementPDF(opts: {
     );
 
     syncPageCount();
-    addPageNumber();
+    stampPageFooters();
     doc.end();
   });
 }

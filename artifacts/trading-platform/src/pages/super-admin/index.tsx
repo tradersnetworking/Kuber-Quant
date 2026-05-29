@@ -66,6 +66,7 @@ import { UpcomingTransactionsPanel } from "@/components/transactions/UpcomingTra
 import { PartnerIntegrationsPanel } from "@/components/super-admin/PartnerIntegrationsPanel";
 import { RbacManagementPanel } from "@/components/super-admin/RbacManagementPanel";
 import { CohortAnalyticsPanel } from "@/components/super-admin/CohortAnalyticsPanel";
+import { BiometricSecurityPanel } from "@/components/super-admin/BiometricSecurityPanel";
 import { SUPER_ADMIN_TABS } from "@/lib/nav-config";
 import { authFetchJson, getStoredToken } from "@/lib/token-store";
 import { SafeBoundary } from "@/components/SafeBoundary";
@@ -117,6 +118,7 @@ const OVERVIEW_QUICK_NAV: { tab: string; label: string; desc: string; tone: Staf
   { tab: "site-config", label: "Site Config", desc: "Platform settings", tone: "teal" },
   { tab: "promo-codes", label: "Promo Codes", desc: "Discounts", tone: "amber" },
   { tab: "audit-logs", label: "Audit Logs", desc: "Activity trail", tone: "orange" },
+  { tab: "biometric-security", label: "Biometric", desc: "Passkey monitoring", tone: "amber" },
 ];
 
 async function apiFetch<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
@@ -1172,6 +1174,11 @@ export default function SuperAdminDashboard() {
           {/* ── Backup & Export ── */}
           <TabsContent value="backup" className={TAB_PANEL}>
             <LazyTabPanel active={activeTab === "backup"}><BackupExportPanel /></LazyTabPanel>
+          </TabsContent>
+
+          {/* ── Biometric Security ── */}
+          <TabsContent value="biometric-security" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "biometric-security"}><BiometricSecurityPanel /></LazyTabPanel>
           </TabsContent>
 
           {/* ── Audit Logs ── */}

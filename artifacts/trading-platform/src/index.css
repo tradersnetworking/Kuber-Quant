@@ -416,6 +416,7 @@
 
   .mobile-scroll-padding {
     padding-bottom: var(--mobile-bottom-nav-height);
+    overflow-anchor: none;
   }
 
   /* Hide bottom nav when modal/sheet locks scroll */

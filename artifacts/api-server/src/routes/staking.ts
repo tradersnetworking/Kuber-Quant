@@ -36,6 +36,7 @@ import {
   settleMaturedStake,
 } from "../helpers/stakingEngine";
 import { notifyUser } from "../helpers/notificationService";
+import { generateStakingAgreementPdf } from "../helpers/stakingAgreementPdf";
 
 const router = Router();
 
@@ -306,7 +307,89 @@ router.post("/stakes", requireAuth, validateBody(CreateStakeBody), async (req, r
     actionUrl: `/earn/staking/${stake!.id}`,
   });
 
-  res.status(201).json(mapStake(stake!));
+  res.status(201).json({ ...mapStake(stake!), agreementAvailable: true });
+});
+
+router.get("/agreement/preview", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const planId = Number(req.query.planId);
+  const amount = Number(req.query.amount ?? 0);
+  if (!planId || !Number.isFinite(amount) || amount <= 0) {
+    res.status(400).json({ error: "planId and amount are required" });
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const [plan] = await db.select().from(stakingPlansTable).where(eq(stakingPlansTable.id, planId)).limit(1);
+  if (!user || !plan) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+  const previewStake = {
+    id: 0,
+    userId,
+    planId: plan.id,
+    planName: plan.name,
+    principal: String(amount),
+    currency: plan.currency,
+    aprPercent: plan.aprPercent,
+    apyPercent: plan.apyPercent,
+    roiPercent: plan.roiPercent,
+    accruedRewards: "0",
+    claimedRewards: "0",
+    pendingRewards: "0",
+    autoReinvest: false,
+    compoundEnabled: plan.compoundEnabled,
+    status: "preview",
+    startedAt: new Date(),
+    maturesAt: plan.isFlexible ? null : new Date(Date.now() + plan.lockDurationDays * 86400000),
+    lastRewardAt: null,
+    agreementAcceptedAt: new Date(),
+    agreementIp: clientIp(req),
+    clientMeta: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as typeof userStakesTable.$inferSelect;
+
+  const { buffer } = await generateStakingAgreementPdf({
+    user,
+    plan,
+    stake: previewStake,
+    amount,
+    ipAddress: clientIp(req),
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="staking-agreement-preview.pdf"`);
+  res.send(buffer);
+});
+
+router.get("/stakes/:id/agreement", requireAuth, async (req, res) => {
+  const { userId } = (req as any).user;
+  const id = Number(req.params.id);
+  const [stake] = await db
+    .select()
+    .from(userStakesTable)
+    .where(and(eq(userStakesTable.id, id), eq(userStakesTable.userId, userId)))
+    .limit(1);
+  if (!stake) {
+    res.status(404).json({ error: "Stake not found" });
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const [plan] = await db.select().from(stakingPlansTable).where(eq(stakingPlansTable.id, stake.planId)).limit(1);
+  if (!user || !plan) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+  const { buffer } = await generateStakingAgreementPdf({
+    user,
+    plan,
+    stake,
+    amount: Number(stake.principal),
+    ipAddress: stake.agreementIp ?? undefined,
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="staking-agreement-${id}.pdf"`);
+  res.send(buffer);
 });
 
 router.post("/stakes/:id/claim", requireAuth, validateBody(ClaimStakeRewardBody), async (req, res) => {

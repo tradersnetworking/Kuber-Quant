@@ -15,6 +15,7 @@ import { ensureRbacSeed } from "./helpers/rbacService";
 import { ensureSampleTransactionHistory } from "./helpers/sampleTransactionHistory";
 import { ensureDatabaseSchemaPatches } from "./helpers/ensureDatabaseSchemaPatches";
 import { ensureStakingSchema, seedDefaultStakingPlansIfEmpty } from "./helpers/ensureStakingSchema";
+import { ensureWebauthnSchema } from "./helpers/ensureWebauthnSchema";
 
 assertProductionSecrets();
 warnDevSecrets();
@@ -38,6 +39,7 @@ void (async () => {
   try {
     await ensureDatabaseSchemaPatches();
     await ensureStakingSchema();
+    await ensureWebauthnSchema();
     await seedDefaultStakingPlansIfEmpty();
   } catch (err) {
     logger.error({ err }, "Database schema patches failed — some dashboards may error until pnpm db:push is run");

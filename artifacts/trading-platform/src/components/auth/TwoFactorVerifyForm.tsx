@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Smartphone, ShieldCheck, Mail, KeyRound, MessageSquare, Phone } from "lucide-react";
+import { Smartphone, ShieldCheck, Mail, KeyRound, MessageSquare, Phone, Fingerprint, Loader2 } from "lucide-react";
 import { saveTrustedDeviceToken } from "@/lib/trusted-device";
 
-type VerifyMethod = "totp" | "email_otp" | "sms_otp" | "whatsapp_otp" | "backup";
+type VerifyMethod = "totp" | "email_otp" | "sms_otp" | "whatsapp_otp" | "backup" | "webauthn";
 
 type Props = {
   tempToken: string;
@@ -24,6 +24,7 @@ type Props = {
     trustDevice?: boolean;
   }) => void;
   onSendOtp?: (tempToken: string, channel: "email" | "sms" | "whatsapp") => Promise<void>;
+  onPasskeyVerify?: (payload: { tempToken: string; trustDevice?: boolean }) => Promise<void>;
 };
 
 export function TwoFactorVerifyForm({
@@ -36,16 +37,19 @@ export function TwoFactorVerifyForm({
   verifyPending,
   onVerify,
   onSendOtp,
+  onPasskeyVerify,
 }: Props) {
   const [code, setCode] = useState("");
   const [method, setMethod] = useState<VerifyMethod>("totp");
   const [trustDevice, setTrustDevice] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
+  const [passkeyPending, setPasskeyPending] = useState(false);
 
   const canEmail = availableMethods.includes("email_otp");
   const canSms = availableMethods.includes("sms_otp");
   const canWhatsapp = availableMethods.includes("whatsapp_otp");
+  const canPasskey = availableMethods.includes("webauthn") && Boolean(onPasskeyVerify);
 
   async function sendOtp(channel: "email" | "sms" | "whatsapp", nextMethod: VerifyMethod) {
     if (!onSendOtp) return;
@@ -113,8 +117,54 @@ export function TwoFactorVerifyForm({
           onClick={() => { setMethod("backup"); setCode(""); }}>
           <KeyRound className="h-3.5 w-3.5 mr-1" /> Backup Code
         </Button>
+        {canPasskey && (
+          <Button type="button" size="sm" variant={method === "webauthn" ? "cta" : "outline"}
+            onClick={() => setMethod("webauthn")}>
+            <Fingerprint className="h-3.5 w-3.5 mr-1" /> Passkey
+          </Button>
+        )}
       </div>
 
+      {method === "webauthn" ? (
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-muted-foreground text-center">
+            Use fingerprint, face unlock, or your device PIN to complete sign-in.
+          </p>
+          <div className="flex justify-center">
+            <div className="h-20 w-20 rounded-full bg-amber-500/15 flex items-center justify-center animate-pulse">
+              <Fingerprint className="h-10 w-10 text-amber-600 dark:text-amber-400" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox id="trust-device-passkey" checked={trustDevice} onCheckedChange={v => setTrustDevice(Boolean(v))} />
+            <Label htmlFor="trust-device-passkey" className="text-sm text-muted-foreground cursor-pointer">
+              Trust this device for 30 days
+            </Label>
+          </div>
+          <Button
+            type="button"
+            variant="cta"
+            className="w-full h-12"
+            disabled={verifyPending || passkeyPending}
+            onClick={async () => {
+              if (!onPasskeyVerify) return;
+              setPasskeyPending(true);
+              try {
+                await onPasskeyVerify({ tempToken, trustDevice });
+              } finally {
+                setPasskeyPending(false);
+              }
+            }}
+          >
+            {passkeyPending || verifyPending ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying…</>
+            ) : (
+              <><Fingerprint className="h-4 w-4 mr-2" /> Verify with Passkey</>
+            )}
+          </Button>
+        </div>
+      ) : (
+      <>
       <div className="space-y-2">
         <Label className="text-muted-foreground">
           {method === "totp" && "Authenticator Code"}
@@ -172,6 +222,8 @@ export function TwoFactorVerifyForm({
       >
         {verifyPending ? "Verifying..." : "Verify & Sign In"}
       </Button>
+      </>
+      )}
 
       <Button type="button" variant="ghost"
         className="w-full text-muted-foreground hover:text-foreground"

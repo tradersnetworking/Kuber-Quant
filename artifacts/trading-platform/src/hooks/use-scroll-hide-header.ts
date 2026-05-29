@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-/** Hide secondary header rows on scroll down; reveal on scroll up (mobile / tablet). */
+/** Hide secondary header rows on scroll down; reveal on scroll up (mobile phones only). */
 export function useScrollHideHeader(threshold = 4) {
   const [headerHidden, setHeaderHidden] = useState(false);
   const lastScrollTop = useRef(0);
@@ -8,14 +8,18 @@ export function useScrollHideHeader(threshold = 4) {
 
   const onMainScroll = useCallback(
     (e: React.UIEvent<HTMLElement>) => {
-      // Capture synchronously — React recycles the synthetic event before rAF runs.
-      const scrollTop = e.currentTarget.scrollTop;
+      const el = e.currentTarget;
+      const scrollTop = el.scrollTop;
+      const distanceFromBottom = el.scrollHeight - scrollTop - el.clientHeight;
 
       if (ticking.current) return;
       ticking.current = true;
 
       requestAnimationFrame(() => {
-        if (scrollTop <= 8) {
+        // Avoid layout jumps when user reaches the page end (elastic scroll / reflow).
+        if (distanceFromBottom < 96) {
+          setHeaderHidden(false);
+        } else if (scrollTop <= 8) {
           setHeaderHidden(false);
         } else if (scrollTop > lastScrollTop.current + threshold) {
           setHeaderHidden(true);

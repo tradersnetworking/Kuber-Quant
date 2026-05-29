@@ -136,7 +136,51 @@ export function projectEarnings(opts: {
     estimatedTotal: Math.round((principal + estimated) * 1e8) / 1e8,
     simpleInterest: Math.round(simple * 1e8) / 1e8,
     compoundInterest: Math.round(compoundProfit * 1e8) / 1e8,
+    series: projectEarningsSeries(opts),
   };
+}
+
+export function projectEarningsSeries(opts: {
+  principal: number;
+  aprPercent: number;
+  durationDays: number;
+  compoundEnabled: boolean;
+  rewardFrequency: string;
+}) {
+  const { principal, aprPercent, durationDays, compoundEnabled, rewardFrequency } = opts;
+  const days = Math.max(1, Math.min(durationDays, 365));
+  const pointCount = Math.min(36, Math.max(8, Math.ceil(days / 7)));
+  const step = Math.max(1, Math.floor(days / pointCount));
+  const cpy = compoundsPerYear(rewardFrequency);
+  const points: Array<{ day: number; label: string; rewards: number; total: number }> = [];
+
+  for (let day = 0; day <= days; day += step) {
+    const elapsedMs = day * 86400000;
+    const reward = compoundEnabled
+      ? calcCompoundAmount(principal, aprPercent, elapsedMs, cpy) - principal
+      : calcSimpleReward(principal, aprPercent, elapsedMs);
+    points.push({
+      day,
+      label: day === 0 ? "Start" : `Day ${day}`,
+      rewards: Math.round(reward * 1e6) / 1e6,
+      total: Math.round((principal + reward) * 1e6) / 1e6,
+    });
+  }
+
+  if (points[points.length - 1]?.day !== days) {
+    const elapsedMs = days * 86400000;
+    const reward = compoundEnabled
+      ? calcCompoundAmount(principal, aprPercent, elapsedMs, cpy) - principal
+      : calcSimpleReward(principal, aprPercent, elapsedMs);
+    points.push({
+      day: days,
+      label: `Day ${days}`,
+      rewards: Math.round(reward * 1e6) / 1e6,
+      total: Math.round((principal + reward) * 1e6) / 1e6,
+    });
+  }
+
+  return points;
 }
 
 async function creditStakeReward(opts: {

@@ -91,11 +91,26 @@ export async function projectStakingReturns(body: {
     estimatedTotal: number;
     simpleInterest: number;
     compoundInterest: number;
+    series?: Array<{ day: number; label: string; rewards: number; total: number }>;
   }>("/staking/project", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+export async function downloadStakingAgreementPreview(planId: number, amount: number) {
+  const { authFetch, apiPath } = await import("@/lib/token-store");
+  const res = await authFetch(apiPath(`/staking/agreement/preview?planId=${planId}&amount=${encodeURIComponent(String(amount))}`));
+  if (!res.ok) throw new Error("Failed to load agreement PDF");
+  return res.blob();
+}
+
+export async function downloadStakeAgreement(stakeId: number) {
+  const { authFetch, apiPath } = await import("@/lib/token-store");
+  const res = await authFetch(apiPath(`/staking/stakes/${stakeId}/agreement`));
+  if (!res.ok) throw new Error("Failed to download staking agreement");
+  return res.blob();
 }
 
 export async function createStake(body: { planId: number; amount: number; autoReinvest?: boolean; agreementAccepted: true }) {

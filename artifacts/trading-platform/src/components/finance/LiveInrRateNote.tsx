@@ -8,6 +8,14 @@ type Props = {
   align?: "left" | "center" | "right";
 };
 
+function formatRateUpdatedAt(value: string | Date): string {
+  const d = new Date(value);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 export function LiveInrRateNote({ rates, className, align = "center" }: Props) {
   const { data: liveRates } = useLiveExchangeRates(!rates?.USD_INR);
   const snapshot = pickExchangeRates(rates, liveRates);
@@ -17,15 +25,20 @@ export function LiveInrRateNote({ rates, className, align = "center" }: Props) {
   return (
     <p
       className={cn(
-        "text-[11px] text-muted-foreground",
+        "text-[10px] sm:text-[11px] text-muted-foreground leading-snug px-1 w-full max-w-full",
         align === "center" && "text-center",
         align === "right" && "text-right",
         className,
       )}
     >
-      INR estimates use live rate 1 USD = ₹{Number(snapshot.USD_INR).toFixed(2)}
+      <span className="inline sm:inline">INR estimates use live rate 1 USD = ₹{Number(snapshot.USD_INR).toFixed(2)}</span>
       {snapshot.updatedAt && (
-        <> · updated {new Date(snapshot.updatedAt).toLocaleDateString()}</>
+        <>
+          <span className="hidden sm:inline"> · </span>
+          <span className="block sm:inline text-[9px] sm:text-[11px] opacity-90">
+            updated {formatRateUpdatedAt(snapshot.updatedAt)}
+          </span>
+        </>
       )}
     </p>
   );

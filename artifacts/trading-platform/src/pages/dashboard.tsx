@@ -29,6 +29,7 @@ import { CalendarPeriodFilter } from "@/components/finance/CalendarPeriodFilter"
 import { PeriodFinanceKpiGrid, mapFiatAuditToBreakdown } from "@/components/finance/PeriodFinanceKpiGrid";
 import { appendPeriodQuery, defaultFinancePeriod, isPresentPeriod, todayIso, type StatsPeriod } from "@/lib/finance-period";
 import { ReferralShareDialog } from "@/components/referral/ReferralShareDialog";
+import { ReferActionButton } from "@/components/referral/ReferActionButton";
 import { getShareUserDisplayName } from "@/lib/user-display-name";
 import { cn } from "@/lib/utils";
 import { APP_PAGE_STACK, APP_STAT_GRID, APP_DASHBOARD_SPLIT, APP_DASHBOARD_MAIN } from "@/lib/ui-system";
@@ -150,11 +151,7 @@ export default function DashboardPage() {
         <div className={cn("flex flex-row flex-wrap items-center gap-1.5 sm:gap-2 min-w-0")}>
           <WalletQuickActions layout="inline" compact />
           <DownloadAppButton compact />
-          <Link href="/referral">
-            <Button variant="outline" size="sm" className="h-8 sm:h-9 px-2.5 text-xs sm:text-sm shrink-0">
-              {t("dashboard.refer")}
-            </Button>
-          </Link>
+          <ReferActionButton compact />
           {unreadCount > 0 && (
             <Link href="/notifications">
               <Button variant="outline" size="sm" className="h-8 sm:h-9 px-2.5 relative shrink-0">

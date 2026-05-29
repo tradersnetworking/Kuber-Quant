@@ -207,6 +207,7 @@ export const WithdrawInitBody = z.object({
   cryptoNetwork: z.string().max(32).optional(),
   password: z.string().min(1),
   totpCode: z.string().min(4).max(16),
+  biometricActionToken: z.string().min(1).optional(),
 });
 
 export const WithdrawRequestBody = z.union([WithdrawConfirmBody, WithdrawInitBody]);
@@ -347,4 +348,43 @@ export const StakingPlanPatchBody = StakingPlanBody.partial();
 export const ManualStakeRewardBody = z.object({
   amount: z.coerce.number().positive(),
   remarks: z.string().max(500).optional(),
+});
+
+export const WebauthnRegisterVerifyBody = z.object({
+  response: z.record(z.unknown()),
+  challengeKey: z.string().min(8).max(128),
+  deviceName: z.string().max(120).optional(),
+});
+
+export const WebauthnLoginBeginBody = z.object({
+  email: z.string().email().max(320),
+});
+
+export const WebauthnLoginFinishBody = z.object({
+  email: z.string().email().max(320),
+  response: z.record(z.unknown()),
+  challengeKey: z.string().min(8).max(128),
+  userId: z.coerce.number().int().positive(),
+});
+
+export const Webauthn2faVerifyBody = z.object({
+  tempToken: z.string().min(1),
+  response: z.record(z.unknown()),
+  challengeKey: z.string().min(8).max(128),
+  trustDevice: z.boolean().optional(),
+});
+
+export const WebauthnRenameCredentialBody = z.object({
+  deviceName: z.string().min(1).max(120),
+});
+
+export const WebauthnPrefsBody = z.object({
+  quickLoginEnabled: z.boolean().optional(),
+  biometricWithdrawalsEnabled: z.boolean().optional(),
+  withdrawalThresholdInr: z.coerce.number().min(0).max(1_000_000_000).optional(),
+});
+
+export const WebauthnActionVerifyBody = z.object({
+  response: z.record(z.unknown()),
+  challengeKey: z.string().min(8).max(128),
 });

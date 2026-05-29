@@ -28,10 +28,13 @@ import {
   fetchStakingDashboard,
   fetchStakingPlans,
   projectStakingReturns,
+  downloadStakingAgreementPreview,
   type StakingDashboard,
   type StakingPlan,
   type UserStake,
 } from "@/lib/staking-api";
+import { StakingProfitChart } from "@/components/staking/StakingProfitChart";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function formatDuration(days: number, flexible: boolean) {
@@ -133,7 +136,12 @@ export default function StakingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [calcAmount, setCalcAmount] = useState("1000");
   const [calcPlan, setCalcPlan] = useState<StakingPlan | null>(null);
-  const [projection, setProjection] = useState<{ estimatedReward: number; estimatedTotal: number } | null>(null);
+  const [projection, setProjection] = useState<{
+    estimatedReward: number;
+    estimatedTotal: number;
+    series?: Array<{ day: number; label: string; rewards: number; total: number }>;
+  } | null>(null);
+  const [previewingPdf, setPreviewingPdf] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -170,8 +178,27 @@ export default function StakingPage() {
       durationDays: calcPlan.isFlexible ? 30 : calcPlan.lockDurationDays || 30,
       compoundEnabled: calcPlan.compoundEnabled,
       rewardFrequency: calcPlan.rewardFrequency,
-    }).then((r) => setProjection({ estimatedReward: r.estimatedReward, estimatedTotal: r.estimatedTotal }));
+    }).then((r) => setProjection({
+      estimatedReward: r.estimatedReward,
+      estimatedTotal: r.estimatedTotal,
+      series: r.series,
+    }));
   }, [calcAmount, calcPlan]);
+
+  async function previewAgreementPdf() {
+    if (!selectedPlan || !amount) return;
+    setPreviewingPdf(true);
+    try {
+      const blob = await downloadStakingAgreementPreview(selectedPlan.id, Number(amount));
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e: any) {
+      toast({ title: "PDF unavailable", description: e.message, variant: "destructive" });
+    } finally {
+      setPreviewingPdf(false);
+    }
+  }
 
   const submitStake = async () => {
     if (!selectedPlan || !agreement) return;
@@ -255,19 +282,27 @@ export default function StakingPage() {
                   <Input type="number" min={0} value={calcAmount} onChange={(e) => setCalcAmount(e.target.value)} />
                 </div>
                 {projection && calcPlan && (
-                  <div className="sm:col-span-2 grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
-                      <p className="text-xs text-muted-foreground">Estimated reward</p>
-                      <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-                        {projection.estimatedReward.toLocaleString(undefined, { maximumFractionDigits: 4 })} {calcPlan.currency}
-                      </p>
+                  <div className="sm:col-span-2 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+                        <p className="text-xs text-muted-foreground">Estimated reward</p>
+                        <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                          {projection.estimatedReward.toLocaleString(undefined, { maximumFractionDigits: 4 })} {calcPlan.currency}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 p-4">
+                        <p className="text-xs text-muted-foreground">Estimated total</p>
+                        <p className="text-2xl font-bold text-sky-700 dark:text-sky-400">
+                          {projection.estimatedTotal.toLocaleString(undefined, { maximumFractionDigits: 4 })} {calcPlan.currency}
+                        </p>
+                      </div>
                     </div>
-                    <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 p-4">
-                      <p className="text-xs text-muted-foreground">Estimated total</p>
-                      <p className="text-2xl font-bold text-sky-700 dark:text-sky-400">
-                        {projection.estimatedTotal.toLocaleString(undefined, { maximumFractionDigits: 4 })} {calcPlan.currency}
-                      </p>
-                    </div>
+                    {projection.series && projection.series.length > 1 && (
+                      <div className="rounded-xl border border-border/70 bg-background/60 dark:bg-white/[0.02] p-3">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Profit projection</p>
+                        <StakingProfitChart series={projection.series} currency={calcPlan.currency} />
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -342,7 +377,16 @@ export default function StakingPage() {
               <div className="flex items-start gap-2">
                 <Checkbox id="agreement" checked={agreement} onCheckedChange={(v) => setAgreement(v === true)} />
                 <Label htmlFor="agreement" className="text-sm leading-snug text-muted-foreground">
-                  I accept the staking terms, risk disclosure, and confirm KYC/AML compliance.
+                  I accept the staking terms, risk disclosure, and confirm KYC/AML compliance.{" "}
+                  <button
+                    type="button"
+                    className="text-amber-600 dark:text-amber-400 underline font-medium inline-flex items-center gap-1"
+                    disabled={previewingPdf || !amount}
+                    onClick={() => void previewAgreementPdf()}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    {previewingPdf ? "Loading PDF…" : "Preview agreement PDF"}
+                  </button>
                 </Label>
               </div>
             </div>

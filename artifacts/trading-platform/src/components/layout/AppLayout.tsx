@@ -7,6 +7,7 @@ import { useStaffPermissions } from "@/hooks/use-staff-permissions";
 import { filterNavByStaffPermissions } from "@/lib/staff-permissions";
 import { LogOut, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { SupportWidget } from "@/components/SupportWidget";
+import { RegisterPasskeyPrompt } from "@/components/auth/biometric/RegisterPasskeyPrompt";
 import { InvestmentMaturityPayoutDialog } from "@/components/investments/InvestmentMaturityPayoutDialog";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -269,10 +270,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             />
           </div>
 
-          {/* Below brand: page title + controls + trading nav — hide on scroll (mobile + tablet) */}
+          {/* Below brand: page title + controls — collapse on scroll (phones only) */}
           <div
             className={cn(
-              "app-header-collapsible lg:hidden grid transition-[grid-template-rows] duration-200 ease-out will-change-[grid-template-rows]",
+              "app-header-collapsible md:hidden grid transition-[grid-template-rows] duration-200 ease-out will-change-[grid-template-rows]",
               headerHidden ? "grid-rows-[0fr]" : "grid-rows-[1fr]",
             )}
           >
@@ -297,8 +298,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Desktop (lg+): toolbar always visible */}
-          <div className="hidden lg:block">
+          {/* Tablet + desktop: toolbar always visible */}
+          <div className="hidden md:block">
             <AppShellToolbar
               variant="desktop"
               role={role}
@@ -314,8 +315,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {showHeaderTradingRow && (
-            <div className="hidden lg:block border-t border-border/60 bg-muted/30 dark:bg-muted/10 px-4 py-1.5 min-w-0 overflow-hidden">
+            <div className="hidden md:block border-t border-border/60 bg-muted/30 dark:bg-muted/10 px-4 py-1.5 min-w-0 overflow-hidden">
               <HeaderTradingNav role={role} compact className="[&_a]:py-1.5" />
+            </div>
+          )}
+          {!isSupport && (
+            <div className="border-t border-border/40 bg-muted/20 dark:bg-white/[0.02] px-2 sm:px-3 py-1 min-w-0 w-full overflow-hidden">
+              <LiveInrRateNote align="center" className="pb-0" />
             </div>
           )}
         </header>
@@ -401,11 +407,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div
           ref={mainScrollRef}
-          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6 lg:p-8 md:pb-8 mobile-scroll-padding scrollbar-none lg:scrollbar-thin"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6 lg:p-8 md:pb-8 mobile-scroll-padding scrollbar-none lg:scrollbar-thin [overflow-anchor:none]"
           onScroll={onMainScroll}
         >
           <div className={cn(APP_CONTENT_WIDTH, "min-h-[200px] w-full space-y-3 sm:space-y-4", staff && "staff-portal-mobile")}>
-            {!isSupport && <LiveInrRateNote align="center" className="pb-1" />}
             <SafeBoundary label="This page failed to load. Try refreshing.">
               {children}
             </SafeBoundary>
@@ -416,6 +421,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         {!staff && <SupportWidget />}
         {staff && onInvestorView && <SupportWidget />}
+        {!staff && <RegisterPasskeyPrompt />}
         {(!staff || onInvestorView) && user?.role === "user" && <InvestmentMaturityPayoutDialog />}
         </div>
       </main>
@@ -423,7 +429,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <nav
         id="mobile-bottom-nav"
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[100] flex items-center justify-around border-t border-border/80 bg-card/98 dark:bg-[#070d18]/98 backdrop-blur-xl shadow-[0_-4px_24px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.45)] pt-1.5 px-0.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[100] flex items-stretch justify-around border-t border-border/80 bg-card/98 dark:bg-[#070d18]/98 backdrop-blur-xl shadow-[0_-4px_24px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.45)] pt-1.5 px-0.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]"
       >
           {mobileNavItems.map((item) => {
             const isActive = item.href !== "#" && isNavItemActive(location, item);
@@ -433,7 +439,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.name}
                 onClick={item.onClick ? item.onClick : () => navigateMobile(item.href)}
                 className={cn(
-                  "flex flex-1 flex-col items-center gap-0.5 py-1.5 px-0.5 rounded-xl transition-all min-w-0 max-w-[4.75rem] touch-target",
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl transition-all min-w-0 max-w-[5.5rem] touch-target",
                   (isActive || (isMore && mobileMenuOpen))
                     ? "text-primary bg-primary/10 dark:bg-primary/15"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60 dark:hover:bg-white/5",
@@ -447,7 +453,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 )}>
                   <item.icon className={cn("h-4 w-4", getNavIconColor(item, isActive || (isMore && mobileMenuOpen)))} />
                 </span>
-                <span className="mobile-btn-label font-semibold text-foreground/90">{item.name}</span>
+                <span className="mobile-btn-label font-semibold text-foreground/90 truncate w-full text-center leading-tight">{item.name}</span>
                 {isActive && !isMore && (
                   <motion.div layoutId="mobileActiveNav" className="w-1 h-1 rounded-full bg-primary" />
                 )}

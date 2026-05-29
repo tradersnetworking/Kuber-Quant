@@ -39,6 +39,7 @@ import uploadsRouter from "./uploads";
 import partnerApiRouter from "./partnerApi";
 import rbacRouter from "./rbac";
 import stakingRouter from "./staking";
+import webauthnRouter from "./webauthn";
 import { maintenanceGate } from "../middlewares/maintenance";
 
 const router: IRouter = Router();
@@ -73,6 +74,7 @@ router.use("/admin/mail", supportMailRouter);
 router.use("/manager/mail", supportMailRouter);
 router.use("/promoter", promoterRouter);
 router.use("/auth/2fa", twoFactorRouter);
+router.use("/auth/webauthn", webauthnRouter);
 router.use("/roi", roiEngineRouter);
 router.use("/audit-logs", auditLogsRouter);
 router.use("/promo-codes", promoCodesRouter);

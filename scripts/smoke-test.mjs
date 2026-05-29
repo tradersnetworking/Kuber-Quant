@@ -27,6 +27,7 @@ const publicChecks = [
   { name: "maintenance", path: "/api/maintenance", expectJson: true },
   { name: "market-config", path: "/api/market/config", expectJson: true },
   { name: "staking-plans", path: "/api/staking/plans", expectJson: true },
+  { name: "webauthn-available", path: "/api/auth/webauthn/available", expectJson: true },
 ];
 
 async function fetchJson(path, init = {}) {
@@ -68,6 +69,7 @@ const ROLE_ENDPOINTS = {
     { name: "treasury", path: "/api/super-admin/treasury" },
     { name: "investments", path: "/api/super-admin/investments" },
     { name: "staking-stats", path: "/api/staking/admin/stats" },
+    { name: "webauthn-admin-logs", path: "/api/auth/webauthn/admin/logs" },
   ],
   admin: [
     { name: "stats", path: "/api/admin/stats?period=present" },
@@ -88,6 +90,8 @@ const ROLE_ENDPOINTS = {
     { name: "dashboard-summary", path: "/api/dashboard/summary" },
     { name: "wallet", path: "/api/wallet" },
     { name: "investments", path: "/api/investments" },
+    { name: "staking-dashboard", path: "/api/staking/dashboard" },
+    { name: "webauthn-credentials", path: "/api/auth/webauthn/credentials" },
   ],
 };
 

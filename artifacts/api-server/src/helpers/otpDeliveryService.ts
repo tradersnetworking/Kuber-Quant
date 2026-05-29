@@ -238,10 +238,12 @@ export async function sendOtpViaChannel(opts: {
   return { ok: false, message: "Unsupported OTP channel", channel };
 }
 
-export async function getLogin2faMethods(user: { email: string; phone?: string | null }): Promise<string[]> {
+export async function getLogin2faMethods(user: { id: number; email: string; phone?: string | null }): Promise<string[]> {
   const methods = ["totp", "email_otp", "backup"];
   const config = await getOtpCommunicationConfig();
   if (user.phone && config.login2faSms && config.sms.enabled) methods.push("sms_otp");
   if (user.phone && config.login2faWhatsapp && config.whatsapp.enabled) methods.push("whatsapp_otp");
+  const { userHasPasskeys } = await import("./webauthnService");
+  if (await userHasPasskeys(user.id)) methods.unshift("webauthn");
   return methods;
 }

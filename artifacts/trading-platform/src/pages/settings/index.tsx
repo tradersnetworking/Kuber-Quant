@@ -19,6 +19,7 @@ import { AppPage } from "@/components/layout/AppPage";
 import { APP_FORM_GRID, APP_PAGE_STACK } from "@/lib/ui-system";
 import { cn } from "@/lib/utils";
 import { apiPath, authFetch, authFetchJson } from "@/lib/token-store";
+import { BiometricSettingsCard } from "@/components/auth/biometric/BiometricSettingsCard";
 
 function ChangePasswordCard() {
   const { toast } = useToast();
@@ -536,6 +537,7 @@ export default function SettingsPage() {
         </Card>
 
         <TrustedDevicesCard />
+        <BiometricSettingsCard />
         <ActiveSessionsCard />
 
           </TabsContent>

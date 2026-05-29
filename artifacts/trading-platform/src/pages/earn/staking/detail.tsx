@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Clock, Gift, LogOut } from "lucide-react";
-import { claimStakeRewards, fetchStakeDetail, withdrawStakeEarly } from "@/lib/staking-api";
+import { ArrowLeft, Clock, Gift, LogOut, FileText } from "lucide-react";
+import { claimStakeRewards, fetchStakeDetail, withdrawStakeEarly, downloadStakeAgreement } from "@/lib/staking-api";
 import { cn } from "@/lib/utils";
 
 export default function StakeDetailPage() {
@@ -65,9 +65,30 @@ export default function StakeDetailPage() {
       title={stake.planName}
       subtitle={`Stake #${stake.id} · ${stake.currency}`}
       actions={
-        <Button asChild variant="outline" size="sm">
-          <Link href="/earn/staking"><ArrowLeft className="mr-2 h-4 w-4" /> All stakes</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const blob = await downloadStakeAgreement(id);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `staking-agreement-${id}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (e: any) {
+                toast({ title: "Download failed", description: e.message, variant: "destructive" });
+              }
+            }}
+          >
+            <FileText className="mr-2 h-4 w-4" /> Agreement PDF
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/earn/staking"><ArrowLeft className="mr-2 h-4 w-4" /> All stakes</Link>
+          </Button>
+        </div>
       }
     >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">

@@ -374,11 +374,12 @@ router.post("/google", validateBody(GoogleAuthBody), async (req, res) => {
   const needsOnboarding = isNewUser || !profile?.onboardingCompletedAt;
 
   if (user.twoFactorEnabled && user.twoFactorSecret) {
+    const { getLogin2faMethods } = await import("../helpers/otpDeliveryService");
     const tempToken = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET + "-2fa-temp", { expiresIn: "5m" });
     res.json({
       requiresTwoFactor: true,
       tempToken,
-      methods: ["totp", "email_otp", "backup"],
+      methods: await getLogin2faMethods(user),
       maskedEmail: user.email.replace(/(.{2}).+(@.+)/, "$1***$2"),
       needsOnboarding,
     });

@@ -28,8 +28,10 @@ import {
   Bell,
   Home,
   Database,
+  Briefcase,
   Coins,
   Clock,
+  Fingerprint,
 } from "lucide-react";
 import { filterPlatformNavForRole } from "@/lib/permissions";
 
@@ -250,6 +252,7 @@ export const SUPER_ADMIN_NAV: NavItem[] = [
     { name: "Site Settings", href: "/super-admin/site-config", icon: Settings, color: "text-zinc-400" },
     { name: "Promo Codes", href: "/super-admin/promo-codes", icon: Tag, color: "text-amber-400" },
     { name: "Audit Logs", href: "/super-admin/audit-logs", icon: FileSearch, color: "text-orange-400" },
+    { name: "Biometric Security", href: "/super-admin/biometric-security", icon: Fingerprint, color: "text-amber-400" },
     { name: "Backup & Export", href: "/super-admin/backup", icon: Database, color: "text-emerald-400" },
     { name: "Trade Copier API", href: "/super-admin/api", icon: Link2, color: "text-green-400" },
     { name: "System Settings", href: "/super-admin/settings", icon: Settings, color: "text-zinc-400" },
@@ -367,7 +370,7 @@ export function getMobileNavForRole(role: string): NavItem[] {
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "text-blue-400" },
         { name: "Money", href: "/money", icon: Wallet, color: "text-emerald-400" },
         { name: "Exchange", href: "/exchange", icon: ArrowDownUp, color: "text-amber-400" },
-        { name: "Plans", href: "/plans", icon: TrendingUp, color: "text-yellow-400" },
+        { name: "Invest", href: "/investments", icon: Briefcase, color: "text-yellow-400" },
         { name: "Copy", href: "/copy-trading", icon: Users, color: "text-cyan-400" },
       ];
   }
@@ -503,7 +506,7 @@ export const SUPER_ADMIN_TABS = new Set([
   "overview", "wallet", "upcoming-transactions", "exchange", "investments", "investment-plans", "staking", "copy-trading", "algo-trading",
   "ea-strategies", "mt5", "mt5-accounts", "transactions", "notifications", "referrals", "support", "support-mail",
   "kyc", "agreements", "communication", "homepage", "settings",
-  "users", "managers", "support-team", "payment-gateways", "site-config", "ea-subs", "api", "promo-codes", "audit-logs", "backup",
+  "users", "managers", "support-team", "payment-gateways", "site-config", "ea-subs", "api", "promo-codes", "audit-logs", "biometric-security", "backup",
 ]);
 
 /** Redirect super admin from /admin/* to equivalent super-admin views */
