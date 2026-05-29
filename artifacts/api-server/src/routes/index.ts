@@ -38,6 +38,7 @@ import exchangeRouter from "./exchange";
 import uploadsRouter from "./uploads";
 import partnerApiRouter from "./partnerApi";
 import rbacRouter from "./rbac";
+import stakingRouter from "./staking";
 import { maintenanceGate } from "../middlewares/maintenance";
 
 const router: IRouter = Router();
@@ -80,6 +81,7 @@ router.use("/payments", paymentsRouter);
 router.use("/wallet-ledger", walletLedgerRouter);
 router.use("/onboarding", onboardingRouter);
 router.use("/exchange", exchangeRouter);
+router.use("/staking", stakingRouter);
 router.use("/uploads-secure", uploadsRouter);
 router.use("/wallet/payment-accounts", paymentAccountsRouter);
 router.use("/partner/v1", partnerApiRouter);

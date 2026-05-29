@@ -63,6 +63,7 @@ export async function enqueueEmailJob(payload: SendEmailJobPayload): Promise<boo
 const REPEATABLE_JOBS: Array<{ name: BackgroundJobName; pattern: string }> = [
   { name: "fx-rates", pattern: "0 6 * * *" },
   { name: "roi-engine", pattern: "0 * * * *" },
+  { name: "staking-rewards", pattern: "15 * * * *" },
   { name: "ledger-reconcile", pattern: "30 2 * * *" },
   { name: "db-backup", pattern: "0 3 * * *" },
   { name: "support-mail-sync", pattern: "*/5 * * * *" },

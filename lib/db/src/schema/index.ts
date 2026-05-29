@@ -37,3 +37,4 @@ export * from "./exchange";
 export * from "./securityDevices";
 export * from "./partnerApiKeys";
 export * from "./documentValidations";
+export * from "./staking";

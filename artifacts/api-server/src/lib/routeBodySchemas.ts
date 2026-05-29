@@ -283,3 +283,68 @@ export const ExchangeOrderAdminNotesBody = z.object({
 export const ExchangeOrderRejectBody = z.object({
   reason: z.string().max(2000).optional(),
 });
+
+export const CreateStakeBody = z.object({
+  planId: z.coerce.number().int().positive(),
+  amount: z.coerce.number().positive(),
+  autoReinvest: z.boolean().optional(),
+  agreementAccepted: z.literal(true),
+});
+
+export const ClaimStakeRewardBody = z.object({
+  amount: z.coerce.number().positive().optional(),
+});
+
+export const StakingProjectionBody = z.object({
+  principal: z.coerce.number().positive(),
+  aprPercent: z.coerce.number().min(0).max(1000),
+  apyPercent: z.coerce.number().min(0).max(1000).optional(),
+  durationDays: z.coerce.number().int().min(0).max(3650),
+  compoundEnabled: z.boolean().optional(),
+  rewardFrequency: z.enum(["hourly", "daily", "weekly", "monthly", "at_maturity"]).optional(),
+});
+
+export const StakingSettingsBody = z.object({
+  stakingEnabled: z.boolean().optional(),
+  rewardsPaused: z.boolean().optional(),
+  autoPayoutEnabled: z.boolean().optional(),
+  manualApprovalRequired: z.boolean().optional(),
+  defaultCurrency: z.string().max(10).optional(),
+});
+
+export const StakingPlanBody = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(2000).optional(),
+  planType: z.enum(["flexible", "fixed", "vip", "compound", "promotional"]).optional(),
+  currency: z.string().max(10).optional(),
+  minAmount: z.coerce.number().positive(),
+  maxAmount: z.coerce.number().positive(),
+  aprPercent: z.coerce.number().min(0).max(1000),
+  apyPercent: z.coerce.number().min(0).max(1000).optional(),
+  roiPercent: z.coerce.number().min(0).max(1000).optional(),
+  lockDurationDays: z.coerce.number().int().min(0).optional(),
+  isFlexible: z.boolean().optional(),
+  rewardFrequency: z.enum(["hourly", "daily", "weekly", "monthly", "at_maturity"]).optional(),
+  compoundEnabled: z.boolean().optional(),
+  autoRenew: z.boolean().optional(),
+  earlyWithdrawalPenalty: z.coerce.number().min(0).max(100).optional(),
+  promotionalBonusPercent: z.coerce.number().min(0).max(100).optional(),
+  isActive: z.boolean().optional(),
+  isFeatured: z.boolean().optional(),
+  isPopular: z.boolean().optional(),
+  isRecommended: z.boolean().optional(),
+  riskLevel: z.enum(["low", "medium", "high"]).optional(),
+  maxUsers: z.coerce.number().int().positive().optional().nullable(),
+  totalPoolLimit: z.coerce.number().positive().optional().nullable(),
+  themeColor: z.string().max(20).optional(),
+  iconKey: z.string().max(40).optional(),
+  sortOrder: z.coerce.number().int().optional(),
+  changeReason: z.string().max(500).optional(),
+});
+
+export const StakingPlanPatchBody = StakingPlanBody.partial();
+
+export const ManualStakeRewardBody = z.object({
+  amount: z.coerce.number().positive(),
+  remarks: z.string().max(500).optional(),
+});

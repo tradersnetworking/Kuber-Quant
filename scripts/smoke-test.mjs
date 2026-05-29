@@ -26,6 +26,7 @@ const publicChecks = [
   { name: "public-stats", path: "/api/public-stats", expectJson: true },
   { name: "maintenance", path: "/api/maintenance", expectJson: true },
   { name: "market-config", path: "/api/market/config", expectJson: true },
+  { name: "staking-plans", path: "/api/staking/plans", expectJson: true },
 ];
 
 async function fetchJson(path, init = {}) {
@@ -66,6 +67,7 @@ const ROLE_ENDPOINTS = {
     { name: "stats", path: "/api/super-admin/stats?period=present" },
     { name: "treasury", path: "/api/super-admin/treasury" },
     { name: "investments", path: "/api/super-admin/investments" },
+    { name: "staking-stats", path: "/api/staking/admin/stats" },
   ],
   admin: [
     { name: "stats", path: "/api/admin/stats?period=present" },

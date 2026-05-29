@@ -47,6 +47,7 @@ import {
   LegalAgreementsPanel,
   WindowsServerServicesPanel,
   BackupExportPanel,
+  StakingAdminPanel,
   LazyTabPanel,
 } from "@/pages/super-admin/lazy-panels";
 import {
@@ -84,6 +85,7 @@ const SUPER_ADMIN_MOBILE_TABS = [
   { value: "support-team", label: "Support" },
   { value: "kyc", label: "KYC" },
   { value: "investment-plans", label: "Plans" },
+  { value: "staking", label: "Staking" },
   { value: "copy-trading", label: "Copy" },
   { value: "algo-trading", label: "Algo" },
   { value: "ea-strategies", label: "EA" },
@@ -101,6 +103,7 @@ const OVERVIEW_QUICK_NAV: { tab: string; label: string; desc: string; tone: Staf
   { tab: "support-team", label: "Support Team", desc: "Create support agents", tone: "rose" },
   { tab: "kyc", label: "KYC", desc: "Approvals", tone: "teal" },
   { tab: "investment-plans", label: "Investment Plans", desc: "Plan CRUD", tone: "amber" },
+  { tab: "staking", label: "Staking & Earn", desc: "APR, rewards, stakes", tone: "emerald" },
   { tab: "copy-trading", label: "Copy Trading", desc: "Master traders", tone: "violet" },
   { tab: "mt5-accounts", label: "MT Accounts", desc: "Credentials & profit share", tone: "indigo" },
   { tab: "algo-trading", label: "Algo Trading", desc: "Strategies & subs", tone: "fuchsia" },
@@ -558,6 +561,10 @@ export default function SuperAdminDashboard() {
 
           <TabsContent value="investment-plans" className={TAB_PANEL}>
             <LazyTabPanel active={activeTab === "investment-plans"}><InvestmentPlansPanel /></LazyTabPanel>
+          </TabsContent>
+
+          <TabsContent value="staking" className={TAB_PANEL}>
+            <LazyTabPanel active={activeTab === "staking"}><StakingAdminPanel /></LazyTabPanel>
           </TabsContent>
 
           <TabsContent value="ea-strategies" className={TAB_PANEL}>

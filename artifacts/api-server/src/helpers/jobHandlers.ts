@@ -1,5 +1,6 @@
 import { logger } from "../lib/logger";
 import { runRoiEngineCycle } from "./roiEngine";
+import { runStakingEngineCycle } from "./stakingEngine";
 import { refreshExchangeRates } from "./exchangeRateService";
 import { reconcileUserBalances } from "./ledgerReconciliation";
 import { runDatabaseBackup } from "./databaseBackup";
@@ -12,6 +13,7 @@ import { isAutoEmailEnabled, resolveEmailSubject, resolveFromAddress } from "./e
 export type BackgroundJobName =
   | "fx-rates"
   | "roi-engine"
+  | "staking-rewards"
   | "ledger-reconcile"
   | "db-backup"
   | "support-mail-sync"
@@ -29,6 +31,7 @@ export type SendEmailJobPayload = {
 const LOCK_TTL: Record<BackgroundJobName, number> = {
   "fx-rates": 300,
   "roi-engine": 3300,
+  "staking-rewards": 3300,
   "ledger-reconcile": 3600,
   "db-backup": 3600,
   "support-mail-sync": 240,
@@ -49,6 +52,13 @@ export async function processBackgroundJob(name: BackgroundJobName, data: unknow
       await withDistributedLock("cron:roi-engine", LOCK_TTL[name], async () => {
         logger.info("ROI automation: starting cycle");
         await runRoiEngineCycle();
+      });
+      return;
+
+    case "staking-rewards":
+      await withDistributedLock("cron:staking-rewards", LOCK_TTL[name], async () => {
+        logger.info("Staking rewards: starting cycle");
+        await runStakingEngineCycle();
       });
       return;
 

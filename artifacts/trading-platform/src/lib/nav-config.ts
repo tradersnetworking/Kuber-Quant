@@ -28,6 +28,7 @@ import {
   Bell,
   Home,
   Database,
+  Coins,
   Clock,
 } from "lucide-react";
 import { filterPlatformNavForRole } from "@/lib/permissions";
@@ -143,8 +144,9 @@ export function getHeaderTradingNav(role: string, location: string): NavItem[] {
 export const USER_NAV: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "text-blue-400" },
   { name: "Money Hub", href: "/money", icon: Wallet, color: "text-emerald-400" },
-  { name: "Exchange", href: "/exchange", icon: ArrowDownUp, color: "text-amber-400" },
-  { name: "Investments", href: "/investments", icon: Briefcase, color: "text-amber-400" },
+  { name: "Exchange", href: "/exchange", icon: ArrowDownUp, color: "text-amber-600 dark:text-amber-400" },
+  { name: "Earn & Staking", href: "/earn/staking", icon: Coins, color: "text-emerald-600 dark:text-emerald-400" },
+  { name: "Investments", href: "/investments", icon: Briefcase, color: "text-amber-600 dark:text-amber-400" },
   { name: "Investment Plans", href: "/plans", icon: TrendingUp, color: "text-yellow-400" },
   { name: "Copy Trading", href: "/copy-trading", icon: Users, color: "text-cyan-400" },
   { name: "MT4/MT5 Account Handling", href: "/mt5-relay", icon: LineChart, color: "text-violet-400" },
@@ -232,6 +234,7 @@ export const SUPER_ADMIN_NAV: NavItem[] = [
 
   ...withSectionLabel("Trading Management", [
     { name: "Investment Plans", href: "/super-admin/investment-plans", icon: TrendingUp, color: "text-yellow-400" },
+    { name: "Staking & Earn", href: "/super-admin/staking", icon: Coins, color: "text-emerald-400" },
     { name: "Copy Trading", href: "/super-admin/copy-trading", icon: Users, color: "text-cyan-400" },
     { name: "User MT Accounts & Profit Share", href: "/super-admin/mt5-accounts", icon: History, color: "text-sky-400" },
     { name: "Algo Trading", href: "/super-admin/algo-trading", icon: Cpu, color: "text-indigo-400" },
@@ -262,7 +265,7 @@ export function isStaffRole(role: string): boolean {
 
 /** Personal investor routes — staff may access these alongside their portal */
 export const INVESTOR_ROUTE_PREFIXES = [
-  "/dashboard", "/wallet", "/money", "/exchange", "/investments", "/plans", "/copy-trading", "/algo-trading",
+  "/dashboard", "/wallet", "/money", "/exchange", "/earn", "/earn/staking", "/investments", "/plans", "/copy-trading", "/algo-trading",
   "/ea-strategies", "/mt5-accounts", "/transactions", "/referral", "/support", "/kyc",
   "/mt5-relay", "/agreements", "/settings", "/account", "/notifications", "/trades", "/promoter",
 ];
@@ -497,7 +500,7 @@ export const INVESTOR_TO_STAFF: Record<string, Record<string, string>> = {
 };
 
 export const SUPER_ADMIN_TABS = new Set([
-  "overview", "wallet", "upcoming-transactions", "exchange", "investments", "investment-plans", "copy-trading", "algo-trading",
+  "overview", "wallet", "upcoming-transactions", "exchange", "investments", "investment-plans", "staking", "copy-trading", "algo-trading",
   "ea-strategies", "mt5", "mt5-accounts", "transactions", "notifications", "referrals", "support", "support-mail",
   "kyc", "agreements", "communication", "homepage", "settings",
   "users", "managers", "support-team", "payment-gateways", "site-config", "ea-subs", "api", "promo-codes", "audit-logs", "backup",

@@ -14,6 +14,7 @@ import { closeJobQueue } from "./helpers/jobQueue";
 import { ensureRbacSeed } from "./helpers/rbacService";
 import { ensureSampleTransactionHistory } from "./helpers/sampleTransactionHistory";
 import { ensureDatabaseSchemaPatches } from "./helpers/ensureDatabaseSchemaPatches";
+import { ensureStakingSchema, seedDefaultStakingPlansIfEmpty } from "./helpers/ensureStakingSchema";
 
 assertProductionSecrets();
 warnDevSecrets();
@@ -36,6 +37,8 @@ let server: ReturnType<typeof app.listen>;
 void (async () => {
   try {
     await ensureDatabaseSchemaPatches();
+    await ensureStakingSchema();
+    await seedDefaultStakingPlansIfEmpty();
   } catch (err) {
     logger.error({ err }, "Database schema patches failed — some dashboards may error until pnpm db:push is run");
   }

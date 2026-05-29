@@ -337,6 +337,36 @@
   .panel-orange {
     @apply border-orange-500/35 bg-orange-500/10 dark:border-orange-500/20 dark:bg-orange-500/5;
   }
+
+  /* Light mode — richer fintech card colors */
+  .light .surface-card {
+    @apply shadow-md border-border/90;
+  }
+  .light .surface-panel {
+    @apply bg-gradient-to-br from-white via-muted/30 to-muted/60 border-border/80 shadow-sm;
+  }
+  .light .panel-emerald {
+    @apply border-emerald-400/45 bg-gradient-to-br from-emerald-50 via-white to-teal-50;
+  }
+  .light .panel-amber {
+    @apply border-amber-400/45 bg-gradient-to-br from-amber-50 via-white to-orange-50;
+  }
+  .light .panel-sky {
+    @apply border-sky-400/45 bg-gradient-to-br from-sky-50 via-white to-cyan-50;
+  }
+  .light .panel-violet {
+    @apply border-violet-400/45 bg-gradient-to-br from-violet-50 via-white to-indigo-50;
+  }
+  .light .panel-orange {
+    @apply border-orange-400/45 bg-gradient-to-br from-orange-50 via-white to-amber-50;
+  }
+  .staking-plan-card {
+    @apply shadow-sm transition-shadow hover:shadow-md;
+  }
+  .light .staking-plan-card {
+    @apply bg-gradient-to-b from-white to-muted/20;
+  }
+
   .icon-bg-default {
     @apply bg-muted dark:bg-white/5;
   }

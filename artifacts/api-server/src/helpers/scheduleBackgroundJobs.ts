@@ -32,6 +32,7 @@ export async function scheduleBackgroundJobs(): Promise<void> {
 
   scheduleInlineCron("Daily FX rate refresh", "0 6 * * *", "cron:fx-rates", 300, "fx-rates");
   scheduleInlineCron("ROI automation engine", "0 * * * *", "cron:roi-engine", 3300, "roi-engine");
+  scheduleInlineCron("Staking rewards engine", "15 * * * *", "cron:staking-rewards", 3300, "staking-rewards");
   scheduleInlineCron("Ledger reconciliation", "30 2 * * *", "cron:ledger-reconcile", 3600, "ledger-reconcile");
   scheduleInlineCron("Database backup", "0 3 * * *", "cron:db-backup", 3600, "db-backup");
   scheduleInlineCron("Support mail IMAP sync", "*/5 * * * *", "cron:support-mail", 240, "support-mail-sync");

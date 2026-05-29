@@ -34,6 +34,7 @@ export const CommunicationSettingsPanel = lazyNamed(() => import("@/components/s
 export const LegalAgreementsPanel = lazyNamed(() => import("@/components/super-admin/LegalAgreementsPanel"), "LegalAgreementsPanel");
 export const WindowsServerServicesPanel = lazyNamed(() => import("@/components/super-admin/WindowsServerServicesPanel"), "WindowsServerServicesPanel");
 export const BackupExportPanel = lazyNamed(() => import("@/components/super-admin/BackupExportPanel"), "BackupExportPanel");
+export const StakingAdminPanel = lazyNamed(() => import("@/components/super-admin/StakingAdminPanel"), "StakingAdminPanel");
 
 export function LazyTabPanel({ active, children }: { active: boolean; children: ReactNode }) {
   if (!active) return null;

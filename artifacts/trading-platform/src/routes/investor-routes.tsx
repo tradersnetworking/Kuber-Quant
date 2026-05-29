@@ -1,5 +1,8 @@
 import type { ComponentType, ReactElement } from "react";
 import { Route } from "wouter";
+import EarnHubPage from "@/pages/earn/index";
+import StakingPage from "@/pages/earn/staking/index";
+import StakeDetailPage from "@/pages/earn/staking/detail";
 import DashboardPage from "@/pages/dashboard";
 import WalletPage from "@/pages/wallet/index";
 import PlansPage from "@/pages/plans/index";
@@ -34,6 +37,9 @@ export function InvestorAccountRoutes({
   PromoterWrap?: RouteWrap;
 }): ReactElement[] {
   return [
+    <Route key="/earn" path="/earn"><Wrap component={EarnHubPage} /></Route>,
+    <Route key="/earn/staking" path="/earn/staking"><Wrap component={StakingPage} /></Route>,
+    <Route key="/earn/staking/:id" path="/earn/staking/:id"><Wrap component={StakeDetailPage} /></Route>,
     <Route key="/dashboard" path="/dashboard"><Wrap component={DashboardPage} /></Route>,
     <Route key="/money" path="/money"><Wrap component={MoneyHubPage} /></Route>,
     <Route key="/wallet" path="/wallet"><Wrap component={WalletPage} /></Route>,
