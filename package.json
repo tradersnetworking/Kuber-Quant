@@ -18,6 +18,7 @@
     "build": "pnpm run build:prod",
     "hostinger:install": "node scripts/hostinger-install.mjs",
     "hostinger:build": "node scripts/hostinger-build.mjs",
+    "hostinger:package": "node scripts/package-hostinger-upload.mjs",
     "build:check": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",

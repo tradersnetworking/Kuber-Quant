@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(__dirname, "..");
-export const PNPM_VERSION = "9.15.0";
+export const PNPM_VERSION = "10.33.4";
 
 export function run(cmd, cwd = ROOT) {
   console.log(`> ${cmd}`);
