@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -54,7 +54,6 @@ import {
 } from "@/lib/lazy-pages";
 import { RouteChunkFallback } from "@/components/routing/RouteChunkFallback";
 import { getPostLoginPath } from "@/lib/nav-config";
-import { InvestorAccountRoutes } from "@/routes/investor-routes";
 import { getStaffPortal, getCrossPortalRedirectTarget, getStaffPortalForRole, type StaffPortal } from "@/lib/subdomain";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { isPublicPath, isStaffPortalPublic } from "@/lib/public-routes";
@@ -86,6 +85,31 @@ const queryClient = new QueryClient({
 });
 
 const portal: StaffPortal = getStaffPortal();
+
+function useInvestorAccountRouteElements(
+  Wrap: React.ComponentType<{ component: React.ComponentType<any> }>,
+  PromoterWrap?: React.ComponentType<{ component: React.ComponentType<any> }>,
+) {
+  const [elements, setElements] = useState<ReactElement[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void import("@/routes/investor-routes").then(({ InvestorAccountRoutes }) => {
+      if (!active) return;
+      setElements(
+        InvestorAccountRoutes({
+          Wrap,
+          PromoterWrap: PromoterWrap ?? Wrap,
+        }),
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [Wrap, PromoterWrap]);
+
+  return elements;
+}
 
 function ProtectedRoute({ component: Component, managerOnly = false, superAdminOnly = false, supportOnly = false, promoterOnly = false, ...rest }: any) {
   const { user, isRestoring } = useAuth();
@@ -284,9 +308,15 @@ function adminLegacyRouteElements() {
 }
 
 function AuthenticatedRoutes() {
+  const investorRoutes = useInvestorAccountRouteElements(AuthRoute, PromoterRoute);
+
+  if (!investorRoutes) {
+    return <RouteChunkFallback />;
+  }
+
   return (
     <Switch>
-      {InvestorAccountRoutes({ Wrap: AuthRoute, PromoterWrap: PromoterRoute })}
+      {investorRoutes}
       {managerRouteElements()}
       {supportRouteElements()}
       {superAdminRouteElements()}
@@ -297,13 +327,19 @@ function AuthenticatedRoutes() {
 }
 
 function StaffPortalAuthenticatedRoutes({ includeSuperAdmin = false }: { includeSuperAdmin?: boolean }) {
+  const investorRoutes = useInvestorAccountRouteElements(BareRoute, PromoterRoute);
+
+  if (!investorRoutes) {
+    return <RouteChunkFallback />;
+  }
+
   return (
     <Switch>
       {includeSuperAdmin && superAdminRouteElements()}
       {adminLegacyRouteElements()}
       {managerRouteElements()}
       {supportRouteElements()}
-      {InvestorAccountRoutes({ Wrap: BareRoute, PromoterWrap: PromoterRoute })}
+      {investorRoutes}
       <Route path="/:rest*"><NotFound /></Route>
     </Switch>
   );

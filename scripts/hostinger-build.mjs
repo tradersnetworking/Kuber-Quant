@@ -31,13 +31,22 @@ if (process.env.HOSTINGER_SKIP_INSTALL === "1" || workspaceReady()) {
 
 pnpm("run build:prod");
 
-if (process.env.HOSTINGER_SKIP_DB_INIT !== "1") {
+// Shared Hostinger plans block outbound Postgres — db:push during build always fails and slows deploy.
+// Schema init runs at server startup (server.cjs) or manually from a machine that can reach Supabase.
+if (
+  process.env.HOSTINGER_DB_INIT_ON_BUILD === "1" &&
+  process.env.HOSTINGER_SKIP_DB_INIT !== "1"
+) {
   const { runHostingerDbInit } = await import("./hostinger-db-init.mjs");
   const shouldSeed =
     process.argv.includes("--seed") ||
     process.env.HOSTINGER_AUTO_SEED === "1" ||
     (process.env.HOSTINGER_AUTO_SEED !== "0" && process.env.BOOTSTRAP_USERS !== "false");
   runHostingerDbInit({ seed: shouldSeed });
+} else {
+  console.log(
+    "[build] Skipping db-init during build (set HOSTINGER_DB_INIT_ON_BUILD=1 to enable).",
+  );
 }
 
 console.log("Hostinger build complete.");

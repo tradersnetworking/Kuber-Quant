@@ -31,7 +31,9 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes("node_modules")) {
-              if (id.includes("react-dom") || id.includes("/react/")) return "vendor-react";
+              if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/")) {
+                return "vendor-react";
+              }
               if (id.includes("framer-motion")) return "vendor-motion";
               if (id.includes("@tanstack")) return "vendor-query";
               if (id.includes("lucide-react")) return "vendor-icons";

@@ -41,14 +41,29 @@ function runSeed() {
 }
 
 /** Push schema via drizzle-kit directly (no pnpm) when available. */
-function runDbPushDirect() {
+function resolveDrizzleKitBin() {
   const requireFromDb = createRequire(resolve(dbDir, "package.json"));
-  let drizzleBin;
-  try {
-    drizzleBin = requireFromDb.resolve("drizzle-kit/bin.cjs");
-  } catch {
-    return false;
+  const requireFromRoot = createRequire(resolve(root, "package.json"));
+  const candidates = [
+    () => requireFromDb.resolve("drizzle-kit/bin.cjs"),
+    () => requireFromRoot.resolve("drizzle-kit/bin.cjs"),
+    () => resolve(root, "node_modules/drizzle-kit/bin.cjs"),
+    () => resolve(dbDir, "node_modules/drizzle-kit/bin.cjs"),
+  ];
+  for (const pick of candidates) {
+    try {
+      const bin = pick();
+      if (existsSync(bin)) return bin;
+    } catch {
+      /* try next */
+    }
   }
+  return null;
+}
+
+function runDbPushDirect() {
+  const drizzleBin = resolveDrizzleKitBin();
+  if (!drizzleBin) return false;
 
   execSync(
     `node "${drizzleBin}" push --force --config "${resolve(dbDir, "drizzle.config.ts")}"`,
@@ -57,6 +72,7 @@ function runDbPushDirect() {
       stdio: "inherit",
       env: process.env,
       shell: true,
+      timeout: 120_000,
     },
   );
   return true;
@@ -88,7 +104,11 @@ export function runHostingerDbInit({ seed = false } = {}) {
     runDbPush();
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    console.error(`[db-init] db:push failed: ${reason}`);
+    console.warn(`[db-init] db:push failed: ${reason}`);
+    console.warn(
+      "[db-init] Hostinger shared hosting often blocks outbound Postgres. Run once from your PC:",
+    );
+    console.warn("  DATABASE_URL='your-url' pnpm db:push && ALLOW_SEED=true pnpm db:seed");
     return false;
   }
 
