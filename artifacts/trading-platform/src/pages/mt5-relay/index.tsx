@@ -26,18 +26,7 @@ import { ProfitShareButton } from "@/components/profit/ProfitShareButton";
 import { AppPage } from "@/components/layout/AppPage";
 import { APP_CARD, APP_CHART_GRID, APP_FORM_GRID } from "@/lib/ui-system";
 import { cn } from "@/lib/utils";
-
-const API_BASE = "/api";
-const getToken = () => localStorage.getItem("token");
-
-async function apiFetch(path: string, opts: RequestInit = {}) {
-  const r = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}`, ...(opts.headers || {}) },
-  });
-  if (!r.ok) { const j = await r.json().catch(() => ({ error: "Request failed" })); throw new Error(j.error || "Request failed"); }
-  return r.json();
-}
+import { authFetchJson } from "@/lib/token-store";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-orange-500/20 text-orange-600 dark:text-orange-400",
@@ -114,8 +103,8 @@ export default function Mt5RelayPage() {
 
   useEffect(() => {
     Promise.all([
-      apiFetch("/mt5-relay/my").catch(() => []),
-      apiFetch("/mt5-relay/form-config").catch(() => DEFAULT_MT5_RELAY_FORM_CONFIG),
+      authFetchJson<any[]>("/mt5-relay/my").catch(() => []),
+      authFetchJson<Partial<Mt5RelayFormConfig>>("/mt5-relay/form-config").catch(() => DEFAULT_MT5_RELAY_FORM_CONFIG),
     ]).then(([reqs, cfg]) => {
       setRequests(reqs);
       const merged = mergeMt5RelayFormConfig(cfg);
@@ -169,7 +158,7 @@ export default function Mt5RelayPage() {
         tradingPassword: mtCreds.mtPassword,
       };
 
-      const result = await apiFetch("/mt5-relay", { method: "POST", body: JSON.stringify(payload) });
+      const result = await authFetchJson<Record<string, unknown>>("/mt5-relay", { method: "POST", body: JSON.stringify(payload) });
       setRequests(r => [{ ...result }, ...r]);
       setForm(f => ({
         ...f,

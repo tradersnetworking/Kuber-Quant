@@ -1,6 +1,7 @@
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
@@ -88,7 +89,8 @@ const queryClient = new QueryClient({
 const portal: StaffPortal = getStaffPortal();
 
 function ProtectedRoute({ component: Component, managerOnly = false, superAdminOnly = false, supportOnly = false, promoterOnly = false, ...rest }: any) {
-  const { user } = useAuth();
+  const { user, isRestoring } = useAuth();
+  if (isRestoring) return null;
   if (!user) {
     const loginPath = superAdminOnly || managerOnly || supportOnly ? "/staff-login" : "/login";
     return <Redirect to={loginPath} />;
@@ -97,16 +99,17 @@ function ProtectedRoute({ component: Component, managerOnly = false, superAdminO
   const role = user.role as string;
   const home = getPostLoginPath(role);
   if (superAdminOnly && role !== "superadmin" && role !== "admin") return <Redirect to={home} />;
-  if (supportOnly && role !== "support" && role !== "superadmin") return <Redirect to={home} />;
+  if (supportOnly && role !== "support" && role !== "superadmin" && role !== "admin") return <Redirect to={home} />;
   if (promoterOnly && !(user as any).isPromoter && role !== "superadmin") return <Redirect to={home} />;
-  if (managerOnly && role !== "manager" && role !== "support" && role !== "superadmin") {
+  if (managerOnly && role !== "manager" && role !== "support" && role !== "superadmin" && role !== "admin") {
     return <Redirect to={home} />;
   }
   return <Component {...rest} />;
 }
 
 function PromoterRouteInner({ component: Component, ...rest }: any) {
-  const { user } = useAuth();
+  const { user, isRestoring } = useAuth();
+  if (isRestoring) return null;
   if (!user) return <Redirect to="/login" />;
   if (!(user as any).isPromoter && (user.role as string) !== "superadmin") {
     return <Redirect to={getPostLoginPath(user.role as string)} />;
@@ -119,13 +122,15 @@ function PromoterRoute({ component: Component, ...rest }: any) {
 }
 
 function AuthRoute({ component: Component, ...rest }: any) {
-  const { user } = useAuth();
+  const { user, isRestoring } = useAuth();
+  if (isRestoring) return null;
   if (!user) return <Redirect to="/login" />;
   return <Component {...rest} />;
 }
 
 function StaffPortalGuard({ role }: { role: "manager" | "support" | "superadmin" }) {
-  const { user } = useAuth();
+  const { user, isRestoring } = useAuth();
+  if (isRestoring) return null;
 
   if (!user) return <StaffLoginPage />;
 
@@ -400,7 +405,6 @@ function ActiveRouter() {
 
 function App() {
   const envClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
-  const googleClientId = envClientId || "000000000000-placeholder.apps.googleusercontent.com";
   const appTree = (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -419,12 +423,14 @@ function App() {
           </NotificationPopProvider>
         </AuthProvider>
         <Toaster />
+        <SonnerToaster />
       </TooltipProvider>
     </QueryClientProvider>
   );
 
+  if (!envClientId) return appTree;
   return (
-    <GoogleOAuthProvider clientId={googleClientId}>{appTree}</GoogleOAuthProvider>
+    <GoogleOAuthProvider clientId={envClientId}>{appTree}</GoogleOAuthProvider>
   );
 }
 

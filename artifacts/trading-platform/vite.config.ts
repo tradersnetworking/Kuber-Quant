@@ -6,9 +6,9 @@ import path from "path";
 export default defineConfig(({ mode }) => {
   const rootDir = path.resolve(import.meta.dirname, "../..");
   const env = loadEnv(mode, rootDir, "");
-  const port = Number(env.WEB_PORT || env.PORT || 3000);
+  const port = Number(env.WEB_PORT || 3000);
   const basePath = env.BASE_PATH || "/";
-  const apiPort = env.API_PORT || "8080";
+  const apiPort = env.API_PORT || env.PORT || "8080";
 
   return {
     base: basePath,
@@ -33,6 +33,14 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: `http://127.0.0.1:${apiPort}`,
           changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyRes", (proxyRes, req) => {
+              if (String(req.url || "").includes("/notifications/stream")) {
+                proxyRes.headers["cache-control"] = "no-cache, no-transform";
+                proxyRes.headers["x-accel-buffering"] = "no";
+              }
+            });
+          },
         },
         "/uploads": {
           target: `http://127.0.0.1:${apiPort}`,
@@ -47,6 +55,14 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: `http://127.0.0.1:${apiPort}`,
           changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyRes", (proxyRes, req) => {
+              if (String(req.url || "").includes("/notifications/stream")) {
+                proxyRes.headers["cache-control"] = "no-cache, no-transform";
+                proxyRes.headers["x-accel-buffering"] = "no";
+              }
+            });
+          },
         },
         "/uploads": {
           target: `http://127.0.0.1:${apiPort}`,

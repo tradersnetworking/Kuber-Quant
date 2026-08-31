@@ -17,18 +17,7 @@ import {
 import { useListInvestments } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { ProfitShareButton } from "@/components/profit/ProfitShareButton";
-
-const API_BASE = "/api";
-const getToken = () => localStorage.getItem("token");
-
-async function apiFetch(path: string, opts: RequestInit = {}) {
-  const r = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}`, ...(opts.headers || {}) },
-  });
-  if (!r.ok) { const j = await r.json().catch(() => ({ error: "Request failed" })); throw new Error(j.error || "Request failed"); }
-  return r.json();
-}
+import { authFetchJson, authFetch, apiPath } from "@/lib/token-store";
 
 const RISK_CONFIG: Record<string, { color: string; bg: string; bar: number }> = {
   "Very Low":  { color: "text-blue-600 dark:text-blue-400",   bg: "bg-blue-500/20",   bar: 10 },
@@ -73,8 +62,8 @@ export default function EAStrategyDetailPage() {
 
   useEffect(() => {
     Promise.all([
-      apiFetch("/ea-strategies/catalog"),
-      apiFetch("/ea-strategies/subscriptions/my"),
+      authFetchJson<any[]>("/ea-strategies/catalog"),
+      authFetchJson<any[]>("/ea-strategies/subscriptions/my"),
     ]).then(([catalog, subs]) => {
       const found = catalog.find((s: any) => s.id === id);
       setStrategy(found || null);
@@ -94,13 +83,13 @@ export default function EAStrategyDetailPage() {
     e.preventDefault();
     setSubscribing(true);
     try {
-      await apiFetch(`/ea-strategies/catalog/${id}/subscribe`, {
+      await authFetchJson(`/ea-strategies/catalog/${id}/subscribe`, {
         method: "POST",
         body: JSON.stringify(subForm),
       });
       toast({ title: "Subscription activated!", description: "Your license has been generated. Download your EA from My Subscriptions." });
       setSubDialog(false);
-      const subs = await apiFetch("/ea-strategies/subscriptions/my");
+      const subs = await authFetchJson<any[]>("/ea-strategies/subscriptions/my");
       setSubscriptions(subs);
     } catch (e: any) {
       toast({ title: "Subscription failed", description: e.message, variant: "destructive" });
@@ -111,9 +100,8 @@ export default function EAStrategyDetailPage() {
     if (!mySubscription) return;
     setDownloading(true);
     try {
-      const blob = await fetch(`${API_BASE}/ea-strategies/subscriptions/${mySubscription.id}/download`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      }).then(r => r.blob());
+      const r = await authFetch(apiPath(`/ea-strategies/subscriptions/${mySubscription.id}/download`));
+      const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = `${strategy.name.replace(/\s/g, "_")}.ex5`;

@@ -48,8 +48,7 @@ async function assertSessionValid(payload: AuthPayload, res: Response): Promise<
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const queryToken = typeof req.query.access_token === "string" ? req.query.access_token : undefined;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : queryToken;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
     return;

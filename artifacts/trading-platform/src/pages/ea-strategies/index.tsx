@@ -15,21 +15,7 @@ import { MtAccountCredentialsForm, EMPTY_MT_ACCOUNT, type MtAccountFormValues } 
 import { useListInvestments } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { ProfitShareButton } from "@/components/profit/ProfitShareButton";
-
-const API_BASE = "/api";
-const getToken = () => localStorage.getItem("token");
-
-async function apiFetch(path: string, opts: RequestInit = {}) {
-  const r = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}`, ...(opts.headers || {}) },
-  });
-  if (!r.ok) {
-    const j = await r.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(j.error || "Request failed");
-  }
-  return r.json();
-}
+import { authFetchJson, authFetch, apiPath } from "@/lib/token-store";
 
 const RISK_COLORS: Record<string, string> = {
   "Very Low": "bg-blue-500/20 text-blue-700 dark:text-blue-300",
@@ -83,8 +69,8 @@ export default function EAStrategiesPage() {
   const [downloading, setDownloading] = useState<number | null>(null);
 
   useEffect(() => {
-    apiFetch("/ea-strategies/catalog").then(setCatalog).catch(() => {});
-    apiFetch("/ea-strategies/subscriptions/my").then(setSubscriptions).catch(() => {}).finally(() => setLoading(false));
+    authFetchJson<any[]>("/ea-strategies/catalog").then(setCatalog).catch(() => {});
+    authFetchJson<any[]>("/ea-strategies/subscriptions/my").then(setSubscriptions).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -115,7 +101,7 @@ export default function EAStrategiesPage() {
     setMtErrors({});
     setSubscribing(true);
     try {
-      const result = await apiFetch(`/ea-strategies/catalog/${subDialog.strategy.id}/subscribe`, {
+      const result = await authFetchJson<any>(`/ea-strategies/catalog/${subDialog.strategy.id}/subscribe`, {
         method: "POST", body: JSON.stringify({
           plan: subForm.plan,
           accountNumber: mtCreds.mtAccountNumber.trim(),
@@ -137,9 +123,7 @@ export default function EAStrategiesPage() {
   async function handleDownload(sub: any) {
     setDownloading(sub.id);
     try {
-      const r = await fetch(`${API_BASE}/ea-strategies/subscriptions/${sub.id}/download`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
+      const r = await authFetch(apiPath(`/ea-strategies/subscriptions/${sub.id}/download`));
       if (!r.ok) { const j = await r.json().catch(() => ({ error: "Download failed" })); throw new Error(j.error); }
       const blob = await r.blob();
       const disposition = r.headers.get("Content-Disposition") || "";

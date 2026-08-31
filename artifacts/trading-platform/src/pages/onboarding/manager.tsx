@@ -19,13 +19,13 @@ import { PhoneCountryCodeSelect } from "@/components/forms/PhoneCountryCodeSelec
 import {
   MANAGER_STEPS, COUNTRIES, STATES_BY_COUNTRY, GENDERS, WALLET_FIELDS, MANAGER_PERMISSIONS,
 } from "@/lib/onboarding/constants";
-import { generateCaptcha, submitManagerApplication, checkDuplicate } from "@/lib/onboarding/api";
+import { fetchRegistrationCaptcha, submitManagerApplication, checkDuplicate } from "@/lib/onboarding/api";
 import { managerStep1Schema, walletValidators } from "@/lib/onboarding/schemas";
 
 type ManagerForm = {
   fullName: string; username: string; email: string; phoneCode: string; phoneNum: string;
   password: string; confirmPassword: string;
-  emailOtpVerified: boolean; captchaAnswer: string; captchaExpected: string;
+  emailOtpVerified: boolean; emailVerificationToken: string; captchaAnswer: string; captchaToken: string;
   dateOfBirth: string; gender: string; nationality: string; country: string; state: string; city: string; address: string;
   yearsExperience: string; tradingExperience: string; specialization: string; previousCompany: string;
   linkedIn: string; certifications: string;
@@ -42,7 +42,7 @@ type ManagerForm = {
 
 const DEFAULTS: ManagerForm = {
   fullName: "", username: "", email: "", phoneCode: "+91", phoneNum: "",
-  password: "", confirmPassword: "", emailOtpVerified: false, captchaAnswer: "", captchaExpected: "",
+  password: "", confirmPassword: "", emailOtpVerified: false, emailVerificationToken: "", captchaAnswer: "", captchaToken: "",
   dateOfBirth: "", gender: "", nationality: "", country: "", state: "", city: "", address: "",
   yearsExperience: "", tradingExperience: "", specialization: "", previousCompany: "", linkedIn: "", certifications: "",
   panNumber: "", idNumber: "", taxId: "",
@@ -63,15 +63,35 @@ export default function ManagerOnboardingPage() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [showPw, setShowPw] = useState(false);
-  const [captcha] = useState(() => generateCaptcha());
+  const [captcha, setCaptcha] = useState({ question: "", captchaToken: "" });
   const [submitted, setSubmitted] = useState(false);
 
   const form = useForm<ManagerForm>({
-    defaultValues: { ...DEFAULTS, captchaExpected: captcha.answer, ...(loadLocalDraft("manager") || {}) },
+    defaultValues: { ...DEFAULTS, ...(loadLocalDraft("manager") || {}) },
   });
   const { watch, control, setValue, getValues, setError, formState: { errors } } = form;
   const values = watch();
   const { lastSaved, saving } = useOnboardingDraft("manager", step, values as Record<string, unknown>);
+
+  useEffect(() => {
+    fetchRegistrationCaptcha()
+      .then(c => {
+        setCaptcha(c);
+        setValue("captchaToken", c.captchaToken);
+      })
+      .catch(() => setCaptcha({ question: "?", captchaToken: "" }));
+  }, [setValue]);
+
+  async function refreshCaptcha() {
+    try {
+      const c = await fetchRegistrationCaptcha();
+      setCaptcha(c);
+      setValue("captchaToken", c.captchaToken);
+      setValue("captchaAnswer", "");
+    } catch {
+      toast.error("Could not refresh CAPTCHA");
+    }
+  }
 
   useEffect(() => { saveLocalDraft("manager", values as Record<string, unknown>); }, [values]);
 
@@ -113,7 +133,14 @@ export default function ManagerOnboardingPage() {
     setSubmitting(true);
     try {
       const v = getValues();
-      const payload = { ...v, phone, password: v.password, captchaAnswer: v.captchaAnswer, captchaExpected: v.captchaExpected };
+      const payload = {
+        ...v,
+        phone,
+        password: v.password,
+        captchaAnswer: v.captchaAnswer,
+        captchaToken: captcha.captchaToken || v.captchaToken,
+        emailVerificationToken: v.emailVerificationToken,
+      };
       const fd = new FormData();
       fd.append("data", JSON.stringify(payload));
       for (const [field, name] of [["resume", "resume"], ["certificate", "certificate"], ["idProof", "idProof"], ["selfie", "selfie"], ["addressProof", "addressProof"], ["cancelledCheque", "cancelledCheque"]] as const) {
@@ -181,8 +208,13 @@ export default function ManagerOnboardingPage() {
             </F>
             <F label="Confirm Password" err={errors.confirmPassword?.message}><Input type="password" {...form.register("confirmPassword")} /></F>
           </div>
-          <OtpVerification channel="email" email={values.email} fullName={values.fullName} verified={values.emailOtpVerified} onVerified={v => setValue("emailOtpVerified", v)} />
-          <F label={`CAPTCHA: ${captcha.question} = ?`} err={errors.captchaAnswer?.message}><Input {...form.register("captchaAnswer")} /></F>
+          <OtpVerification channel="email" email={values.email} fullName={values.fullName} verified={values.emailOtpVerified} onVerified={(ok, token) => { setValue("emailOtpVerified", ok); if (token) setValue("emailVerificationToken", token); }} />
+          <F label={`CAPTCHA: ${captcha.question} = ?`} err={errors.captchaAnswer?.message}>
+            <div className="flex gap-2">
+              <Input {...form.register("captchaAnswer")} />
+              <Button type="button" variant="outline" onClick={() => void refreshCaptcha()}>Refresh</Button>
+            </div>
+          </F>
         </div>
       )}
       {step === 2 && (

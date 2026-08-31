@@ -12,18 +12,7 @@ import {
 } from "lucide-react";
 import { AgreementPdfViewDialog } from "@/components/agreements/AgreementPdfViewDialog";
 import { fetchAgreementPdfBlob, fetchAgreementUserSettings } from "@/lib/agreements-api";
-
-const TOKEN = () => localStorage.getItem("token");
-const API = "/api";
-
-async function apiFetch(path: string, opts: RequestInit = {}) {
-  const r = await fetch(`${API}${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TOKEN()}`, ...(opts.headers || {}) },
-  });
-  if (!r.ok) { const j = await r.json().catch(() => ({ error: "Error" })); throw new Error(j.error || "Request failed"); }
-  return r.json();
-}
+import { authFetchJson, authFetch, apiPath } from "@/lib/token-store";
 
 const TYPE_LABELS: Record<string, string> = {
   investment: "Investment Agreement",
@@ -165,7 +154,7 @@ export default function AgreementsPage() {
   const [downloadEnabled, setDownloadEnabled] = useState(true);
 
   useEffect(() => {
-    apiFetch("/agreements/my")
+    authFetchJson<any[]>("/agreements/my")
       .then(setAgreements)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -178,7 +167,7 @@ export default function AgreementsPage() {
     setSelected(agr);
     setSignatureData("");
     try {
-      const d = await apiFetch(`/agreements/my/${agr.id}`);
+      const d = await authFetchJson<any>(`/agreements/my/${agr.id}`);
       setDetailData(d);
     } catch { setDetailData(null); }
   }
@@ -188,14 +177,14 @@ export default function AgreementsPage() {
     if (!signatureData) { toast({ title: "Please draw your signature first", variant: "destructive" }); return; }
     setSigning(true);
     try {
-      await apiFetch(`/agreements/my/${selected.id}/sign`, {
+      await authFetchJson(`/agreements/my/${selected.id}/sign`, {
         method: "POST",
         body: JSON.stringify({ signatureData, method: "draw" }),
       });
       toast({ title: "Agreement signed!", description: "Your signed PDF is ready for download." });
-      const updated = await apiFetch("/agreements/my");
+      const updated = await authFetchJson<any[]>("/agreements/my");
       setAgreements(updated);
-      const updatedDetail = await apiFetch(`/agreements/my/${selected.id}`);
+      const updatedDetail = await authFetchJson<any>(`/agreements/my/${selected.id}`);
       setSelected({ ...selected, status: "signed" });
       setDetailData(updatedDetail);
     } catch (e: any) {
@@ -206,9 +195,7 @@ export default function AgreementsPage() {
   async function handleDownload(id: number, uid: string) {
     setDownloading(id);
     try {
-      const r = await fetch(`${API}/agreements/my/${id}/download`, {
-        headers: { Authorization: `Bearer ${TOKEN()}` },
-      });
+      const r = await authFetch(apiPath(`/agreements/my/${id}/download`));
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
         throw new Error(j.error || "Download failed");
@@ -227,12 +214,12 @@ export default function AgreementsPage() {
   async function handleGenerate() {
     setGenerating(true);
     try {
-      const result = await apiFetch("/agreements/generate", {
+      const result = await authFetchJson<{ agreementUid: string }>("/agreements/generate", {
         method: "POST",
         body: JSON.stringify({ type: genType }),
       });
       toast({ title: "Agreement generated!", description: `Ref: ${result.agreementUid}` });
-      const updated = await apiFetch("/agreements/my");
+      const updated = await authFetchJson<any[]>("/agreements/my");
       setAgreements(updated);
       setShowGenDialog(false);
     } catch (e: any) {

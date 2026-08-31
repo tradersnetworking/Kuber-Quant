@@ -544,7 +544,9 @@ router.post("/manager/apply", upload.fields([
     return;
   }
 
-  const { fullName, email, password, emailOtpVerified, captchaAnswer, captchaExpected } = payload as Record<string, any>;
+  const {
+    fullName, email, password, emailVerificationToken, captchaAnswer, captchaToken,
+  } = payload as Record<string, any>;
   const config = await getOnboardingConfig();
   if (!config.managerRegistrationEnabled) {
     res.status(403).json({ error: "Manager registration is currently disabled" });
@@ -554,13 +556,17 @@ router.post("/manager/apply", upload.fields([
     res.status(400).json({ error: "fullName, email, password are required" });
     return;
   }
-  if (config.requireEmailOtp && !emailOtpVerified) {
-    res.status(400).json({ error: "Email OTP verification required" });
-    return;
+  if (config.requireEmailOtp) {
+    if (!emailVerificationToken || !(await consumeRegistrationVerification(emailVerificationToken, email, "email"))) {
+      res.status(400).json({ error: "Email OTP verification required — please verify your email again" });
+      return;
+    }
   }
-  if (config.requireCaptcha && captchaAnswer !== captchaExpected) {
-    res.status(400).json({ error: "CAPTCHA verification failed" });
-    return;
+  if (config.requireCaptcha) {
+    if (!captchaToken || !(await verifyCaptchaChallenge(captchaToken, captchaAnswer))) {
+      res.status(400).json({ error: "CAPTCHA verification failed" });
+      return;
+    }
   }
 
   const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);

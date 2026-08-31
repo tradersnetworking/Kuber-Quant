@@ -10,10 +10,9 @@ import { Mail, ArrowLeft, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-rea
 import { AuthPageLayout } from "@/components/auth/AuthPageLayout";
 import { AUTH_CARD, AUTH_INPUT, AUTH_PRIMARY_BTN } from "@/lib/ui-system";
 import { cn } from "@/lib/utils";
+import { apiPath } from "@/lib/token-store";
 
 type Step = "email" | "otp" | "new-password" | "success";
-
-const API = "/api/auth";
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<Step>("email");
@@ -43,7 +42,7 @@ export default function ForgotPasswordPage() {
     setError(null);
     setIsLoading(true);
     try {
-      const res = await fetch(`${API}/forgot-password`, {
+      const res = await fetch(apiPath("/auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -65,7 +64,7 @@ export default function ForgotPasswordPage() {
     if (otp.length !== 6) { setError("Please enter the 6-digit code."); return; }
     setIsLoading(true);
     try {
-      const res = await fetch(`${API}/verify-otp`, {
+      const res = await fetch(apiPath("/auth/verify-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp, purpose: "password_reset" }),
@@ -88,7 +87,7 @@ export default function ForgotPasswordPage() {
     if (newPassword !== confirmPassword) { setError("Passwords do not match."); return; }
     setIsLoading(true);
     try {
-      const res = await fetch(`${API}/reset-password`, {
+      const res = await fetch(apiPath("/auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resetToken, newPassword }),

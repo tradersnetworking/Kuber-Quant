@@ -81,12 +81,21 @@ export function NotificationPopProvider({ children }: { children: React.ReactNod
       showNotification(raw);
     };
 
-    const connectSse = () => {
+    const connectSse = async () => {
       const accessToken = getStoredToken();
       if (!accessToken || cancelled) return;
 
-      const url = apiPath(`/notifications/stream?access_token=${encodeURIComponent(accessToken)}`);
-      eventSource = new EventSource(url);
+      try {
+        const { ticket } = await authFetchJson<{ ticket: string }>("/notifications/stream-ticket", { method: "POST" });
+        if (cancelled) return;
+        const url = apiPath(`/notifications/stream?ticket=${encodeURIComponent(ticket)}`);
+        eventSource = new EventSource(url);
+      } catch {
+        if (!cancelled) startPolling();
+        return;
+      }
+
+      if (!eventSource) return;
 
       eventSource.onmessage = (event) => {
         if (cancelled || !event.data) return;
