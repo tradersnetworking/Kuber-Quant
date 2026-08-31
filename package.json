@@ -6,7 +6,8 @@
   "main": "server.js",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "npm": ">=10"
   },
   "scripts": {
     "dev": "concurrently -n api,web -c blue,amber \"pnpm dev:api\" \"pnpm dev:web\"",
@@ -31,8 +32,8 @@
     "build:web": "pnpm --filter @workspace/trading-platform run build",
     "build:api": "pnpm --filter @workspace/api-server run build",
     "build:prod": "pnpm build:web && pnpm build:api",
-    "start": "node --env-file=.env server.js",
-    "start:prod": "node --env-file=.env server.js",
+    "start": "node server.js",
+    "start:prod": "node server.js",
     "deploy:hostinger": "node --env-file=.env scripts/deploy-hostinger.mjs",
     "docker:up": "docker compose --env-file .env up -d --build",
     "docker:down": "docker compose down",

@@ -5,7 +5,7 @@
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { ensurePnpm, pnpm } from "./hostinger-pnpm.mjs";
+import { ensurePnpm, pnpm, workspaceReady } from "./hostinger-pnpm.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -18,11 +18,15 @@ function run(cmd) {
 process.env.HOSTINGER_DEPLOY = "1";
 process.env.CI = "true";
 
-if (process.env.HOSTINGER_SKIP_INSTALL !== "1") {
-  run("node scripts/hostinger-install.mjs");
-} else {
-  console.log("Skipping install (HOSTINGER_SKIP_INSTALL=1)");
+if (process.env.HOSTINGER_SKIP_INSTALL === "1" || workspaceReady()) {
+  if (workspaceReady()) {
+    console.log("Skipping install — workspace deps already present (postinstall)");
+  } else {
+    console.log("Skipping install (HOSTINGER_SKIP_INSTALL=1)");
+  }
   ensurePnpm();
+} else {
+  run("node scripts/hostinger-install.mjs");
 }
 
 pnpm("run build:prod");
