@@ -1,6 +1,8 @@
 import { db, siteSettingsTable } from "@workspace/db";
 import { inArray } from "@workspace/db/orm";
 import { getCachedJson, invalidateRedisCacheByPrefix } from "./redisCache";
+import { isMissingRelationError } from "./pgErrors";
+import { logger } from "../lib/logger";
 
 const memoryCache = new Map<string, { values: Record<string, string>; expiry: number }>();
 const TTL_MS = 30_000;
@@ -12,15 +14,24 @@ export async function getSiteSettings(keys: string[]): Promise<Record<string, st
   const hit = memoryCache.get(cacheKey);
   if (hit && hit.expiry > Date.now()) return hit.values;
 
-  const values = await getCachedJson(`${REDIS_PREFIX}${cacheKey}`, REDIS_TTL_SEC, async () => {
-    const rows = keys.length
-      ? await db.select().from(siteSettingsTable).where(inArray(siteSettingsTable.key, keys))
-      : await db.select().from(siteSettingsTable);
+  let values: Record<string, string>;
+  try {
+    values = await getCachedJson(`${REDIS_PREFIX}${cacheKey}`, REDIS_TTL_SEC, async () => {
+      const rows = keys.length
+        ? await db.select().from(siteSettingsTable).where(inArray(siteSettingsTable.key, keys))
+        : await db.select().from(siteSettingsTable);
 
-    const out: Record<string, string> = {};
-    for (const row of rows) out[row.key] = row.value;
-    return out;
-  });
+      const out: Record<string, string> = {};
+      for (const row of rows) out[row.key] = row.value;
+      return out;
+    });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      logger.warn("site_settings table missing — run pnpm db:push");
+      return {};
+    }
+    throw err;
+  }
 
   memoryCache.set(cacheKey, { values, expiry: Date.now() + TTL_MS });
   return values;

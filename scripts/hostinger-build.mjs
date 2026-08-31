@@ -30,4 +30,10 @@ if (process.env.HOSTINGER_SKIP_INSTALL === "1" || workspaceReady()) {
 }
 
 pnpm("run build:prod");
+
+if (process.env.HOSTINGER_SKIP_DB_INIT !== "1") {
+  const { runHostingerDbInit } = await import("./hostinger-db-init.mjs");
+  runHostingerDbInit({ seed: process.argv.includes("--seed") });
+}
+
 console.log("Hostinger build complete.");

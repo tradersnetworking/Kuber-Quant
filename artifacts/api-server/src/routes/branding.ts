@@ -25,27 +25,39 @@ const DEFAULTS: Record<(typeof BRANDING_KEYS)[number], string> = {
 };
 
 router.get("/branding", async (_req, res) => {
-  const rows = await db
-    .select()
-    .from(siteSettingsTable)
-    .where(inArray(siteSettingsTable.key, [...BRANDING_KEYS]));
+  try {
+    const rows = await db
+      .select()
+      .from(siteSettingsTable)
+      .where(inArray(siteSettingsTable.key, [...BRANDING_KEYS]));
 
-  const map = { ...DEFAULTS };
-  for (const row of rows) {
-    if (row.key in map) {
-      map[row.key as keyof typeof map] = row.value;
+    const map = { ...DEFAULTS };
+    for (const row of rows) {
+      if (row.key in map) {
+        map[row.key as keyof typeof map] = row.value;
+      }
     }
-  }
 
-  res.json({
-    titleGold: map.site_title_gold,
-    titleSilver: map.site_title_silver,
-    titleGoldColor: map.site_title_gold_color,
-    titleSilverColor: map.site_title_silver_color,
-    siteName: map.site_name,
-    tagline: map.site_tagline,
-    logoUrl: map.logo_url.trim() || DEFAULTS.logo_url,
-  });
+    res.json({
+      titleGold: map.site_title_gold,
+      titleSilver: map.site_title_silver,
+      titleGoldColor: map.site_title_gold_color,
+      titleSilverColor: map.site_title_silver_color,
+      siteName: map.site_name,
+      tagline: map.site_tagline,
+      logoUrl: map.logo_url.trim() || DEFAULTS.logo_url,
+    });
+  } catch {
+    res.json({
+      titleGold: DEFAULTS.site_title_gold,
+      titleSilver: DEFAULTS.site_title_silver,
+      titleGoldColor: DEFAULTS.site_title_gold_color,
+      titleSilverColor: DEFAULTS.site_title_silver_color,
+      siteName: DEFAULTS.site_name,
+      tagline: DEFAULTS.site_tagline,
+      logoUrl: DEFAULTS.logo_url,
+    });
+  }
 });
 
 router.get("/partners", async (_req, res) => {
@@ -64,39 +76,56 @@ router.get("/public-stats", async (_req, res) => {
 });
 
 router.get("/maintenance", async (_req, res) => {
-  const { getSiteSettings } = await import("../helpers/siteSettings");
-  const settings = await getSiteSettings([
-    "maintenance_mode",
-    "maintenance_description",
-    "maintenance_notice",
-    "site_title_gold",
-    "site_title_silver",
-    "site_title_gold_color",
-    "site_title_silver_color",
-    "site_name",
-    "logo_url",
-    "support_email",
-  ]);
-
   const defaults = {
     maintenance_description: "We are performing scheduled maintenance to improve your experience.",
     maintenance_notice: "Please check back soon. Thank you for your patience.",
   };
 
-  res.json({
-    enabled: settings.maintenance_mode === "true",
-    description: settings.maintenance_description?.trim() || defaults.maintenance_description,
-    notice: settings.maintenance_notice?.trim() || defaults.maintenance_notice,
-    supportEmail: settings.support_email?.trim() || "",
-    branding: {
-      titleGold: settings.site_title_gold || "Kuber",
-      titleSilver: settings.site_title_silver || "Quant",
-      titleGoldColor: settings.site_title_gold_color || "#D4AF37",
-      titleSilverColor: settings.site_title_silver_color || "#C0C0C0",
-      siteName: settings.site_name || "Kuber Quant",
-      logoUrl: settings.logo_url?.trim() || "/kuber-quant-logo.png",
-    },
-  });
+  try {
+    const { getSiteSettings } = await import("../helpers/siteSettings");
+    const settings = await getSiteSettings([
+      "maintenance_mode",
+      "maintenance_description",
+      "maintenance_notice",
+      "site_title_gold",
+      "site_title_silver",
+      "site_title_gold_color",
+      "site_title_silver_color",
+      "site_name",
+      "logo_url",
+      "support_email",
+    ]);
+
+    res.json({
+      enabled: settings.maintenance_mode === "true",
+      description: settings.maintenance_description?.trim() || defaults.maintenance_description,
+      notice: settings.maintenance_notice?.trim() || defaults.maintenance_notice,
+      supportEmail: settings.support_email?.trim() || "",
+      branding: {
+        titleGold: settings.site_title_gold || "Kuber",
+        titleSilver: settings.site_title_silver || "Quant",
+        titleGoldColor: settings.site_title_gold_color || "#D4AF37",
+        titleSilverColor: settings.site_title_silver_color || "#C0C0C0",
+        siteName: settings.site_name || "Kuber Quant",
+        logoUrl: settings.logo_url?.trim() || "/kuber-quant-logo.png",
+      },
+    });
+  } catch {
+    res.json({
+      enabled: false,
+      description: defaults.maintenance_description,
+      notice: defaults.maintenance_notice,
+      supportEmail: "",
+      branding: {
+        titleGold: "Kuber",
+        titleSilver: "Quant",
+        titleGoldColor: "#D4AF37",
+        titleSilverColor: "#C0C0C0",
+        siteName: "Kuber Quant",
+        logoUrl: "/kuber-quant-logo.png",
+      },
+    });
+  }
 });
 
 router.get("/service-visibility", async (_req, res) => {

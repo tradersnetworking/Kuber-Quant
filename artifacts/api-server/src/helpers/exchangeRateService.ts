@@ -93,7 +93,12 @@ export async function refreshExchangeRates(force = false): Promise<FxRates> {
 }
 
 export async function getExchangeRates(): Promise<FxRates> {
-  const all = await db.select().from(siteSettingsTable);
+  let all: { key: string; value: string }[];
+  try {
+    all = await db.select().from(siteSettingsTable);
+  } catch {
+    return DEFAULT_RATES;
+  }
   const map = new Map(all.map(r => [r.key, r.value]));
   const inr = Number(map.get("usd_inr_rate"));
   const eur = Number(map.get("usd_eur_rate"));

@@ -330,6 +330,19 @@ export function mapExchangeOrder(o: typeof exchangeOrdersTable.$inferSelect, use
 }
 
 export async function ensureDefaultExchangeRates() {
+  try {
+    await ensureDefaultExchangeRatesInner();
+  } catch (err) {
+    const { isMissingRelationError } = await import("./pgErrors");
+    if (isMissingRelationError(err)) {
+      logger.warn("exchange_rates table missing — run pnpm db:push");
+      return;
+    }
+    throw err;
+  }
+}
+
+async function ensureDefaultExchangeRatesInner() {
   for (const seed of DEFAULT_EXCHANGE_RATE_SEEDS) {
     const [existing] = await db.select().from(exchangeRatesTable)
       .where(and(

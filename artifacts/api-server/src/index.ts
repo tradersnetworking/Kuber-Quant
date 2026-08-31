@@ -58,19 +58,25 @@ server = app.listen(port, () => {
     }
   })();
 
-  void ensureDefaultUsers().then(() => {
-    if (process.env.BOOTSTRAP_USERS !== "false" && process.env.NODE_ENV !== "production") {
-      void ensureSampleTransactionHistory();
-    }
-  });
-  void ensureDefaultCryptoGateways().then(async () => {
-    const { ensureAllPaymentGatewayQrsInDb } = await import("./helpers/qrCodeService");
-    const updated = await ensureAllPaymentGatewayQrsInDb();
-    if (updated > 0) logger.info({ updated }, "Regenerated stale payment gateway QR codes");
-  });
-  void ensureDefaultExchangeRates();
-  void ensureRbacSeed();
-  void refreshExchangeRates(true);
+  void ensureDefaultUsers()
+    .then(() => {
+      if (process.env.BOOTSTRAP_USERS !== "false" && process.env.NODE_ENV !== "production") {
+        void ensureSampleTransactionHistory();
+      }
+    })
+    .catch((err) => logger.error({ err }, "Default user bootstrap failed"));
+  void ensureDefaultCryptoGateways()
+    .then(async () => {
+      const { ensureAllPaymentGatewayQrsInDb } = await import("./helpers/qrCodeService");
+      const updated = await ensureAllPaymentGatewayQrsInDb();
+      if (updated > 0) logger.info({ updated }, "Regenerated stale payment gateway QR codes");
+    })
+    .catch((err) => logger.error({ err }, "Crypto payment gateway bootstrap failed"));
+  void ensureDefaultExchangeRates().catch((err) =>
+    logger.error({ err }, "Default exchange rates bootstrap failed"),
+  );
+  void ensureRbacSeed().catch((err) => logger.error({ err }, "RBAC seed failed"));
+  void refreshExchangeRates(true).catch((err) => logger.error({ err }, "FX rate refresh failed"));
   void scheduleBackgroundJobs();
 });
 

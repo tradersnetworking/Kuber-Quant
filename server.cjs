@@ -58,6 +58,27 @@ if (!existsSync(apiEntry)) {
   process.exit(1);
 }
 
+if (process.env.HOSTINGER_SKIP_DB_INIT !== "1") {
+  const { execSync } = require("node:child_process");
+  try {
+    const seedFlag =
+      process.env.HOSTINGER_AUTO_SEED === "1" ||
+      (process.env.HOSTINGER_AUTO_SEED !== "0" && process.env.BOOTSTRAP_USERS !== "false")
+        ? " --seed"
+        : "";
+    execSync(`node scripts/hostinger-db-init.mjs${seedFlag}`, {
+      cwd: __dirname,
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (err) {
+    console.error(
+      "[start] Database init failed — run manually: pnpm db:push && ALLOW_SEED=true pnpm exec tsx scripts/src/seed.ts",
+    );
+    console.error(err instanceof Error ? err.message : err);
+  }
+}
+
 import(pathToFileURL(apiEntry).href).catch((err) => {
   console.error("[start] Failed to load API:", err);
   process.exit(1);
