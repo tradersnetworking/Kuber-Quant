@@ -44,35 +44,35 @@ process.env.PORT = String(port);
 
 let server: ReturnType<typeof app.listen>;
 
-void (async () => {
-  try {
-    await ensureDatabaseSchemaPatches();
-    await ensureStakingSchema();
-    await ensureWebauthnSchema();
-    await seedDefaultStakingPlansIfEmpty();
-  } catch (err) {
-    logger.error({ err }, "Database schema patches failed — some dashboards may error until pnpm db:push is run");
-  }
+server = app.listen(port, () => {
+  logger.info({ port, env: process.env.NODE_ENV || "development" }, "Server listening");
 
-  server = app.listen(port, () => {
-    logger.info({ port, env: process.env.NODE_ENV || "development" }, "Server listening");
+  void (async () => {
+    try {
+      await ensureDatabaseSchemaPatches();
+      await ensureStakingSchema();
+      await ensureWebauthnSchema();
+      await seedDefaultStakingPlansIfEmpty();
+    } catch (err) {
+      logger.error({ err }, "Database schema patches failed — some dashboards may error until pnpm db:push is run");
+    }
+  })();
 
-    void ensureDefaultUsers().then(() => {
-      if (process.env.BOOTSTRAP_USERS !== "false" && process.env.NODE_ENV !== "production") {
-        void ensureSampleTransactionHistory();
-      }
-    });
-    void ensureDefaultCryptoGateways().then(async () => {
-      const { ensureAllPaymentGatewayQrsInDb } = await import("./helpers/qrCodeService");
-      const updated = await ensureAllPaymentGatewayQrsInDb();
-      if (updated > 0) logger.info({ updated }, "Regenerated stale payment gateway QR codes");
-    });
-    void ensureDefaultExchangeRates();
-    void ensureRbacSeed();
-    void refreshExchangeRates(true);
-    void scheduleBackgroundJobs();
+  void ensureDefaultUsers().then(() => {
+    if (process.env.BOOTSTRAP_USERS !== "false" && process.env.NODE_ENV !== "production") {
+      void ensureSampleTransactionHistory();
+    }
   });
-})();
+  void ensureDefaultCryptoGateways().then(async () => {
+    const { ensureAllPaymentGatewayQrsInDb } = await import("./helpers/qrCodeService");
+    const updated = await ensureAllPaymentGatewayQrsInDb();
+    if (updated > 0) logger.info({ updated }, "Regenerated stale payment gateway QR codes");
+  });
+  void ensureDefaultExchangeRates();
+  void ensureRbacSeed();
+  void refreshExchangeRates(true);
+  void scheduleBackgroundJobs();
+});
 
 async function shutdown(signal: string) {
   logger.info({ signal }, "Graceful shutdown initiated");
