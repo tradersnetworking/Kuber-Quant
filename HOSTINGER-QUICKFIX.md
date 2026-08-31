@@ -8,7 +8,7 @@ Hostinger must use **npm**, not Corepack pnpm (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_M
 |---------|--------|
 | Branch | `main` |
 | Package manager | **`npm`** |
-| Entry file | `server.js` |
+| Entry file | `server.cjs` |
 | Node.js | 20.x |
 
 Default `npm install` + `npm run build` work — no custom commands needed.

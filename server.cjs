@@ -1,13 +1,12 @@
+"use strict";
 /**
- * Local / direct Node.js entry (ESM). Use `node server.js` or pnpm start.
- * Hostinger hPanel must use server.cjs — lsnode require() cannot load this file.
+ * Hostinger Node.js entry file (CommonJS).
+ * lsnode require() cannot load ESM server.js — use this file in hPanel.
+ * Starts the bundled Express API, which also serves the built React SPA.
  */
-import { existsSync } from "node:fs";
-import { pathToFileURL } from "node:url";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const { existsSync } = require("node:fs");
+const { pathToFileURL } = require("node:url");
+const { resolve } = require("node:path");
 
 process.env.NODE_ENV = process.env.NODE_ENV || "production";
 
@@ -59,7 +58,7 @@ if (!existsSync(apiEntry)) {
   process.exit(1);
 }
 
-void import(pathToFileURL(apiEntry).href).catch((err) => {
+import(pathToFileURL(apiEntry).href).catch((err) => {
   console.error("[start] Failed to load API:", err);
   process.exit(1);
 });

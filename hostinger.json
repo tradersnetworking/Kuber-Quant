@@ -5,8 +5,8 @@
   "branch": "main",
   "installCommand": "npm install",
   "buildCommand": "npm run build",
-  "startCommand": "node server.js",
+  "startCommand": "node server.cjs",
   "outputDirectory": "artifacts/trading-platform/dist/public",
-  "entryFile": "server.js",
-  "notes": "GitHub deploy: connect repo tradersnetworking/Kuber-Quant, branch main, package manager npm, entry server.js. npm install runs postinstall (Hostinger-safe pnpm bootstrap). npm run build compiles web+API. Do not set PORT in env. Import hostinger.env.example via hPanel."
+  "entryFile": "server.cjs",
+  "notes": "GitHub deploy: connect repo tradersnetworking/Kuber-Quant, branch main, package manager npm, entry server.cjs (CommonJS — lsnode require() cannot load ESM server.js). npm install runs postinstall (Hostinger-safe pnpm bootstrap). npm run build compiles web+API. Do not set PORT in env. Import hostinger.env.example via hPanel."
 }
