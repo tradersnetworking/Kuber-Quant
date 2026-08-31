@@ -12,7 +12,9 @@ if (!process.env.DATABASE_URL) {
 
 const databaseUrl = process.env.DATABASE_URL.trim();
 const needsSsl =
-  /sslmode=require|neon\.tech|supabase\.co|render\.com|rds\.amazonaws\.com/i.test(databaseUrl);
+  /sslmode=require|neon\.tech|supabase\.(?:co|com)|render\.com|rds\.amazonaws\.com/i.test(
+    databaseUrl,
+  );
 
 export const pool = new Pool({
   connectionString: databaseUrl,
