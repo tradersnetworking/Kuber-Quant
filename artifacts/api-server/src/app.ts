@@ -118,7 +118,7 @@ if (process.env.NODE_ENV !== "production" && process.env.SERVE_SPA !== "true") {
 if (process.env.NODE_ENV === "production" && process.env.SERVE_SPA !== "false") {
   const webDist = process.env.WEB_DIST || path.resolve(process.cwd(), "../trading-platform/dist/public");
   app.use(express.static(webDist));
-  app.get("*", (req, res, next) => {
+  app.get("/{*path}", (req, res, next) => {
     if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) return next();
     res.sendFile(path.join(webDist, "index.html"), (err) => {
       if (err) next();
