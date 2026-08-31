@@ -37,6 +37,9 @@ import {
 } from "../helpers/stakingEngine";
 import { notifyUser } from "../helpers/notificationService";
 import { generateStakingAgreementPdf } from "../helpers/stakingAgreementPdf";
+import { getDefaultStakingPlans } from "../helpers/defaultPlans";
+import { isMissingRelationError } from "../helpers/pgErrors";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -118,9 +121,18 @@ router.get("/plans", async (_req, res) => {
       .from(stakingPlansTable)
       .where(eq(stakingPlansTable.isActive, true))
       .orderBy(asc(stakingPlansTable.sortOrder), asc(stakingPlansTable.id));
+    if (plans.length === 0) {
+      res.json(getDefaultStakingPlans());
+      return;
+    }
     res.json(plans.map(mapPlan));
-  } catch {
-    res.json([]);
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      logger.warn("staking_plans table missing — serving default demo plans");
+    } else {
+      logger.warn({ err }, "Failed to load staking plans — serving defaults");
+    }
+    res.json(getDefaultStakingPlans());
   }
 });
 

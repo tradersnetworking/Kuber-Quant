@@ -54,7 +54,7 @@ server = app.listen(port, () => {
       await ensureWebauthnSchema();
       await seedDefaultStakingPlansIfEmpty();
     } catch (err) {
-      logger.error({ err }, "Database schema patches failed — some dashboards may error until pnpm db:push is run");
+      logger.warn({ err }, "Database schema patches incomplete — run pnpm db:push if dashboards error");
     }
   })();
 
@@ -71,12 +71,10 @@ server = app.listen(port, () => {
       const updated = await ensureAllPaymentGatewayQrsInDb();
       if (updated > 0) logger.info({ updated }, "Regenerated stale payment gateway QR codes");
     })
-    .catch((err) => logger.error({ err }, "Crypto payment gateway bootstrap failed"));
-  void ensureDefaultExchangeRates().catch((err) =>
-    logger.error({ err }, "Default exchange rates bootstrap failed"),
-  );
-  void ensureRbacSeed().catch((err) => logger.error({ err }, "RBAC seed failed"));
-  void refreshExchangeRates(true).catch((err) => logger.error({ err }, "FX rate refresh failed"));
+    .catch((err) => logger.warn({ err }, "Crypto payment gateway bootstrap failed"));
+  void ensureDefaultExchangeRates();
+  void ensureRbacSeed().catch((err) => logger.warn({ err }, "RBAC seed failed"));
+  void refreshExchangeRates(false).catch((err) => logger.warn({ err }, "FX rate refresh failed"));
   void scheduleBackgroundJobs();
 });
 

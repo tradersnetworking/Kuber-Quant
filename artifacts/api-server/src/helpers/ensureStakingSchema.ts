@@ -1,5 +1,6 @@
 import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { isMissingRelationError } from "./pgErrors";
 
 const STAKING_SCHEMA_SQL = `
 DO $$ BEGIN
@@ -174,8 +175,11 @@ export async function ensureStakingSchema(): Promise<void> {
     stakingSchemaReady = true;
     logger.info("Staking schema verified");
   } catch (err) {
-    logger.error({ err }, "Staking schema bootstrap failed");
-    throw err;
+    if (isMissingRelationError(err)) {
+      logger.warn("Staking schema not ready — run pnpm db:push");
+      return;
+    }
+    logger.warn({ err }, "Staking schema bootstrap failed");
   }
 }
 
@@ -270,42 +274,50 @@ export const DEFAULT_STAKING_PLANS = [
 ];
 
 export async function seedDefaultStakingPlansIfEmpty(): Promise<void> {
-  const { rows } = await pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM staking_plans");
-  if (Number(rows[0]?.count) > 0) return;
+  try {
+    const { rows } = await pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM staking_plans");
+    if (Number(rows[0]?.count) > 0) return;
 
-  for (const plan of DEFAULT_STAKING_PLANS) {
-    await pool.query(
-      `INSERT INTO staking_plans (
-        name, description, plan_type, currency, min_amount, max_amount,
-        apr_percent, apy_percent, roi_percent, lock_duration_days, is_flexible,
-        reward_frequency, compound_enabled, auto_renew, early_withdrawal_penalty,
-        is_featured, is_popular, is_recommended, risk_level, theme_color, icon_key, sort_order
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
-      [
-        plan.name,
-        plan.description,
-        plan.planType,
-        plan.currency,
-        plan.minAmount,
-        plan.maxAmount,
-        plan.aprPercent,
-        plan.apyPercent,
-        plan.roiPercent,
-        plan.lockDurationDays,
-        plan.isFlexible ?? false,
-        plan.rewardFrequency,
-        plan.compoundEnabled ?? false,
-        plan.autoRenew ?? false,
-        plan.earlyWithdrawalPenalty ?? "0",
-        plan.isFeatured ?? false,
-        plan.isPopular ?? false,
-        plan.isRecommended ?? false,
-        plan.riskLevel ?? "medium",
-        plan.themeColor ?? "#f59e0b",
-        plan.iconKey ?? "coins",
-        plan.sortOrder ?? 0,
-      ],
-    );
+    for (const plan of DEFAULT_STAKING_PLANS) {
+      await pool.query(
+        `INSERT INTO staking_plans (
+          name, description, plan_type, currency, min_amount, max_amount,
+          apr_percent, apy_percent, roi_percent, lock_duration_days, is_flexible,
+          reward_frequency, compound_enabled, auto_renew, early_withdrawal_penalty,
+          is_featured, is_popular, is_recommended, risk_level, theme_color, icon_key, sort_order
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
+        [
+          plan.name,
+          plan.description,
+          plan.planType,
+          plan.currency,
+          plan.minAmount,
+          plan.maxAmount,
+          plan.aprPercent,
+          plan.apyPercent,
+          plan.roiPercent,
+          plan.lockDurationDays,
+          plan.isFlexible ?? false,
+          plan.rewardFrequency,
+          plan.compoundEnabled ?? false,
+          plan.autoRenew ?? false,
+          plan.earlyWithdrawalPenalty ?? "0",
+          plan.isFeatured ?? false,
+          plan.isPopular ?? false,
+          plan.isRecommended ?? false,
+          plan.riskLevel ?? "medium",
+          plan.themeColor ?? "#f59e0b",
+          plan.iconKey ?? "coins",
+          plan.sortOrder ?? 0,
+        ],
+      );
+    }
+    logger.info({ count: DEFAULT_STAKING_PLANS.length }, "Default staking plans seeded");
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      logger.warn("staking_plans table missing — run pnpm db:push");
+      return;
+    }
+    logger.warn({ err }, "Default staking plans seed failed");
   }
-  logger.info({ count: DEFAULT_STAKING_PLANS.length }, "Default staking plans seeded");
 }

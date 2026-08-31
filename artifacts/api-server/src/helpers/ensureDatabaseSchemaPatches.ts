@@ -1,5 +1,6 @@
 import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { isMissingRelationError } from "./pgErrors";
 
 /** Idempotent ALTER TABLE statements for columns added after initial deploys. */
 const SCHEMA_PATCHES: string[] = [
@@ -65,8 +66,11 @@ export async function ensureDatabaseSchemaPatches(): Promise<void> {
       await pool.query(sql);
       applied += 1;
     } catch (err) {
-      logger.error({ err, sql }, "Database schema patch failed");
-      throw err;
+      if (isMissingRelationError(err)) {
+        logger.warn({ sql: sql.slice(0, 80) }, "Schema patch skipped — relation missing (run db:push)");
+        continue;
+      }
+      logger.warn({ err, sql: sql.slice(0, 80) }, "Database schema patch failed — skipping");
     }
   }
 

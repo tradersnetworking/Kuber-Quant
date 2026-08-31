@@ -61,6 +61,7 @@ if (!existsSync(apiEntry)) {
 import(pathToFileURL(apiEntry).href)
   .then(() => {
     if (process.env.HOSTINGER_SKIP_DB_INIT === "1") return;
+    console.log("[start] Spawning background db-init...");
     const { spawn } = require("node:child_process");
     const args = ["scripts/hostinger-db-init.mjs"];
     if (
@@ -76,6 +77,9 @@ import(pathToFileURL(apiEntry).href)
       detached: true,
     });
     child.unref();
+    child.on("error", (err) => {
+      console.error("[start] db-init spawn failed:", err instanceof Error ? err.message : err);
+    });
   })
   .catch((err) => {
   console.error("[start] Failed to load API:", err);

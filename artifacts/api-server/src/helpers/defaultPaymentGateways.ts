@@ -1,5 +1,6 @@
 import { db, paymentGatewaysTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { isMissingRelationError } from "./pgErrors";
 
 type CryptoGatewaySeed = {
   name: string;
@@ -137,6 +138,10 @@ export async function ensureDefaultCryptoGateways(force = false): Promise<void> 
 
     logger.info({ count: missing.length, networks: missing.map(m => `${m.symbol}/${m.network}`) }, "Crypto payment gateways backfilled");
   } catch (err) {
-    logger.error({ err }, "Crypto payment gateway bootstrap failed");
+    if (isMissingRelationError(err)) {
+      logger.warn("payment_gateways table missing — run pnpm db:push");
+      return;
+    }
+    logger.warn({ err }, "Crypto payment gateway bootstrap failed");
   }
 }

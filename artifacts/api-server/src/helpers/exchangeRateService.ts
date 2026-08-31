@@ -1,6 +1,7 @@
 import { db, siteSettingsTable } from "@workspace/db";
 import { invalidateSiteSettingsCache } from "./siteSettings";
 import { logger } from "../lib/logger";
+import { isMissingRelationError } from "./pgErrors";
 
 export type FxRates = {
   base: "USD";
@@ -26,15 +27,23 @@ const DEFAULT_RATES: FxRates = {
 const CRYPTO = new Set(["BTC", "ETH", "USDT"]);
 
 async function upsertSetting(key: string, value: string) {
-  await db.insert(siteSettingsTable).values({
-    key,
-    value,
-    label: key,
-    category: "financial",
-  }).onConflictDoUpdate({
-    target: siteSettingsTable.key,
-    set: { value, updatedAt: new Date() },
-  });
+  try {
+    await db.insert(siteSettingsTable).values({
+      key,
+      value,
+      label: key,
+      category: "financial",
+    }).onConflictDoUpdate({
+      target: siteSettingsTable.key,
+      set: { value, updatedAt: new Date() },
+    });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      logger.warn("site_settings table missing — run pnpm db:push");
+      return;
+    }
+    throw err;
+  }
 }
 
 /** Fetch live USD-base FX (same family as Google Finance USD/INR, USD/EUR). */
@@ -62,41 +71,53 @@ async function fetchLiveUsdRates(): Promise<{ USD_INR: number; USD_EUR: number; 
 }
 
 export async function refreshExchangeRates(force = false): Promise<FxRates> {
-  const existing = await getExchangeRates();
-  const lastMs = new Date(existing.updatedAt).getTime();
-  if (!force && lastMs > 0 && Date.now() - lastMs < 23 * 60 * 60 * 1000) {
-    return existing;
+  try {
+    const existing = await getExchangeRates();
+    const lastMs = new Date(existing.updatedAt).getTime();
+    if (!force && lastMs > 0 && Date.now() - lastMs < 23 * 60 * 60 * 1000) {
+      return existing;
+    }
+
+    const live = await fetchLiveUsdRates();
+    const rates: FxRates = live
+      ? {
+          base: "USD",
+          USD_INR: live.USD_INR,
+          USD_EUR: live.USD_EUR,
+          USDT_USD: 1,
+          updatedAt: new Date().toISOString(),
+          source: live.source,
+        }
+      : { ...existing, updatedAt: existing.updatedAt || new Date().toISOString() };
+
+    await Promise.all([
+      upsertSetting("usd_inr_rate", String(rates.USD_INR)),
+      upsertSetting("usd_eur_rate", String(rates.USD_EUR)),
+      upsertSetting("usdt_usd_rate", String(rates.USDT_USD)),
+      upsertSetting("fx_rates_updated_at", rates.updatedAt),
+      upsertSetting("fx_rates_source", rates.source),
+    ]);
+    invalidateSiteSettingsCache();
+    logger.info({ USD_INR: rates.USD_INR, USD_EUR: rates.USD_EUR, source: rates.source }, "FX rates refreshed");
+    return rates;
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      logger.warn("FX tables missing — using fallback rates until db:push runs");
+      return DEFAULT_RATES;
+    }
+    logger.warn({ err }, "FX rate refresh failed — using fallback rates");
+    return getExchangeRates();
   }
-
-  const live = await fetchLiveUsdRates();
-  const rates: FxRates = live
-    ? {
-        base: "USD",
-        USD_INR: live.USD_INR,
-        USD_EUR: live.USD_EUR,
-        USDT_USD: 1,
-        updatedAt: new Date().toISOString(),
-        source: live.source,
-      }
-    : { ...existing, updatedAt: existing.updatedAt || new Date().toISOString() };
-
-  await Promise.all([
-    upsertSetting("usd_inr_rate", String(rates.USD_INR)),
-    upsertSetting("usd_eur_rate", String(rates.USD_EUR)),
-    upsertSetting("usdt_usd_rate", String(rates.USDT_USD)),
-    upsertSetting("fx_rates_updated_at", rates.updatedAt),
-    upsertSetting("fx_rates_source", rates.source),
-  ]);
-  invalidateSiteSettingsCache();
-  logger.info({ USD_INR: rates.USD_INR, USD_EUR: rates.USD_EUR, source: rates.source }, "FX rates refreshed");
-  return rates;
 }
 
 export async function getExchangeRates(): Promise<FxRates> {
   let all: { key: string; value: string }[];
   try {
     all = await db.select().from(siteSettingsTable);
-  } catch {
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      logger.warn("site_settings table missing — using fallback FX rates");
+    }
     return DEFAULT_RATES;
   }
   const map = new Map(all.map(r => [r.key, r.value]));

@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { db, investmentPlansTable } from "@workspace/db";
 import { eq } from "@workspace/db/orm";
+import { getDefaultInvestmentPlans } from "../helpers/defaultPlans";
+import { isMissingRelationError } from "../helpers/pgErrors";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -33,9 +36,18 @@ router.get("/", async (_req, res) => {
     const plans = await db.select().from(investmentPlansTable)
       .where(eq(investmentPlansTable.isActive, true))
       .orderBy(investmentPlansTable.id);
+    if (plans.length === 0) {
+      res.json(getDefaultInvestmentPlans());
+      return;
+    }
     res.json(plans.map(mapPlan));
-  } catch {
-    res.json([]);
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      logger.warn("investment_plans table missing — serving default demo plans");
+    } else {
+      logger.warn({ err }, "Failed to load investment plans — serving defaults");
+    }
+    res.json(getDefaultInvestmentPlans());
   }
 });
 

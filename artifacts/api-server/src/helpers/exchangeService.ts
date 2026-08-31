@@ -172,6 +172,19 @@ async function getMergedExchangeAssets(): Promise<ExchangeAssetSource[]> {
 
 /** Ensure exchange rate rows exist for every crypto payment gateway. */
 export async function syncExchangeRatesFromCryptoGateways() {
+  try {
+    await syncExchangeRatesFromCryptoGatewaysInner();
+  } catch (err) {
+    const { isMissingRelationError } = await import("./pgErrors");
+    if (isMissingRelationError(err)) {
+      logger.warn("exchange_rates table missing — run pnpm db:push");
+      return;
+    }
+    logger.warn({ err }, "Exchange rate sync from gateways failed");
+  }
+}
+
+async function syncExchangeRatesFromCryptoGatewaysInner() {
   const { ensureDefaultCryptoGateways } = await import("./defaultPaymentGateways");
   await ensureDefaultCryptoGateways(true);
 
@@ -338,7 +351,7 @@ export async function ensureDefaultExchangeRates() {
       logger.warn("exchange_rates table missing — run pnpm db:push");
       return;
     }
-    throw err;
+    logger.warn({ err }, "Default exchange rates bootstrap failed");
   }
 }
 

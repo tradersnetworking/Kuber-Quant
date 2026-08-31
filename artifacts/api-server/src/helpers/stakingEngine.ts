@@ -8,6 +8,7 @@ import {
 } from "@workspace/db";
 import { eq, and, inArray, lte, sql } from "@workspace/db/orm";
 import { logger } from "../lib/logger";
+import { isMissingRelationError } from "./pgErrors";
 import { creditWallet, debitWallet } from "./walletService";
 import { notifyUser } from "./notificationService";
 
@@ -28,13 +29,22 @@ const DEFAULT_SETTINGS: StakingGlobalSettings = {
 };
 
 export async function getStakingSettings(): Promise<StakingGlobalSettings> {
-  const [row] = await db
-    .select()
-    .from(stakingSettingsTable)
-    .where(eq(stakingSettingsTable.key, "global"))
-    .limit(1);
-  if (!row?.value) return DEFAULT_SETTINGS;
-  return { ...DEFAULT_SETTINGS, ...(row.value as StakingGlobalSettings) };
+  try {
+    const [row] = await db
+      .select()
+      .from(stakingSettingsTable)
+      .where(eq(stakingSettingsTable.key, "global"))
+      .limit(1);
+    if (!row?.value) return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS, ...(row.value as StakingGlobalSettings) };
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      logger.warn("staking_settings table missing — using defaults until db:push runs");
+      return DEFAULT_SETTINGS;
+    }
+    logger.warn({ err }, "Failed to load staking settings — using defaults");
+    return DEFAULT_SETTINGS;
+  }
 }
 
 export async function updateStakingSettings(
