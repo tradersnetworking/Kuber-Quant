@@ -235,17 +235,15 @@
     overflow-x: clip;
   }
 
-  /* Mobile + installed PWA: lock viewport, no browser chrome feel */
+  /* Mobile browsers need document scroll for landing/register.
+     Only the dashboard `.app-shell-root` locks its own overflow. */
   html.mobile-device,
   html.mobile-device body {
-    overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
   }
 
   html.mobile-device #root {
     min-height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
   }
 
   html.pwa-standalone {
@@ -255,13 +253,13 @@
   html.pwa-standalone body {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
-    overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
 
   html.pwa-standalone .app-shell-root {
     max-height: 100dvh;
+    overflow: hidden;
   }
 
   html.pwa-standalone input,

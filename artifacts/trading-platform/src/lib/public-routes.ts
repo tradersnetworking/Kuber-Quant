@@ -6,6 +6,7 @@ const PUBLIC_EXACT = new Set([
   "/forgot-password",
   "/register",
   "/register/manager",
+  "/about",
   "/privacy-policy",
   "/terms-of-service",
   "/risk-disclosure",

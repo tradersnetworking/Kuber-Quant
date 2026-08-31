@@ -308,16 +308,16 @@ export default function LandingPage() {
 
   const landingNavLinks = useMemo(
     () => [
-      { href: "#features", label: "Features" },
-      { href: "#copy-trading", label: "Copy Trading", show: isEnabled("copy_trading") },
-      { href: "#algo", label: "Algo Trading", show: isEnabled("algo_trading") },
-      { href: "#ea", label: "EA Strategies", show: isEnabled("ea_strategies") },
-      { href: "#investments", label: "Investments", show: isEnabled("investment_plans") },
-      { href: "#staking", label: "Staking", show: isEnabled("staking") },
-      { href: "#payments", label: "Payments" },
-      { href: "#about", label: "About", show: companyAbout.items.length > 0 },
+      { href: "#features", label: t("landing.features") },
+      { href: "#copy-trading", label: t("landing.copyTrading"), show: isEnabled("copy_trading") },
+      { href: "#algo", label: t("landing.algoTrading"), show: isEnabled("algo_trading") },
+      { href: "#ea", label: t("landing.eaStrategies"), show: isEnabled("ea_strategies") },
+      { href: "#investments", label: t("landing.investments"), show: isEnabled("investment_plans") },
+      { href: "#staking", label: t("landing.staking"), show: isEnabled("staking") },
+      { href: "#payments", label: t("landing.payments") },
+      { href: "/about", label: t("landing.about") },
     ].filter(l => l.show !== false),
-    [companyAbout.items.length, services],
+    [isEnabled, services, t],
   );
 
   return (
@@ -369,11 +369,17 @@ export default function LandingPage() {
               branding={branding}
             />
             <nav className="flex flex-wrap justify-center items-center gap-x-5 lg:gap-x-7 xl:gap-x-8 gap-y-2 min-w-0 px-4 lg:px-8 xl:px-10">
-              {landingNavLinks.map(link => (
-                <a key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">
-                  {link.label}
-                </a>
-              ))}
+              {landingNavLinks.map(link =>
+                link.href.startsWith("/") ? (
+                  <Link key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap">
+                    {link.label}
+                  </a>
+                ),
+              )}
             </nav>
             <div className="flex items-center gap-3 shrink-0 justify-end pl-4 lg:pl-6">
               <ThemeToggle />
@@ -412,13 +418,14 @@ export default function LandingPage() {
           <div className={cn(LANDING_CONTENT, "flex flex-col items-center text-center relative z-10")}>
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
               <Badge variant="outline" className="border-amber-500/30 text-amber-600 dark:text-amber-500 px-4 py-1 rounded-full bg-amber-500/5 backdrop-blur-sm">
-                Next-Generation Wealth Management
+                {t("landing.heroBadge")}
               </Badge>
             </motion.div>
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter max-w-5xl leading-[1.08] mb-6 sm:mb-8 text-wrap-safe px-1">
-              Where Wealth <br />
-              <span className="bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-600 dark:from-amber-200 dark:via-amber-400 dark:to-yellow-600 bg-clip-text text-transparent">Multiplies.</span>
+              <span className="bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-600 dark:from-amber-200 dark:via-amber-400 dark:to-yellow-600 bg-clip-text text-transparent">
+                {t("landing.heroTitle")}
+              </span>
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
               className="text-base sm:text-lg md:text-2xl text-muted-foreground max-w-2xl mb-8 sm:mb-12 font-light leading-relaxed px-1">
@@ -429,14 +436,14 @@ export default function LandingPage() {
               {isLoggedIn ? (
                 <Link href={dashboardHref} className="w-full sm:w-auto">
                   <Button size="lg" className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold text-base sm:text-lg rounded-full hover:scale-105 transition-all shadow-xl shadow-amber-500/25 border-0">
-                    Go to Dashboard <ChevronRight className="ml-2 h-5 w-5" />
+                    {t("landing.goToDashboard")} <ChevronRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
               ) : (
                 <>
                   <Link href="/register" className="w-full sm:w-auto">
                     <Button size="lg" className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold text-base sm:text-lg rounded-full hover:scale-105 transition-all shadow-xl shadow-amber-500/25 border-0">
-                      Join the Elite <ChevronRight className="ml-2 h-5 w-5" />
+                      {t("landing.joinElite")} <ChevronRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>
                   <Link href="/login" className="w-full sm:w-auto">
@@ -879,14 +886,14 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-500/5 to-transparent" />
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
             <h2 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold mb-4 sm:mb-6 tracking-tighter text-wrap-safe">
-              Ready to multiply your <span className="text-amber-600 dark:text-amber-500">wealth?</span>
+              {t("landing.readyToMultiply")}
             </h2>
             <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-8 sm:mb-10 max-w-2xl mx-auto px-1">
-              Join 10,000+ investors who trust Kuber Quant for their wealth management needs.
+              {t("landing.joinInvestors")}
             </p>
             <Link href={isLoggedIn ? dashboardHref : "/register"}>
               <Button size="lg" className="w-full sm:w-auto h-12 sm:h-16 px-8 sm:px-12 bg-gradient-to-r from-amber-400 to-yellow-600 text-black font-bold text-base sm:text-xl rounded-full hover:scale-105 transition-all shadow-2xl shadow-amber-500/30 border-0">
-                {isLoggedIn ? "Go to Dashboard" : "Create Your Account Now"}
+                {isLoggedIn ? t("landing.goToDashboard") : t("landing.createAccountNow")}
               </Button>
             </Link>
           </div>
@@ -894,18 +901,25 @@ export default function LandingPage() {
 
         <LandingPaymentMethodsSection />
 
-        {/* About Kuber Quant — horizontal credential strip above footer */}
-        {companyAbout.items.length > 0 && (
-          <section id="about" className="w-full py-12 sm:py-20 px-4 sm:px-6 border-t border-border dark:border-white/10 bg-gradient-to-b from-transparent via-muted/40 dark:via-white/[0.02] to-muted/80 dark:to-[#050A14]">
-            <div className={LANDING_CONTENT}>
-              <div className="text-center max-w-3xl mx-auto mb-12">
-                <Badge variant="outline" className="border-amber-500/20 text-amber-600 dark:text-amber-400 mb-4 bg-amber-500/5">Trust & Compliance</Badge>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
-                  {companyAbout.sectionTitle}
-                </h2>
-                <p className="text-muted-foreground leading-relaxed text-sm md:text-base">{companyAbout.intro}</p>
+        {/* About Kuber Quant — always visible */}
+        <section id="about" className="w-full py-12 sm:py-20 px-4 sm:px-6 border-t border-border dark:border-white/10 bg-gradient-to-b from-transparent via-muted/40 dark:via-white/[0.02] to-muted/80 dark:to-[#050A14]">
+          <div className={LANDING_CONTENT}>
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <Badge variant="outline" className="border-amber-500/20 text-amber-600 dark:text-amber-400 mb-4 bg-amber-500/5">{t("landing.trustCompliance")}</Badge>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
+                {companyAbout.sectionTitle}
+              </h2>
+              <p className="text-muted-foreground leading-relaxed text-sm md:text-base">{companyAbout.intro}</p>
+              <div className="mt-6">
+                <Link href="/about">
+                  <Button variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10">
+                    {t("landing.learnMore")} <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </Link>
               </div>
+            </div>
 
+            {companyAbout.items.length > 0 && (
               <motion.div
                 variants={containerVariants}
                 initial="hidden"
@@ -959,9 +973,9 @@ export default function LandingPage() {
                   );
                 })}
               </motion.div>
-            </div>
-          </section>
-        )}
+            )}
+          </div>
+        </section>
       </main>
 
       <LandingPublicStatsSection />
@@ -1028,6 +1042,12 @@ export default function LandingPage() {
                 <span className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">Platform</span>
               </h4>
               <ul className="space-y-2.5 text-slate-600 dark:text-muted-foreground text-sm">
+                <li>
+                  <Link href="/about" className="inline-flex items-center gap-1.5 transition-colors hover:text-amber-600 dark:hover:text-amber-400">
+                    <ChevronRight className="h-3 w-3 opacity-40" />
+                    {t("landing.about")}
+                  </Link>
+                </li>
                 {FOOTER_PLATFORM_LINKS.map(link => {
                   if ("showWhenLoggedIn" in link && link.showWhenLoggedIn && !isLoggedIn) return null;
                   const href = link.href(isLoggedIn, dashboardHref, appHref);

@@ -46,3 +46,5 @@ export const TermsOfServicePage = lazy(() => import("@/pages/legal/terms-of-serv
 export const RiskDisclosurePage = lazy(() => import("@/pages/legal/risk-disclosure"));
 export const CookiePolicyPage = lazy(() => import("@/pages/legal/cookie-policy"));
 export const AmlPolicyPage = lazy(() => import("@/pages/legal/aml-policy"));
+export const AboutPage = lazy(() => import("@/pages/about"));
+export const LandingPage = lazy(() => import("@/pages/landing"));

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Menu, X } from "lucide-react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,6 +21,7 @@ type Props = {
 export function LandingMobileNav({ links, className }: Props) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [, setLocation] = useLocation();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [panelTop, setPanelTop] = useState(72);
   const visible = links.filter(l => l.show !== false);
@@ -50,6 +52,10 @@ export function LandingMobileNav({ links, className }: Props) {
 
   const navigate = (href: string) => {
     setOpen(false);
+    if (href.startsWith("/")) {
+      setLocation(href);
+      return;
+    }
     window.requestAnimationFrame(() => {
       const el = document.querySelector(href);
       el?.scrollIntoView({ behavior: "smooth", block: "start" });

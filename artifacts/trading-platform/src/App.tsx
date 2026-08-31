@@ -5,9 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
-import LandingPage from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import {
+  LandingPage,
+  AboutPage,
   LoginPage,
   RegisterPage,
   RegisterManagerPage,
@@ -418,6 +419,7 @@ function MainRouter() {
         <Route path="/forgot-password" component={ForgotPasswordPage} />
         <Route path="/register" component={RegisterPage} />
         <Route path="/register/manager" component={RegisterManagerPage} />
+        <Route path="/about" component={AboutPage} />
         <Route path="/privacy-policy" component={PrivacyPolicyPage} />
         <Route path="/terms-of-service" component={TermsOfServicePage} />
         <Route path="/risk-disclosure" component={RiskDisclosurePage} />
