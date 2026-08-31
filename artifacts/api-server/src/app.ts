@@ -4,7 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import path from "path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import pinoHttp from "pino-http";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import router from "./routes";
@@ -134,17 +134,28 @@ if (process.env.NODE_ENV === "production" && process.env.SERVE_SPA !== "false") 
     }),
   );
   const spaIndex = path.join(webDist, "index.html");
+  let cachedSpaHtml: string | null = null;
+
+  function serveSpa(_req: express.Request, res: express.Response, next: express.NextFunction) {
+    try {
+      if (!cachedSpaHtml) {
+        if (!existsSync(spaIndex)) {
+          return next(new Error(`SPA index missing: ${spaIndex}`));
+        }
+        cachedSpaHtml = readFileSync(spaIndex, "utf8");
+      }
+      res.type("html").set("Cache-Control", "no-cache").send(cachedSpaHtml);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   app.use((req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
     const p = (req.path || req.url?.split("?")[0] || "").replace(/\/+$/, "") || "/";
-    if (p.startsWith("/api") || p.startsWith("/uploads")) return next();
+    if (p === "/" || p.startsWith("/api") || p.startsWith("/uploads")) return next();
     if (/\.[a-z0-9]+$/i.test(p)) return next();
-    if (!existsSync(spaIndex)) {
-      return next(new Error(`SPA index missing: ${spaIndex}`));
-    }
-    res.sendFile(spaIndex, (err) => {
-      if (err) next(err);
-    });
+    serveSpa(req, res, next);
   });
 }
 
