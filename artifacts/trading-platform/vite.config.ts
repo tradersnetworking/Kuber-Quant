@@ -24,6 +24,9 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: path.resolve(import.meta.dirname, "dist/public"),
       emptyOutDir: true,
+      target: "es2020",
+      cssCodeSplit: true,
+      sourcemap: false,
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -32,6 +35,9 @@ export default defineConfig(({ mode }) => {
               if (id.includes("framer-motion")) return "vendor-motion";
               if (id.includes("@tanstack")) return "vendor-query";
               if (id.includes("lucide-react")) return "vendor-icons";
+              if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
+              if (id.includes("i18next") || id.includes("react-i18next")) return "vendor-i18n";
+              if (id.includes("@react-oauth")) return "vendor-oauth";
               return "vendor";
             }
           },

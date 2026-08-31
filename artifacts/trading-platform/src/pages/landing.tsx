@@ -17,8 +17,11 @@ import {
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useListPlans, type InvestmentPlan } from "@workspace/api-client-react";
-import { useServiceVisibility } from "@/hooks/use-service-visibility";
+import { useMemo } from "react";
 import { fetchStakingPlans, type StakingPlan } from "@/lib/staking-api";
+import { useServiceVisibility } from "@/hooks/use-service-visibility";
+import { FALLBACK_INVESTMENT_PLANS, FALLBACK_STAKING_PLANS } from "@/lib/default-plans";
+import { APP_CONTENT_WIDTH, LANDING_CONTENT } from "@/lib/ui-system";
 import type { ServiceKey } from "@/lib/service-catalog";
 import { Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,8 +34,6 @@ import { LandingPublicStatsSection } from "@/components/landing/LandingPublicSta
 import { LandingMobileNav } from "@/components/landing/LandingMobileNav";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { APP_CONTENT_WIDTH, LANDING_CONTENT } from "@/lib/ui-system";
-import { useMemo } from "react";
 
 const ALGO_STRATEGIES = [
   {
@@ -278,11 +279,20 @@ export default function LandingPage() {
   const { t } = useTranslation();
   const { data: plans } = useListPlans();
   const { services, isEnabled } = useServiceVisibility();
-  const { data: stakingPlans } = useQuery({
+  const { data: stakingPlansRaw } = useQuery({
     queryKey: ["public-staking-plans"],
     queryFn: fetchStakingPlans,
     staleTime: 60_000,
+    retry: 1,
   });
+  const displayPlans = useMemo(() => {
+    if (plans?.length) return plans;
+    return FALLBACK_INVESTMENT_PLANS;
+  }, [plans]);
+  const displayStakingPlans = useMemo(() => {
+    if (stakingPlansRaw?.length) return stakingPlansRaw;
+    return FALLBACK_STAKING_PLANS;
+  }, [stakingPlansRaw]);
   const { user } = useAuth();
   const branding = useSiteBranding();
   const partnersSection = usePartnersSection();
@@ -721,7 +731,7 @@ export default function LandingPage() {
               <p className="text-muted-foreground text-sm sm:text-base md:text-lg max-w-2xl mx-auto px-1">Select a strategy that aligns with your financial goals and risk tolerance.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5">
-              {plans ? plans.map((plan: InvestmentPlan, planIdx) => {
+              {displayPlans.map((plan: InvestmentPlan, planIdx) => {
                 const theme = PLAN_CARD_THEMES[planIdx % PLAN_CARD_THEMES.length];
                 return (
                 <motion.div key={plan.id} whileHover={{ y: -8 }} className="relative group">
@@ -756,9 +766,7 @@ export default function LandingPage() {
                   </Card>
                 </motion.div>
               );
-              }) : [1, 2, 3, 4].map(i => (
-                <div key={i} className="h-80 rounded-2xl bg-muted/60 dark:bg-white/5 animate-pulse border border-border dark:border-white/10" />
-              ))}
+              })}
             </div>
           </div>
         </section>
@@ -778,7 +786,7 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5">
-              {stakingPlans ? stakingPlans.map((plan: StakingPlan, planIdx) => {
+              {displayStakingPlans.map((plan: StakingPlan, planIdx) => {
                 const theme = PLAN_CARD_THEMES[planIdx % PLAN_CARD_THEMES.length];
                 return (
                   <motion.div key={plan.id} whileHover={{ y: -8 }} className="relative group">
@@ -822,11 +830,9 @@ export default function LandingPage() {
                     </Card>
                   </motion.div>
                 );
-              }) : [1, 2, 3, 4].map(i => (
-                <div key={i} className="h-80 rounded-2xl bg-muted/60 dark:bg-white/5 animate-pulse border border-border dark:border-white/10" />
-              ))}
+              })}
             </div>
-            {stakingPlans && stakingPlans.length === 0 && (
+            {displayStakingPlans.length === 0 && (
               <p className="text-center text-muted-foreground text-sm">Staking plans are coming soon.</p>
             )}
           </div>

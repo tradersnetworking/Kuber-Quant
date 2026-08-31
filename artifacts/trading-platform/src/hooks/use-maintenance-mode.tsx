@@ -73,17 +73,13 @@ export async function fetchMaintenanceConfig(): Promise<MaintenanceConfig> {
 
 export function useMaintenanceMode(pollMs = 60_000) {
   const [config, setConfig] = useState<MaintenanceConfig>(cached ?? DEFAULT_CONFIG);
-  const [isLoading, setIsLoading] = useState(!cached);
 
   useEffect(() => {
     let active = true;
 
     const load = () => {
       fetchMaintenanceConfig().then((data) => {
-        if (active) {
-          setConfig(data);
-          setIsLoading(false);
-        }
+        if (active) setConfig(data);
       });
     };
 
@@ -95,5 +91,5 @@ export function useMaintenanceMode(pollMs = 60_000) {
     };
   }, [pollMs]);
 
-  return { config, isLoading, enabled: config.enabled };
+  return { config, enabled: config.enabled };
 }

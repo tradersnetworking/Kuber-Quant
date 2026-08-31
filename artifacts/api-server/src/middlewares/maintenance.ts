@@ -2,11 +2,17 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { getSiteSettings } from "../helpers/siteSettings";
 import { JWT_SECRET } from "../lib/jwtSecret";
+import { logger } from "../lib/logger";
 
 const SKIP_PREFIXES = [
   "/health",
   "/branding",
   "/maintenance",
+  "/plans",
+  "/staking/plans",
+  "/service-visibility",
+  "/public-stats",
+  "/market/config",
   "/payments/qr",
   "/auth/login",
   "/auth/refresh",
@@ -38,7 +44,14 @@ export async function maintenanceGate(req: Request, res: Response, next: NextFun
     return;
   }
 
-  const settings = await getSiteSettings(["maintenance_mode"]);
+  let settings: Record<string, string>;
+  try {
+    settings = await getSiteSettings(["maintenance_mode"]);
+  } catch (err) {
+    logger.warn({ err }, "maintenance gate skipped — could not read site settings");
+    next();
+    return;
+  }
   if (settings.maintenance_mode !== "true") {
     next();
     return;

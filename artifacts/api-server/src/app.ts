@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import compression from "compression";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
@@ -22,6 +23,8 @@ const allowedOrigins = (process.env.CORS_ORIGINS || process.env.APP_URL || "http
   .split(",")
   .map(o => o.trim())
   .filter(Boolean);
+
+app.use(compression({ threshold: 1024 }));
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -71,7 +74,7 @@ const generalLimiter = rateLimit({
   skip: (req) => {
     if (isDev && process.env.RATE_LIMIT_ENABLE !== "true") return true;
     const path = (req.path || req.url?.split("?")[0] || "").replace(/\/+$/, "");
-    return path === "/api/maintenance" || path.startsWith("/api/branding") || path.startsWith("/api/payments/qr") || path === "/api/health" || path === "/api/healthz" || path === "/api/market/config" || path === "/api/public-stats" || path === "/api/notifications/stream";
+    return path === "/api/maintenance" || path.startsWith("/api/branding") || path.startsWith("/api/payments/qr") || path === "/api/health" || path === "/api/healthz" || path === "/api/market/config" || path === "/api/public-stats" || path === "/api/plans" || path.startsWith("/api/staking/plans") || path === "/api/service-visibility" || path === "/api/notifications/stream";
   },
   message: { error: "Too many requests, please try again later." },
 });
@@ -116,8 +119,19 @@ if (process.env.NODE_ENV !== "production" && process.env.SERVE_SPA !== "true") {
 }
 
 if (process.env.NODE_ENV === "production" && process.env.SERVE_SPA !== "false") {
-  const webDist = process.env.WEB_DIST || path.resolve(process.cwd(), "../trading-platform/dist/public");
-  app.use(express.static(webDist));
+  const webDist = process.env.WEB_DIST || path.resolve(process.cwd(), "artifacts/trading-platform/dist/public");
+  app.use(
+    express.static(webDist, {
+      maxAge: "1y",
+      setHeaders(res, filePath) {
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache");
+        }
+      },
+    }),
+  );
   app.get("/{*path}", (req, res, next) => {
     if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) return next();
     res.sendFile(path.join(webDist, "index.html"), (err) => {

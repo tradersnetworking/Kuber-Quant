@@ -1,5 +1,4 @@
 import { useLocation } from "wouter";
-import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { fetchMaintenanceConfig, useMaintenanceMode } from "@/hooks/use-maintenance-mode";
 import { MaintenancePage } from "@/pages/maintenance";
@@ -13,16 +12,9 @@ function isSuperAdminRole(role?: string): boolean {
 export function MaintenanceModeGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [location] = useLocation();
-  const { config, isLoading, enabled } = useMaintenanceMode();
+  const { config, enabled } = useMaintenanceMode();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Loading platform…</p>
-      </div>
-    );
-  }
+  // Never block first paint — defaults assume maintenance is off until API confirms.
   if (!enabled || isSuperAdminRole(user?.role as string | undefined)) {
     return <>{children}</>;
   }

@@ -28,9 +28,10 @@ export async function getSiteSettings(keys: string[]): Promise<Record<string, st
   } catch (err) {
     if (isMissingRelationError(err)) {
       logger.warn("site_settings table missing — run pnpm db:push");
-      return {};
+    } else {
+      logger.warn({ err }, "site_settings unavailable — using defaults");
     }
-    throw err;
+    return {};
   }
 
   memoryCache.set(cacheKey, { values, expiry: Date.now() + TTL_MS });

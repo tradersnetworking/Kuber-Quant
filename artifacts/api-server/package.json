@@ -25,6 +25,7 @@
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.77.3",
     "cookie-parser": "^1.4.7",
+    "compression": "^1.8.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
@@ -49,6 +50,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
+    "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

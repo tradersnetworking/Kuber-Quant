@@ -1,10 +1,58 @@
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import LandingPage from "@/pages/landing";
 import NotFound from "@/pages/not-found";
+import {
+  LoginPage,
+  RegisterPage,
+  RegisterManagerPage,
+  StaffLoginPage,
+  ForgotPasswordPage,
+  ManagerDashboard,
+  ManagerClients,
+  ManagerClientDetail,
+  ManagerKyc,
+  ManagerTransactions,
+  ManagerUpcomingTransactions,
+  ManagerTickets,
+  ManagerMail,
+  ManagerPlansPage,
+  ManagerStakingPlansPage,
+  ManagerCopyTradingPage,
+  ManagerAlgoStrategiesPage,
+  ManagerEaStrategiesPage,
+  SuperAdminDashboard,
+  SupportTeamDashboard,
+  SupportTeamTickets,
+  SupportComplaintsPage,
+  SupportQueriesPage,
+  SupportUserLookup,
+  SupportTeamManagers,
+  SupportTeamKyc,
+  SupportTeamMail,
+  SupportTransactionsPage,
+  SupportUpcomingTransactionsPage,
+  SupportInvestmentsPage,
+  SupportPlansPage,
+  SupportStakingPlansPage,
+  SupportCopyTradingPage,
+  SupportAlgoStrategiesPage,
+  SupportEaStrategiesPage,
+  SupportSubscriptionsPage,
+  SupportProfitSharingPage,
+  SupportExchangePage,
+  PrivacyPolicyPage,
+  TermsOfServicePage,
+  RiskDisclosurePage,
+  CookiePolicyPage,
+  AmlPolicyPage,
+} from "@/lib/lazy-pages";
+import { RouteChunkFallback } from "@/components/routing/RouteChunkFallback";
 import { getPostLoginPath } from "@/lib/nav-config";
 import { InvestorAccountRoutes } from "@/routes/investor-routes";
 import { getStaffPortal, getCrossPortalRedirectTarget, getStaffPortalForRole, type StaffPortal } from "@/lib/subdomain";
@@ -13,55 +61,6 @@ import { isPublicPath, isStaffPortalPublic } from "@/lib/public-routes";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { BareRoute } from "@/components/routing/BareRoute";
 import { AdminLegacyRedirect } from "@/components/routing/AdminLegacyRedirect";
-
-import LandingPage from "@/pages/landing";
-import LoginPage from "@/pages/auth/login";
-import RegisterPage from "@/pages/auth/register";
-import RegisterManagerPage from "@/pages/auth/register-manager";
-import StaffLoginPage from "@/pages/auth/staff-login";
-import ForgotPasswordPage from "@/pages/auth/forgot-password";
-
-import ManagerDashboard from "@/pages/manager/index";
-import ManagerClients from "@/pages/manager/clients";
-import ManagerClientDetail from "@/pages/manager/client-detail";
-import ManagerKyc from "@/pages/manager/kyc";
-import ManagerTransactions from "@/pages/manager/transactions";
-import ManagerUpcomingTransactions from "@/pages/manager/upcoming-transactions";
-import ManagerTickets from "@/pages/manager/tickets";
-import ManagerMail from "@/pages/manager/mail";
-import ManagerPlansPage from "@/pages/manager/plans";
-import ManagerStakingPlansPage from "@/pages/manager/staking-plans";
-import ManagerCopyTradingPage from "@/pages/manager/copy-trading";
-import ManagerAlgoStrategiesPage from "@/pages/manager/algo-strategies";
-import ManagerEaStrategiesPage from "@/pages/manager/ea-strategies";
-
-import SuperAdminDashboard from "@/pages/super-admin/index";
-import SupportTeamDashboard from "@/pages/support-team/index";
-import SupportTeamTickets from "@/pages/support-team/tickets";
-import SupportComplaintsPage from "@/pages/support-team/complaints";
-import SupportQueriesPage from "@/pages/support-team/queries";
-import SupportUserLookup from "@/pages/support-team/users";
-import SupportTeamManagers from "@/pages/support-team/managers";
-import SupportTeamKyc from "@/pages/support-team/kyc";
-import SupportTeamMail from "@/pages/support-team/mail";
-import SupportTransactionsPage from "@/pages/support-team/transactions";
-import SupportUpcomingTransactionsPage from "@/pages/support-team/upcoming-transactions";
-import SupportInvestmentsPage from "@/pages/support-team/investments";
-import SupportPlansPage from "@/pages/support-team/plans";
-import SupportStakingPlansPage from "@/pages/support-team/staking-plans";
-import SupportCopyTradingPage from "@/pages/support-team/copy-trading";
-import SupportAlgoStrategiesPage from "@/pages/support-team/algo-strategies";
-import SupportEaStrategiesPage from "@/pages/support-team/ea-strategies";
-import SupportSubscriptionsPage from "@/pages/support-team/subscriptions";
-import SupportProfitSharingPage from "@/pages/support-team/profit-sharing";
-import SupportExchangePage from "@/pages/support-team/exchange";
-
-import PrivacyPolicyPage from "@/pages/legal/privacy-policy";
-import TermsOfServicePage from "@/pages/legal/terms-of-service";
-import RiskDisclosurePage from "@/pages/legal/risk-disclosure";
-import CookiePolicyPage from "@/pages/legal/cookie-policy";
-import AmlPolicyPage from "@/pages/legal/aml-policy";
-
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NotificationPopProvider } from "@/components/notifications/NotificationPopProvider";
 import { ReferralAttributionCapture } from "@/components/referral/ReferralAttributionCapture";
@@ -416,7 +415,9 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <ReferralAttributionCapture />
               <ErrorBoundary>
-                <ActiveRouter />
+                <Suspense fallback={<RouteChunkFallback />}>
+                  <ActiveRouter />
+                </Suspense>
               </ErrorBoundary>
             </WouterRouter>
             </MaintenanceModeGuard>
