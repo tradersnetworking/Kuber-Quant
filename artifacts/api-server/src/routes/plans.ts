@@ -29,10 +29,14 @@ export function mapPlan(p: any) {
 }
 
 router.get("/", async (_req, res) => {
-  const plans = await db.select().from(investmentPlansTable)
-    .where(eq(investmentPlansTable.isActive, true))
-    .orderBy(investmentPlansTable.id);
-  res.json(plans.map(mapPlan));
+  try {
+    const plans = await db.select().from(investmentPlansTable)
+      .where(eq(investmentPlansTable.isActive, true))
+      .orderBy(investmentPlansTable.id);
+    res.json(plans.map(mapPlan));
+  } catch {
+    res.json([]);
+  }
 });
 
 router.get("/:id", async (req, res) => {

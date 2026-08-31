@@ -6,6 +6,17 @@ const CRYPTO = new Set(["BTC", "ETH", "USDT", "TRX", "BNB"]);
 
 /** Sanitized platform statistics for public trust display. */
 export async function getPublicPlatformStats() {
+  const defaults = {
+    investorCount: 0,
+    activeInvestments: 0,
+    activeInvestmentVolumeUsd: 0,
+    totalDepositsProcessedUsd: 0,
+    totalProfitPaidUsd: 0,
+    verifiedUsers: 0,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
   const [investors] = await dbRead.select({
     count: sql<number>`count(*) filter (where ${usersTable.role} = 'user')::int`,
   }).from(usersTable);
@@ -49,4 +60,7 @@ export async function getPublicPlatformStats() {
     verifiedUsers: verifiedKyc?.count ?? 0,
     updatedAt: new Date().toISOString(),
   };
+  } catch {
+    return defaults;
+  }
 }

@@ -107,17 +107,21 @@ router.get("/settings/public", async (_req, res) => {
 });
 
 router.get("/plans", async (_req, res) => {
-  const settings = await getStakingSettings();
-  if (!settings.stakingEnabled) {
+  try {
+    const settings = await getStakingSettings();
+    if (!settings.stakingEnabled) {
+      res.json([]);
+      return;
+    }
+    const plans = await db
+      .select()
+      .from(stakingPlansTable)
+      .where(eq(stakingPlansTable.isActive, true))
+      .orderBy(asc(stakingPlansTable.sortOrder), asc(stakingPlansTable.id));
+    res.json(plans.map(mapPlan));
+  } catch {
     res.json([]);
-    return;
   }
-  const plans = await db
-    .select()
-    .from(stakingPlansTable)
-    .where(eq(stakingPlansTable.isActive, true))
-    .orderBy(asc(stakingPlansTable.sortOrder), asc(stakingPlansTable.id));
-  res.json(plans.map(mapPlan));
 });
 
 router.get("/plans/:id", async (req, res) => {

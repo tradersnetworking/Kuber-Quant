@@ -71,8 +71,20 @@ router.get("/about", async (_req, res) => {
 });
 
 router.get("/public-stats", async (_req, res) => {
-  const { getPublicPlatformStats } = await import("../helpers/publicPlatformStats");
-  res.json(await getPublicPlatformStats());
+  try {
+    const { getPublicPlatformStats } = await import("../helpers/publicPlatformStats");
+    res.json(await getPublicPlatformStats());
+  } catch {
+    res.json({
+      investorCount: 0,
+      activeInvestments: 0,
+      activeInvestmentVolumeUsd: 0,
+      totalDepositsProcessedUsd: 0,
+      totalProfitPaidUsd: 0,
+      verifiedUsers: 0,
+      updatedAt: new Date().toISOString(),
+    });
+  }
 });
 
 router.get("/maintenance", async (_req, res) => {
@@ -129,8 +141,15 @@ router.get("/maintenance", async (_req, res) => {
 });
 
 router.get("/service-visibility", async (_req, res) => {
-  const { getServiceVisibility } = await import("../helpers/serviceVisibility");
-  res.json({ services: await getServiceVisibility() });
+  try {
+    const { getServiceVisibility } = await import("../helpers/serviceVisibility");
+    res.json({ services: await getServiceVisibility() });
+  } catch {
+    const { SERVICE_KEYS } = await import("../helpers/serviceVisibility");
+    res.json({
+      services: SERVICE_KEYS.map((key) => ({ key, enabled: true })),
+    });
+  }
 });
 
 router.get("/branding/security", async (_req, res) => {
