@@ -97,9 +97,9 @@ function ProtectedRoute({ component: Component, managerOnly = false, superAdminO
   const role = user.role as string;
   const home = getPostLoginPath(role);
   if (superAdminOnly && role !== "superadmin" && role !== "admin") return <Redirect to={home} />;
-  if (supportOnly && role !== "support" && role !== "superadmin") return <Redirect to={home} />;
+  if (supportOnly && role !== "support" && role !== "superadmin" && role !== "admin") return <Redirect to={home} />;
   if (promoterOnly && !(user as any).isPromoter && role !== "superadmin") return <Redirect to={home} />;
-  if (managerOnly && role !== "manager" && role !== "support" && role !== "superadmin") {
+  if (managerOnly && role !== "manager" && role !== "support" && role !== "superadmin" && role !== "admin") {
     return <Redirect to={home} />;
   }
   return <Component {...rest} />;
@@ -400,7 +400,6 @@ function ActiveRouter() {
 
 function App() {
   const envClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
-  const googleClientId = envClientId || "000000000000-placeholder.apps.googleusercontent.com";
   const appTree = (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -423,8 +422,9 @@ function App() {
     </QueryClientProvider>
   );
 
+  if (!envClientId) return appTree;
   return (
-    <GoogleOAuthProvider clientId={googleClientId}>{appTree}</GoogleOAuthProvider>
+    <GoogleOAuthProvider clientId={envClientId}>{appTree}</GoogleOAuthProvider>
   );
 }
 

@@ -2,7 +2,7 @@
 FROM node:20-bookworm-slim AS build
 
 WORKDIR /app
-RUN npm install -g pnpm@9.15.0
+RUN npm install -g pnpm@10.33.4
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY artifacts ./artifacts

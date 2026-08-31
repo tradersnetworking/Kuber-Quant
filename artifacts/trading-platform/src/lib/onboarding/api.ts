@@ -1,7 +1,7 @@
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+import { apiPath } from "@/lib/token-store";
 
 async function onboardingFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(apiPath(path), {
     ...opts,
     headers: {
       ...(opts.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
@@ -84,13 +84,6 @@ export function submitManagerApplication(formData: FormData) {
     method: "POST",
     body: formData,
   });
-}
-
-export function generateCaptcha() {
-  // Deprecated — use fetchRegistrationCaptcha() for server-side CAPTCHA
-  const a = Math.floor(Math.random() * 9) + 1;
-  const b = Math.floor(Math.random() * 9) + 1;
-  return { question: `${a} + ${b}`, answer: String(a + b), captchaToken: "" };
 }
 
 /** Strip File fields before JSON draft save */

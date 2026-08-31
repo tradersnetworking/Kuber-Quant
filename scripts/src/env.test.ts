@@ -33,3 +33,15 @@ describe("captchaStore", () => {
     assert.equal(await verifyCaptchaChallenge(captchaToken, answer), false);
   });
 });
+
+describe("payUEnv", () => {
+  it("treats production aliases as live", async () => {
+    const { isPayULive, payUBaseUrl } = await import("../../artifacts/api-server/src/helpers/payuEnv.ts");
+    assert.equal(isPayULive("prod"), true);
+    assert.equal(isPayULive("production"), true);
+    assert.equal(isPayULive("live"), true);
+    assert.equal(isPayULive("test"), false);
+    assert.equal(payUBaseUrl("production"), "https://secure.payu.in");
+    assert.equal(payUBaseUrl("test"), "https://test.payu.in");
+  });
+});

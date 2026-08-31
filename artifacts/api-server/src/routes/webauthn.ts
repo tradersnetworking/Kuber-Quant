@@ -47,6 +47,7 @@ import {
 import { JWT_SECRET } from "../lib/jwtSecret";
 import { biometricLoginLogsTable } from "@workspace/db";
 import { desc } from "@workspace/db/orm";
+import { getWebauthnRpId } from "../helpers/webauthnConfig";
 
 const router = Router();
 
@@ -57,10 +58,14 @@ const webauthnLimiter = rateLimit({
 });
 
 router.get("/available", (_req, res) => {
-  res.json({
-    supported: true,
-    rpId: process.env.WEBAUTHN_RP_ID || "localhost",
-  });
+  try {
+    res.json({
+      supported: true,
+      rpId: getWebauthnRpId(),
+    });
+  } catch {
+    res.status(503).json({ supported: false, error: "WebAuthn is not configured" });
+  }
 });
 
 router.get("/credentials", requireAuth, async (req, res) => {

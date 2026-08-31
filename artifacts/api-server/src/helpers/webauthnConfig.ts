@@ -12,7 +12,10 @@ export function getWebauthnRpId(): string {
     }
   }
 
-  return process.env.NODE_ENV === "production" ? "localhost" : "localhost";
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("WEBAUTHN_RP_ID (or APP_URL) must be set in production — refusing localhost RP ID");
+  }
+  return "localhost";
 }
 
 export function getWebauthnOrigin(): string {

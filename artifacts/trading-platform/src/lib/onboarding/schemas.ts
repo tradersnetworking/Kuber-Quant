@@ -169,10 +169,10 @@ export const managerStep1Schema = z.object({
   password: z.string().min(10, "Manager password min 10 chars").regex(/[A-Z]/).regex(/[0-9]/).regex(/[^A-Za-z0-9]/, "Include special character"),
   confirmPassword: z.string(),
   emailOtpVerified: z.boolean().refine(v => v, "Verify email OTP"),
-  captchaAnswer: z.string(),
-  captchaExpected: z.string(),
-}).refine(d => d.password === d.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match" })
-  .refine(d => d.captchaAnswer === d.captchaExpected, { path: ["captchaAnswer"], message: "Incorrect CAPTCHA" });
+  emailVerificationToken: z.string().min(1, "Verify email OTP"),
+  captchaAnswer: z.string().min(1, "CAPTCHA is required"),
+  captchaToken: z.string().min(1, "CAPTCHA is required"),
+}).refine(d => d.password === d.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match" });
 
 export type InvestorFormValues = {
   fullName: string;

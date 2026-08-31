@@ -56,18 +56,12 @@ router.get("/method-visibility", requireAuth, async (_req, res) => {
   res.json(await getPaymentMethodVisibility());
 });
 
-/** Which online gateways have server env credentials configured */
+/** Which implemented online gateways have server env credentials configured */
 router.get("/online/status", requireAuth, async (_req, res) => {
   const configured = {
     razorpay: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
     phonepe: !!(process.env.PHONEPE_MERCHANT_ID && process.env.PHONEPE_SALT_KEY),
-    paytm: !!(process.env.PAYTM_MERCHANT_ID && process.env.PAYTM_MERCHANT_KEY),
     payu: !!(process.env.PAYU_MERCHANT_KEY && process.env.PAYU_MERCHANT_SALT),
-    cashfree: !!(process.env.CASHFREE_APP_ID && process.env.CASHFREE_SECRET_KEY),
-    stripe: !!(process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY),
-    instamojo: !!(process.env.INSTAMOJO_API_KEY && process.env.INSTAMOJO_AUTH_TOKEN),
-    pinelabs: !!(process.env.PINELABS_MERCHANT_ID && process.env.PINELABS_ACCESS_CODE),
-    easebuzz: !!(process.env.EASEBUZZ_MERCHANT_KEY && process.env.EASEBUZZ_SALT),
     paypal: !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
   };
   res.json(configured);

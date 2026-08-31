@@ -11,7 +11,7 @@ export const paymentOrdersTable = pgTable("payment_orders", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   provider: paymentProviderEnum("provider").notNull(),
-  orderId: text("order_id").notNull(),
+  orderId: text("order_id").notNull().unique(),
   paymentId: text("payment_id"),
   amount: numeric("amount", { precision: 18, scale: 8 }).notNull(),
   currency: text("currency").notNull().default("INR"),

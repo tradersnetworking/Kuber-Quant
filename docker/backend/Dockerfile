@@ -5,7 +5,7 @@ WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
-  && npm install -g pnpm@9.15.0
+  && npm install -g pnpm@10.33.4
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY artifacts ./artifacts

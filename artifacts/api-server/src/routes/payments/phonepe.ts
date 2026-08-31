@@ -138,8 +138,18 @@ router.post("/callback", async (req, res) => {
 });
 
 router.get("/status/:merchantTransactionId", requireAuth, async (req, res) => {
+  const { userId, role } = (req as any).user;
   const cfg = getPhonePeConfig();
   const id = String(req.params.merchantTransactionId);
+
+  const [order] = await db.select().from(paymentOrdersTable)
+    .where(eq(paymentOrdersTable.orderId, id)).limit(1);
+  const isStaff = ["admin", "superadmin", "manager", "support"].includes(role);
+  if (!order || (order.userId !== userId && !isStaff)) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
   const path = `/pg/v1/status/${cfg.merchantId}/${id}`;
   const checksum = sha256(path + cfg.saltKey) + "###" + cfg.saltIndex;
 

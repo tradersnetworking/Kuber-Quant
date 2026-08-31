@@ -1663,7 +1663,7 @@ components:
           type: string
         password:
           type: string
-          minLength: 6
+          minLength: 8
         fullName:
           type: string
         referralCode:
@@ -1713,7 +1713,7 @@ components:
           type: ["string", "null"]
         role:
           type: string
-          enum: [user, manager, support, superadmin]
+          enum: [user, admin, manager, support, superadmin]
         kycStatus:
           type: string
           enum: [pending, submitted, verified, rejected]
@@ -1745,7 +1745,7 @@ components:
       properties:
         role:
           type: string
-          enum: [user, manager, support, superadmin]
+          enum: [user, admin, manager, support, superadmin]
         kycStatus:
           type: string
           enum: [pending, submitted, verified, rejected]

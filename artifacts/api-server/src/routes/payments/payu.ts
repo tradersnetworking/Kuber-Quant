@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { db, paymentOrdersTable, transactionsTable, notificationsTable } from "@workspace/db";
 import { eq } from "@workspace/db/orm";
 import { requireAuth } from "../../middlewares/auth";
+import { payUBaseUrl } from "../../helpers/payuEnv";
 
 const router = Router();
 
@@ -12,10 +13,6 @@ function getPayUConfig() {
     salt: process.env.PAYU_MERCHANT_SALT || "",
     env: process.env.PAYU_ENV || "test",
   };
-}
-
-function payUBaseUrl(env: string) {
-  return env === "prod" ? "https://secure.payu.in" : "https://test.payu.in";
 }
 
 function generatePayUHash(params: Record<string, string>, salt: string): string {

@@ -30,9 +30,9 @@ export function warnDevSecrets() {
 
 export function warnProductionBootstrap() {
   if (process.env.NODE_ENV !== "production") return;
-  if (process.env.BOOTSTRAP_USERS !== "false") {
-    throw new Error(
-      "BOOTSTRAP_USERS must be 'false' in production — set BOOTSTRAP_USERS=false after initial setup to disable demo account seeding",
+  if (process.env.BOOTSTRAP_USERS === "true") {
+    logger.warn(
+      "BOOTSTRAP_USERS=true in production — demo accounts will be created or reset. Set BOOTSTRAP_USERS=false after the first admin exists.",
     );
   }
   if (!process.env.REDIS_URL?.trim()) {

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { getPostLoginPath } from "@/lib/nav-config";
 import { AuthPageLayout } from "@/components/auth/AuthPageLayout";
 import { useGoogleAuthConfig } from "@/hooks/use-google-auth-config";
@@ -241,15 +241,17 @@ export default function LoginPage() {
                 <AlertDescription>{loginError}</AlertDescription>
               </Alert>
             )}
-            {showGoogleLogin && (
+            {showGoogleLogin && googleConfig?.googleClientId && (
               <>
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-full flex justify-center [&>div]:w-full [&_iframe]:w-full">
-                    <GoogleLogin
-                      onSuccess={handleGoogleSuccess}
-                      onError={() => setLoginError("Google sign-in was cancelled or failed.")}
-                      theme="filled_black" size="large" text="continue_with" shape="rectangular" width="100%"
-                    />
+                    <GoogleOAuthProvider clientId={googleConfig.googleClientId}>
+                      <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => setLoginError("Google sign-in was cancelled or failed.")}
+                        theme="filled_black" size="large" text="continue_with" shape="rectangular" width="100%"
+                      />
+                    </GoogleOAuthProvider>
                   </div>
                 </div>
                 <div className="relative">

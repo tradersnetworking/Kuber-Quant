@@ -47,6 +47,7 @@ const SCHEMA_PATCHES: string[] = [
    )`,
   `CREATE INDEX IF NOT EXISTS idx_kyc_documents_user_id ON kyc_documents (user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_kyc_documents_status ON kyc_documents (status)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_orders_order_id ON payment_orders (order_id)`,
 ];
 
 let patchesApplied = false;

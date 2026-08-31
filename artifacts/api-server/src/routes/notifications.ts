@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { requireAuth } from "../middlewares/auth";
 import {
   getUserNotifications,
   getUnreadCount,
@@ -8,6 +8,7 @@ import {
 } from "../helpers/notificationService";
 import { getVapidPublicKey, subscribePush, unsubscribePush } from "../helpers/pushService";
 import { subscribeUserNotifications } from "../helpers/notificationStreamService";
+import { issueStreamTicket, verifyStreamTicket } from "../helpers/streamTicket";
 import { db, notificationsTable } from "@workspace/db";
 import { eq, and } from "@workspace/db/orm";
 
@@ -27,8 +28,24 @@ router.get("/unread-count", requireAuth, async (req, res) => {
   res.json({ count });
 });
 
-router.get("/stream", requireAuth, async (req, res) => {
-  const { userId } = (req as any).user;
+router.post("/stream-ticket", requireAuth, async (req, res) => {
+  const { userId, role } = (req as any).user;
+  const ticket = await issueStreamTicket({ userId, role });
+  res.json({ ticket, expiresIn: 60 });
+});
+
+router.get("/stream", async (req, res) => {
+  const ticket = typeof req.query.ticket === "string" ? req.query.ticket : undefined;
+  if (!ticket) {
+    res.status(401).json({ error: "Stream ticket required" });
+    return;
+  }
+  const payload = await verifyStreamTicket(ticket);
+  if (!payload) {
+    res.status(401).json({ error: "Invalid or expired stream ticket" });
+    return;
+  }
+  const { userId } = payload;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
