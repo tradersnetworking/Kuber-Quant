@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import path from "path";
+import { existsSync } from "node:fs";
 import pinoHttp from "pino-http";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import router from "./routes";
@@ -132,10 +133,17 @@ if (process.env.NODE_ENV === "production" && process.env.SERVE_SPA !== "false") 
       },
     }),
   );
-  app.get("/{*path}", (req, res, next) => {
-    if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) return next();
-    res.sendFile(path.join(webDist, "index.html"), (err) => {
-      if (err) next();
+  const spaIndex = path.join(webDist, "index.html");
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const p = (req.path || req.url?.split("?")[0] || "").replace(/\/+$/, "") || "/";
+    if (p.startsWith("/api") || p.startsWith("/uploads")) return next();
+    if (/\.[a-z0-9]+$/i.test(p)) return next();
+    if (!existsSync(spaIndex)) {
+      return next(new Error(`SPA index missing: ${spaIndex}`));
+    }
+    res.sendFile(spaIndex, (err) => {
+      if (err) next(err);
     });
   });
 }
