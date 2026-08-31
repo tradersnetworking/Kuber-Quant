@@ -5,7 +5,6 @@
   "type": "module",
   "main": "server.js",
   "license": "MIT",
-  "packageManager": "pnpm@10.33.4",
   "engines": {
     "node": ">=20"
   },
@@ -15,7 +14,8 @@
     "dev:web": "pnpm --filter @workspace/trading-platform run dev",
     "setup": "node scripts/setup-local.mjs",
     "clean:install": "node scripts/clean-install.mjs",
-    "build": "pnpm run build:prod",
+    "build": "node scripts/hostinger-build.mjs",
+    "postinstall": "node scripts/hostinger-postinstall.mjs",
     "hostinger:install": "node scripts/hostinger-install.mjs",
     "hostinger:build": "node scripts/hostinger-build.mjs",
     "hostinger:package": "node scripts/package-hostinger-upload.mjs",
