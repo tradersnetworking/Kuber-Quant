@@ -4,7 +4,7 @@ import { getRedis } from "./redis";
 type CaptchaEntry = { answer: number; expires: number };
 
 const memoryStore = new Map<string, CaptchaEntry>();
-const CAPTCHA_TTL_SEC = 15 * 60;
+const CAPTCHA_TTL_SEC = 2 * 60 * 60;
 const REDIS_PREFIX = "captcha:";
 
 function purgeExpiredMemory() {

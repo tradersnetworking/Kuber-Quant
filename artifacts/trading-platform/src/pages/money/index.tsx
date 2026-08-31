@@ -24,33 +24,13 @@ import { FiatBalanceDisplay } from "@/components/finance/FiatBalanceDisplay";
 import { authFetchJson } from "@/lib/token-store";
 import { CryptoIcon } from "@/components/exchange/CryptoIcon";
 import { exchangeCryptoSymbol, formatExchangeRateCell } from "@/lib/exchange-display";
-import { mergeExchangeRatesWithCatalog, ourSellingRateInr, EXCHANGE_RATE_CATALOG, rateRowKey, type ExchangeRateRow } from "@/lib/exchange-catalog";
+import { mergeExchangeRatesWithCatalog, ourSellingRateInr, rateRowKey, type ExchangeRateRow } from "@/lib/exchange-catalog";
 import { DepositWithdrawalMethodsBanner } from "@/components/finance/DepositWithdrawalMethodsBanner";
 import { AppPage } from "@/components/layout/AppPage";
 import { KpiStatCard } from "@/components/ui/KpiStatCard";
 import { APP_CARD, APP_CHART_GRID, APP_FORM_STACK, APP_STAT_GRID } from "@/lib/ui-system";
 
 const VALID_TABS = new Set(["overview", "deposit", "withdraw", "transfer", "exchange", "history"]);
-
-function mapApiExchangeRates(raw: Array<{ cryptoSymbol: string; sellRateInr: number }>): ExchangeRateRow[] {
-  if (!raw.length) return mergeExchangeRatesWithCatalog([]);
-  return raw.map((row) => {
-    const [symbol, ...netParts] = row.cryptoSymbol.split("_");
-    const network = netParts.join("_");
-    const catalogMatch =
-      EXCHANGE_RATE_CATALOG.find(r => r.symbol === symbol && (!network || r.network === network)) ??
-      EXCHANGE_RATE_CATALOG.find(r => r.symbol === symbol) ??
-      EXCHANGE_RATE_CATALOG[0];
-    return {
-      ...catalogMatch,
-      symbol: symbol || catalogMatch.symbol,
-      network: network || catalogMatch.network,
-      sellPriceInr: row.sellRateInr,
-      platformSellRateInr: row.sellRateInr,
-      platformSellRateFiat: row.sellRateInr,
-    };
-  });
-}
 
 type WithdrawalLimits = {
   tier: string;
@@ -75,10 +55,10 @@ export default function MoneyHubPage() {
   });
   const { data: exchangeRates = [] } = useQuery({
     queryKey: ["/api/exchange/rates", "INR"],
-    queryFn: () => authFetchJson<Array<{ cryptoSymbol: string; sellRateInr: number }>>("/exchange/rates?fiat=INR"),
+    queryFn: () => authFetchJson<ExchangeRateRow[]>("/exchange/rates?fiat=INR"),
     ...financeQueryOptions,
   });
-  const previewRates = mapApiExchangeRates(exchangeRates).slice(0, 4);
+  const previewRates = mergeExchangeRatesWithCatalog(Array.isArray(exchangeRates) ? exchangeRates : []).slice(0, 4);
   const transferMutation = useWalletTransfer();
   const { toast } = useToast();
 

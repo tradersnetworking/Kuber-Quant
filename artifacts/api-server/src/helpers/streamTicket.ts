@@ -44,6 +44,7 @@ export async function verifyStreamTicket(ticket: string): Promise<StreamTicketPa
       if (redis.status !== "ready") await redis.connect();
       const stored = await redis.get(`${REDIS_PREFIX}${ticket}`);
       if (stored) {
+        await redis.del(`${REDIS_PREFIX}${ticket}`);
         const parsed = JSON.parse(stored) as StreamTicketPayload;
         if (typeof parsed.userId === "number" && typeof parsed.role === "string") return parsed;
       }
@@ -54,5 +55,6 @@ export async function verifyStreamTicket(ticket: string): Promise<StreamTicketPa
 
   const entry = memoryStore.get(ticket);
   if (!entry || entry.expires < Date.now()) return null;
+  memoryStore.delete(ticket);
   return entry.payload;
 }

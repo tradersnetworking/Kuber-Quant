@@ -93,6 +93,17 @@ export default function InvestorOnboardingPage() {
       .catch(() => setOnboardingConfig(null));
   }, [setValue]);
 
+  async function refreshCaptcha() {
+    try {
+      const c = await fetchRegistrationCaptcha();
+      setCaptcha(c);
+      setValue("captchaToken", c.captchaToken);
+      setValue("captchaAnswer", "");
+    } catch {
+      toast.error("Could not refresh CAPTCHA");
+    }
+  }
+
   useEffect(() => {
     saveLocalDraft("investor", values as Record<string, unknown>);
   }, [values]);
@@ -356,7 +367,10 @@ export default function InvestorOnboardingPage() {
 
           {(onboardingConfig?.requireCaptcha ?? true) && (
             <Field label={`CAPTCHA: ${captcha.question} = ?`} error={errors.captchaAnswer?.message}>
-              <Input {...form.register("captchaAnswer")} placeholder="Answer" inputMode="numeric" />
+              <div className="flex gap-2">
+                <Input {...form.register("captchaAnswer")} placeholder="Answer" inputMode="numeric" />
+                <Button type="button" variant="outline" onClick={() => void refreshCaptcha()}>Refresh</Button>
+              </div>
             </Field>
           )}
 

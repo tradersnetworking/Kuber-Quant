@@ -82,6 +82,17 @@ export default function ManagerOnboardingPage() {
       .catch(() => setCaptcha({ question: "?", captchaToken: "" }));
   }, [setValue]);
 
+  async function refreshCaptcha() {
+    try {
+      const c = await fetchRegistrationCaptcha();
+      setCaptcha(c);
+      setValue("captchaToken", c.captchaToken);
+      setValue("captchaAnswer", "");
+    } catch {
+      toast.error("Could not refresh CAPTCHA");
+    }
+  }
+
   useEffect(() => { saveLocalDraft("manager", values as Record<string, unknown>); }, [values]);
 
   const phone = values.phoneNum ? `${values.phoneCode} ${values.phoneNum}` : "";
@@ -198,7 +209,12 @@ export default function ManagerOnboardingPage() {
             <F label="Confirm Password" err={errors.confirmPassword?.message}><Input type="password" {...form.register("confirmPassword")} /></F>
           </div>
           <OtpVerification channel="email" email={values.email} fullName={values.fullName} verified={values.emailOtpVerified} onVerified={(ok, token) => { setValue("emailOtpVerified", ok); if (token) setValue("emailVerificationToken", token); }} />
-          <F label={`CAPTCHA: ${captcha.question} = ?`} err={errors.captchaAnswer?.message}><Input {...form.register("captchaAnswer")} /></F>
+          <F label={`CAPTCHA: ${captcha.question} = ?`} err={errors.captchaAnswer?.message}>
+            <div className="flex gap-2">
+              <Input {...form.register("captchaAnswer")} />
+              <Button type="button" variant="outline" onClick={() => void refreshCaptcha()}>Refresh</Button>
+            </div>
+          </F>
         </div>
       )}
       {step === 2 && (

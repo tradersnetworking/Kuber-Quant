@@ -28,6 +28,7 @@ async function sendLoginOtp(tempToken: string, channel: "email" | "sms" | "whats
   const res = await fetch(apiPath("/auth/2fa/send-login-otp"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ tempToken, channel }),
   });
   const data = await res.json();

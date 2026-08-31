@@ -1,6 +1,7 @@
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
@@ -88,7 +89,8 @@ const queryClient = new QueryClient({
 const portal: StaffPortal = getStaffPortal();
 
 function ProtectedRoute({ component: Component, managerOnly = false, superAdminOnly = false, supportOnly = false, promoterOnly = false, ...rest }: any) {
-  const { user } = useAuth();
+  const { user, isRestoring } = useAuth();
+  if (isRestoring) return null;
   if (!user) {
     const loginPath = superAdminOnly || managerOnly || supportOnly ? "/staff-login" : "/login";
     return <Redirect to={loginPath} />;
@@ -106,7 +108,8 @@ function ProtectedRoute({ component: Component, managerOnly = false, superAdminO
 }
 
 function PromoterRouteInner({ component: Component, ...rest }: any) {
-  const { user } = useAuth();
+  const { user, isRestoring } = useAuth();
+  if (isRestoring) return null;
   if (!user) return <Redirect to="/login" />;
   if (!(user as any).isPromoter && (user.role as string) !== "superadmin") {
     return <Redirect to={getPostLoginPath(user.role as string)} />;
@@ -119,13 +122,15 @@ function PromoterRoute({ component: Component, ...rest }: any) {
 }
 
 function AuthRoute({ component: Component, ...rest }: any) {
-  const { user } = useAuth();
+  const { user, isRestoring } = useAuth();
+  if (isRestoring) return null;
   if (!user) return <Redirect to="/login" />;
   return <Component {...rest} />;
 }
 
 function StaffPortalGuard({ role }: { role: "manager" | "support" | "superadmin" }) {
-  const { user } = useAuth();
+  const { user, isRestoring } = useAuth();
+  if (isRestoring) return null;
 
   if (!user) return <StaffLoginPage />;
 
@@ -418,6 +423,7 @@ function App() {
           </NotificationPopProvider>
         </AuthProvider>
         <Toaster />
+        <SonnerToaster />
       </TooltipProvider>
     </QueryClientProvider>
   );
