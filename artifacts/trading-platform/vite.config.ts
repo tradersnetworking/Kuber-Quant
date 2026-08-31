@@ -30,18 +30,15 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes("node_modules")) {
-              if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/")) {
-                return "vendor-react";
-              }
-              if (id.includes("framer-motion")) return "vendor-motion";
-              if (id.includes("@tanstack")) return "vendor-query";
-              if (id.includes("lucide-react")) return "vendor-icons";
-              if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
-              if (id.includes("i18next") || id.includes("react-i18next")) return "vendor-i18n";
-              if (id.includes("@react-oauth")) return "vendor-oauth";
-              return "vendor";
-            }
+            if (!id.includes("node_modules")) return;
+            // Keep react/react-dom in the main graph — splitting them causes
+            // "Cannot set properties of undefined (setting 'Children')" on Hostinger.
+            if (id.includes("recharts") || id.includes("/d3-")) return "vendor-charts";
+            if (id.includes("framer-motion")) return "vendor-motion";
+            if (id.includes("lucide-react")) return "vendor-icons";
+            if (id.includes("i18next") || id.includes("react-i18next")) return "vendor-i18n";
+            if (id.includes("@tanstack")) return "vendor-query";
+            if (id.includes("@react-oauth")) return "vendor-oauth";
           },
         },
       },

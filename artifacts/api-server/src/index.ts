@@ -16,6 +16,7 @@ import { ensureSampleTransactionHistory } from "./helpers/sampleTransactionHisto
 import { ensureDatabaseSchemaPatches } from "./helpers/ensureDatabaseSchemaPatches";
 import { ensureStakingSchema, seedDefaultStakingPlansIfEmpty } from "./helpers/ensureStakingSchema";
 import { ensureWebauthnSchema } from "./helpers/ensureWebauthnSchema";
+import { isDatabaseReachable } from "./helpers/dbConnectivity";
 
 assertProductionSecrets();
 warnDevSecrets();
@@ -48,6 +49,15 @@ server = app.listen(port, () => {
   logger.info({ port, env: process.env.NODE_ENV || "development" }, "Server listening");
 
   void (async () => {
+    if (!(await isDatabaseReachable())) {
+      logger.warn(
+        "Database unreachable at startup — skipping schema patches and DB bootstrap. " +
+          "Run pnpm db:push from your PC; shared Hostinger cannot reach external Postgres.",
+      );
+      void scheduleBackgroundJobs();
+      return;
+    }
+
     try {
       await ensureDatabaseSchemaPatches();
       await ensureStakingSchema();
@@ -56,26 +66,26 @@ server = app.listen(port, () => {
     } catch (err) {
       logger.warn({ err }, "Database schema patches incomplete — run pnpm db:push if dashboards error");
     }
-  })();
 
-  void ensureDefaultUsers()
-    .then(() => {
-      if (process.env.BOOTSTRAP_USERS !== "false" && process.env.NODE_ENV !== "production") {
-        void ensureSampleTransactionHistory();
-      }
-    })
-    .catch((err) => logger.error({ err }, "Default user bootstrap failed"));
-  void ensureDefaultCryptoGateways()
-    .then(async () => {
-      const { ensureAllPaymentGatewayQrsInDb } = await import("./helpers/qrCodeService");
-      const updated = await ensureAllPaymentGatewayQrsInDb();
-      if (updated > 0) logger.info({ updated }, "Regenerated stale payment gateway QR codes");
-    })
-    .catch((err) => logger.warn({ err }, "Crypto payment gateway bootstrap failed"));
-  void ensureDefaultExchangeRates();
-  void ensureRbacSeed().catch((err) => logger.warn({ err }, "RBAC seed failed"));
-  void refreshExchangeRates(false).catch((err) => logger.warn({ err }, "FX rate refresh failed"));
-  void scheduleBackgroundJobs();
+    void ensureDefaultUsers()
+      .then(() => {
+        if (process.env.BOOTSTRAP_USERS !== "false" && process.env.NODE_ENV !== "production") {
+          void ensureSampleTransactionHistory();
+        }
+      })
+      .catch((err) => logger.error({ err }, "Default user bootstrap failed"));
+    void ensureDefaultCryptoGateways()
+      .then(async () => {
+        const { ensureAllPaymentGatewayQrsInDb } = await import("./helpers/qrCodeService");
+        const updated = await ensureAllPaymentGatewayQrsInDb();
+        if (updated > 0) logger.info({ updated }, "Regenerated stale payment gateway QR codes");
+      })
+      .catch((err) => logger.warn({ err }, "Crypto payment gateway bootstrap failed"));
+    void ensureDefaultExchangeRates();
+    void ensureRbacSeed().catch((err) => logger.warn({ err }, "RBAC seed failed"));
+    void refreshExchangeRates(false).catch((err) => logger.warn({ err }, "FX rate refresh failed"));
+    void scheduleBackgroundJobs();
+  })();
 });
 
 async function shutdown(signal: string) {

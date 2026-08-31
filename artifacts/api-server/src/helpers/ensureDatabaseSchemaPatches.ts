@@ -1,6 +1,7 @@
 import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
-import { isMissingRelationError } from "./pgErrors";
+import { isDatabaseReachable } from "./dbConnectivity";
+import { isConnectionError, isMissingRelationError } from "./pgErrors";
 
 /** Idempotent ALTER TABLE statements for columns added after initial deploys. */
 const SCHEMA_PATCHES: string[] = [
@@ -60,14 +61,31 @@ let patchesApplied = false;
 export async function ensureDatabaseSchemaPatches(): Promise<void> {
   if (patchesApplied) return;
 
+  if (!(await isDatabaseReachable())) {
+    logger.warn("Database unreachable — skipping schema patches (run pnpm db:push when DB is reachable)");
+    patchesApplied = true;
+    return;
+  }
+
+  try {
+    await pool.query("SELECT 1 FROM users LIMIT 0");
+  } catch (err) {
+    if (isMissingRelationError(err) || isConnectionError(err)) {
+      logger.warn("Base schema missing — run pnpm db:push from a machine with database access");
+      patchesApplied = true;
+      return;
+    }
+  }
+
   let applied = 0;
+  let skippedMissing = 0;
   for (const sql of SCHEMA_PATCHES) {
     try {
       await pool.query(sql);
       applied += 1;
     } catch (err) {
       if (isMissingRelationError(err)) {
-        logger.warn({ sql: sql.slice(0, 80) }, "Schema patch skipped — relation missing (run db:push)");
+        skippedMissing += 1;
         continue;
       }
       logger.warn({ err, sql: sql.slice(0, 80) }, "Database schema patch failed — skipping");
@@ -75,6 +93,9 @@ export async function ensureDatabaseSchemaPatches(): Promise<void> {
   }
 
   patchesApplied = true;
+  if (skippedMissing > 0) {
+    logger.warn({ skippedMissing }, "Some schema patches skipped — base tables missing (run db:push)");
+  }
   if (applied > 0) {
     logger.info({ patchCount: applied }, "Database schema patches verified");
   }

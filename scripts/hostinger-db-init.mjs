@@ -84,6 +84,11 @@ function runDbPush() {
     return;
   }
 
+  const pnpmBin = resolve(root, "node_modules/pnpm/bin/pnpm.cjs");
+  if (!existsSync(pnpmBin)) {
+    throw new Error("drizzle-kit and pnpm unavailable in this deploy bundle");
+  }
+
   console.log("[db-init] drizzle-kit not found — falling back to pnpm db:push");
   ensurePnpm();
   pnpm("run db:push");

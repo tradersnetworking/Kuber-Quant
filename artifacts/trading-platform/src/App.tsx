@@ -111,9 +111,13 @@ function useInvestorAccountRouteElements(
   return elements;
 }
 
+function AuthRestoreFallback() {
+  return <RouteChunkFallback />;
+}
+
 function ProtectedRoute({ component: Component, managerOnly = false, superAdminOnly = false, supportOnly = false, promoterOnly = false, ...rest }: any) {
   const { user, isRestoring } = useAuth();
-  if (isRestoring) return null;
+  if (isRestoring) return <AuthRestoreFallback />;
   if (!user) {
     const loginPath = superAdminOnly || managerOnly || supportOnly ? "/staff-login" : "/login";
     return <Redirect to={loginPath} />;
@@ -132,7 +136,7 @@ function ProtectedRoute({ component: Component, managerOnly = false, superAdminO
 
 function PromoterRouteInner({ component: Component, ...rest }: any) {
   const { user, isRestoring } = useAuth();
-  if (isRestoring) return null;
+  if (isRestoring) return <AuthRestoreFallback />;
   if (!user) return <Redirect to="/login" />;
   if (!(user as any).isPromoter && (user.role as string) !== "superadmin") {
     return <Redirect to={getPostLoginPath(user.role as string)} />;
@@ -146,14 +150,14 @@ function PromoterRoute({ component: Component, ...rest }: any) {
 
 function AuthRoute({ component: Component, ...rest }: any) {
   const { user, isRestoring } = useAuth();
-  if (isRestoring) return null;
+  if (isRestoring) return <AuthRestoreFallback />;
   if (!user) return <Redirect to="/login" />;
   return <Component {...rest} />;
 }
 
 function StaffPortalGuard({ role }: { role: "manager" | "support" | "superadmin" }) {
   const { user, isRestoring } = useAuth();
-  if (isRestoring) return null;
+  if (isRestoring) return <AuthRestoreFallback />;
 
   if (!user) return <StaffLoginPage />;
 
@@ -162,7 +166,7 @@ function StaffPortalGuard({ role }: { role: "manager" | "support" | "superadmin"
   const crossPortal = getCrossPortalRedirectTarget(userRole);
   if (crossPortal && getStaffPortalForRole(userRole) !== role) {
     window.location.replace(crossPortal);
-    return null;
+    return <AuthRestoreFallback />;
   }
 
   if (role === "superadmin" && (userRole === "superadmin" || userRole === "admin")) {

@@ -61,6 +61,21 @@ if (!existsSync(apiEntry)) {
 import(pathToFileURL(apiEntry).href)
   .then(() => {
     if (process.env.HOSTINGER_SKIP_DB_INIT === "1") return;
+
+    const pnpmBin = resolve(__dirname, "node_modules/pnpm/bin/pnpm.cjs");
+    const drizzleKit = resolve(__dirname, "node_modules/drizzle-kit/bin.cjs");
+    const dbInitScript = resolve(__dirname, "scripts/hostinger-db-init.mjs");
+    if (!existsSync(dbInitScript)) {
+      console.log("[start] db-init script missing — skip");
+      return;
+    }
+    if (!existsSync(pnpmBin) && !existsSync(drizzleKit)) {
+      console.log(
+        "[start] Skipping db-init — production bundle has no drizzle-kit/pnpm. Run db:push from your PC.",
+      );
+      return;
+    }
+
     console.log("[start] Spawning background db-init...");
     const { spawn } = require("node:child_process");
     const args = ["scripts/hostinger-db-init.mjs"];

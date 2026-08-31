@@ -47,6 +47,7 @@ Thumbs.db
 # Local env
 .env
 .env.local
+hostinger.env
 
 # Uploads
 uploads/

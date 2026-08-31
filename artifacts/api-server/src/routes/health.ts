@@ -25,8 +25,9 @@ async function healthHandler(_req: Request, res: Response) {
     checks.status = "degraded";
   }
 
-  const code = checks.postgres === "error" ? 503 : 200;
-  res.status(code).json(checks);
+  // Always 200 when the Node process is alive — shared hosts probe /health and
+  // restart the app on 503 even when only Postgres is unreachable.
+  res.status(200).json(checks);
 }
 
 router.get("/healthz", healthHandler);
