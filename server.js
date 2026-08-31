@@ -12,7 +12,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 process.env.NODE_ENV = process.env.NODE_ENV || "production";
 
 const requiredEnv = [
-  "PORT",
   "DATABASE_URL",
   "SESSION_SECRET",
   "ENCRYPTION_KEY",
@@ -24,6 +23,15 @@ if (missing.length) {
     `[start] Missing required environment variables: ${missing.join(", ")}\n` +
       "Add them in hPanel → Node.js App → Environment Variables, then redeploy.\n" +
       "Import hostinger.env.example from the repo and set DATABASE_URL + SMTP.",
+  );
+  process.exit(1);
+}
+
+const dbUrl = process.env.DATABASE_URL?.trim() ?? "";
+if (/USER:PASSWORD|REPLACE_WITH|postgresql:\/\/USER@|@HOST:/i.test(dbUrl)) {
+  console.error(
+    "[start] DATABASE_URL is still a placeholder.\n" +
+      "Create free PostgreSQL at https://neon.tech and paste the connection string in hPanel env vars.",
   );
   process.exit(1);
 }

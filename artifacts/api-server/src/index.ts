@@ -21,17 +21,26 @@ assertProductionSecrets();
 warnDevSecrets();
 warnProductionBootstrap();
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error("PORT environment variable is required but was not provided.");
+function resolvePort(): number {
+  const candidates = [
+    process.env.PORT,
+    process.env.PASSENGER_PORT,
+    process.env.NODE_PORT,
+  ];
+  for (const raw of candidates) {
+    if (!raw?.trim()) continue;
+    const n = Number(raw);
+    if (!Number.isNaN(n) && n > 0) return n;
+  }
+  if (process.env.NODE_ENV === "production") {
+    logger.warn("PORT not set by host — falling back to 8080");
+    return 8080;
+  }
+  return 8080;
 }
 
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+const port = resolvePort();
+process.env.PORT = String(port);
 
 let server: ReturnType<typeof app.listen>;
 
