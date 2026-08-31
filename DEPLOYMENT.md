@@ -44,8 +44,8 @@ In **Websites → Node.js Apps → your app → Settings**, use these values:
 | **Package manager** | **`npm`** — not pnpm (Corepack pnpm fails on Hostinger alt-nodejs) |
 | **Install command** | `node scripts/hostinger-install.mjs` |
 | **Build command** | `HOSTINGER_SKIP_INSTALL=1 node scripts/hostinger-build.mjs` |
-| **Start command** | `node server.cjs` |
-| **Entry / startup file** | `server.cjs` |
+| **Start command** | `node server.js` |
+| **Entry / startup file** | `server.js` |
 | **Output directory** | `artifacts/trading-platform/dist/public` |
 
 Or use a **single build command** (install + build):
@@ -106,11 +106,11 @@ pm2 startup
 
 If your panel only has **startup file** and **Node version**:
 
-- **Application root**: project root (where `package.json` and `server.cjs` live)
-- **Application startup file**: `server.cjs`
+- **Application root**: project root (where `package.json` and `server.js` live)
+- **Application startup file**: `server.js`
 - **Node.js version**: 20
 
-`server.cjs` (CommonJS) is the Hostinger entry — lsnode uses `require()` and cannot load ESM `server.js`. It starts the Express API, which also serves the built React frontend in production. Use `node server.js` locally.
+`server.js` is CommonJS (root `package.json` has no `"type":"module"`) so Hostinger lsnode `require()` works. It starts the Express API, which also serves the built React frontend in production.
 
 ## 6. SSL & Domain
 

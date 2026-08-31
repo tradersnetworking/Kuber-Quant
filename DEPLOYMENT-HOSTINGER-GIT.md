@@ -12,13 +12,13 @@ Connect **GitHub → Hostinger** so every push to `main` redeploys automatically
 | **Node.js version** | 20.x |
 | **Root directory** | `./` |
 | **Package manager** | **`npm`** (never pnpm) |
-| **Entry file** | `server.cjs` |
+| **Entry file** | `server.js` |
 
 No custom install/build commands needed — defaults work:
 
 - `npm install` → runs `postinstall` (Hostinger-safe pnpm bootstrap)
 - `npm run build` → compiles frontend + API
-- `node server.cjs` → starts the app (CommonJS; required for lsnode require())
+- `node server.js` → starts the app (CommonJS entry for lsnode require())
 
 ## 2. Environment variables
 
@@ -63,7 +63,7 @@ Primary URL: `https://kuberquant.com`
 
 | Error | Fix |
 |-------|-----|
-| `ERR_REQUIRE_ASYNC_MODULE` / lsnode require() | Entry file must be **`server.cjs`**, not `server.js` |
+| `ERR_REQUIRE_ASYNC_MODULE` / lsnode require() | Root `server.js` must be **CommonJS** (no `"type":"module"` in root `package.json`) |
 | `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` | Package manager must be **npm**, not pnpm |
 | `Missing frontend build` | Build step failed — check deploy logs for `npm run build` |
 | DB connection error | Set valid `DATABASE_URL` |
