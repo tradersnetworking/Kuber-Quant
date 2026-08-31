@@ -11,6 +11,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 process.env.NODE_ENV = process.env.NODE_ENV || "production";
 
+const requiredEnv = [
+  "PORT",
+  "DATABASE_URL",
+  "SESSION_SECRET",
+  "ENCRYPTION_KEY",
+  "APP_URL",
+];
+const missing = requiredEnv.filter((key) => !process.env[key]?.trim());
+if (missing.length) {
+  console.error(
+    `[start] Missing required environment variables: ${missing.join(", ")}\n` +
+      "Add them in hPanel → Node.js App → Environment Variables, then redeploy.\n" +
+      "Import hostinger.env.example from the repo and set DATABASE_URL + SMTP.",
+  );
+  process.exit(1);
+}
+
 const webDist =
   process.env.WEB_DIST ||
   resolve(__dirname, "artifacts/trading-platform/dist/public");
