@@ -41,10 +41,10 @@ export function WizardShell({
   const progress = ((currentStep - 1) / Math.max(totalSteps - 1, 1)) * 100;
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-background text-foreground flex flex-col md:flex-row overflow-x-hidden max-w-full">
-      <aside className="hidden md:flex md:w-[36%] flex-col border-r border-border bg-card/50 p-10 relative overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="relative z-10 w-full max-w-xs mx-auto">
+    <div className="fixed inset-0 z-0 h-[100dvh] max-h-[100dvh] w-full bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
+      <aside className="hidden md:flex md:w-[36%] flex-col border-r border-border bg-card/50 p-10 relative min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 w-full max-w-xs mx-auto pb-6">
           <div className="flex items-center justify-between mb-4">
             <BrandLogo className="h-20 w-auto max-w-[220px]" />
             <div className="flex items-center gap-2">
@@ -124,8 +124,8 @@ export function WizardShell({
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-h-screen min-h-[100dvh] min-w-0 max-w-full overflow-x-hidden">
-        <div className="h-1 bg-muted sticky top-0 z-10 shrink-0">
+      <main className="flex-1 flex flex-col min-h-0 min-w-0 h-full max-h-full overflow-hidden">
+        <div className="h-1 bg-muted shrink-0 z-10">
           <motion.div
             className="h-full bg-primary"
             animate={{ width: `${progress}%` }}
@@ -185,7 +185,10 @@ export function WizardShell({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 md:p-10 min-w-0 overscroll-contain">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y p-4 sm:p-6 md:p-10 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           <div className="max-w-2xl mx-auto min-w-0 w-full">
             <Badge variant="outline" className="mb-3 text-xs hidden md:inline-flex">
               Step {currentStep} of {totalSteps}
