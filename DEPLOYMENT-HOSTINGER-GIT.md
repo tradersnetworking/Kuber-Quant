@@ -55,9 +55,20 @@ Or click **Redeploy** in hPanel to pull latest `main` manually.
 
 ## 5. Domains (kuberquant.com + kuberquant.in)
 
-Both domains are in `CORS_ORIGINS` in `hostinger.env.example`. Attach both in hPanel and enable SSL on each.
+Use **one** Node.js app and **one** database for both domains:
 
-Primary URL: `https://kuberquant.com`
+1. Deploy the Git app on **kuberquant.com** only (do not create a second Node.js app).
+2. In hPanel → Websites → **kuberquant.com** → add **kuberquant.in** as a **parked / alias** domain (same `public_html` / same process).
+3. Point **kuberquant.in** DNS to Hostinger CDN (same pattern as `.com`):
+   - `@` → `ALIAS` → `kuberquant.in.cdn.hstgr.net`
+   - `www` → `CNAME` → `www.kuberquant.in.cdn.hstgr.net`
+4. Enable free SSL for `kuberquant.in` (and `www`) in hPanel.
+5. Keep env shared on that single app:
+   - `CORS_ORIGINS=https://kuberquant.com,https://www.kuberquant.com,https://kuberquant.in,https://www.kuberquant.in`
+   - `APP_URL` / `API_URL` stay on the primary (`https://kuberquant.com`) for emails and payment return URLs
+   - Same `DATABASE_URL`, uploads, SMTP, secrets — no duplicate resources
+
+Primary URL: `https://kuberquant.com` · Alias: `https://kuberquant.in`
 
 ## 6. Troubleshooting
 
