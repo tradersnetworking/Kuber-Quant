@@ -59,4 +59,7 @@ if (!existsSync(apiEntry)) {
   process.exit(1);
 }
 
-await import(pathToFileURL(apiEntry).href);
+void import(pathToFileURL(apiEntry).href).catch((err) => {
+  console.error("[start] Failed to load API:", err);
+  process.exit(1);
+});
