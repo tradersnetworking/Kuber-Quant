@@ -234,11 +234,11 @@ export default function EAStrategiesPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div className="bg-muted dark:bg-black/30 rounded-lg p-2 border border-border/80 dark:border-white/5">
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Backtest ROI</p>
-                            <p className="text-sm sm:text-lg font-bold text-green-700 dark:text-green-400">+{s.backtestRoi}%</p>
+                            <p className="text-sm sm:text-lg font-bold text-green-700 dark:text-green-400">{s.backtestRoi == null ? "—" : `+${s.backtestRoi}%`}</p>
                           </div>
                           <div className="bg-muted dark:bg-black/30 rounded-lg p-2 border border-border/80 dark:border-white/5">
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Win Rate</p>
-                            <p className="text-sm sm:text-lg font-bold text-amber-600 dark:text-amber-400">{s.winRate}%</p>
+                            <p className="text-sm sm:text-lg font-bold text-amber-600 dark:text-amber-400">{s.winRate == null ? "—" : `${s.winRate}%`}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-xs gap-2 min-w-0">

@@ -5,6 +5,7 @@ import { requireAuth } from "../middlewares/auth";
 import { randomBytes } from "crypto";
 import { linkMtTradingAccount, validateMtTradingCredentials } from "../helpers/mtAccountLink";
 import { generateAgreement } from "../helpers/agreementEngine";
+import { FTA_EA_CATALOG } from "./ftaEaCatalog";
 
 const router = Router();
 
@@ -49,6 +50,7 @@ export const EA_CATALOG = [
   { id: 1023, name: "London Open Sniper", type: "scalping", description: "London open momentum strategy targeting the first 2-hour breakout with tight stops.", backtestRoi: 69.8, winRate: 71.6, pairs: "GBPUSD, EURUSD, GBPJPY", timeframe: "M15/M30", platform: "mt5", priceMonthly: 45, priceQuarterly: 115, priceBiannual: 209, priceAnnual: 349, riskLevel: "Medium", category: "Session" },
   { id: 1024, name: "DXY Correlator", type: "trend", description: "Trades currency pairs inversely correlated to the US Dollar Index with macro filters.", backtestRoi: 57.9, winRate: 69.8, pairs: "EURUSD, XAUUSD, AUDUSD", timeframe: "H4/D1", platform: "mt5", priceMonthly: 37, priceQuarterly: 95, priceBiannual: 169, priceAnnual: 279, riskLevel: "Low", category: "Macro" },
   { id: 1025, name: "Night Owl Scalper", type: "scalping", description: "Low-volatility overnight scalper active during Sydney/Tokyo overlap with minimal drawdown.", backtestRoi: 38.4, winRate: 83.2, pairs: "AUDJPY, AUDUSD, NZDUSD", timeframe: "M15", platform: "mt5", priceMonthly: 29, priceQuarterly: 75, priceBiannual: 135, priceAnnual: 219, riskLevel: "Very Low", category: "Scalping" },
+  ...FTA_EA_CATALOG,
 ];
 
 router.get("/catalog", requireAuth, async (_req, res) => {

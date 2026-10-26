@@ -194,8 +194,8 @@ export default function EAStrategyDetailPage() {
             {/* Key stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { icon: TrendingUp, label: "Backtest ROI", value: `${strategy.backtestRoi}%`, color: "text-green-700 dark:text-green-400" },
-                { icon: Target, label: "Win Rate", value: `${strategy.winRate}%`, color: "text-blue-600 dark:text-blue-400" },
+                { icon: TrendingUp, label: "Backtest ROI", value: strategy.backtestRoi == null ? "—" : `${strategy.backtestRoi}%`, color: "text-green-700 dark:text-green-400" },
+                { icon: Target, label: "Win Rate", value: strategy.winRate == null ? "—" : `${strategy.winRate}%`, color: "text-blue-600 dark:text-blue-400" },
                 { icon: BarChart2, label: "Risk Level", value: strategy.riskLevel, color: risk?.color || "text-amber-600 dark:text-amber-400" },
                 { icon: Users, label: "Subscribers", value: `${Math.floor(Math.random() * 800 + 50)}+`, color: "text-purple-600 dark:text-purple-400" },
               ].map(s => (
@@ -222,8 +222,8 @@ export default function EAStrategyDetailPage() {
                     { label: "Platform", value: strategy.platform.toUpperCase(), icon: Monitor },
                     { label: "Strategy Type", value: strategy.type.charAt(0).toUpperCase() + strategy.type.slice(1), icon: Zap },
                     { label: "Category", value: strategy.category, icon: Award },
-                    { label: "Backtest ROI", value: `${strategy.backtestRoi}%`, icon: TrendingUp },
-                    { label: "Win Rate", value: `${strategy.winRate}%`, icon: Target },
+                    { label: "Backtest ROI", value: strategy.backtestRoi == null ? "—" : `${strategy.backtestRoi}%`, icon: TrendingUp },
+                    { label: "Win Rate", value: strategy.winRate == null ? "—" : `${strategy.winRate}%`, icon: Target },
                     { label: "Risk Level", value: strategy.riskLevel, icon: Shield },
                   ].map(item => (
                     <div key={item.label} className="flex items-center gap-3 py-2 border-b border-border/80 dark:border-white/5 last:border-0">
@@ -271,7 +271,7 @@ export default function EAStrategyDetailPage() {
                   {[
                     { label: "Profit Factor", value: (1.5 + Math.random()).toFixed(2) },
                     { label: "Max Drawdown", value: `${(5 + Math.random() * 25).toFixed(1)}%` },
-                    { label: "Avg Monthly ROI", value: `${(strategy.backtestRoi / 12).toFixed(1)}%` },
+                    { label: "Avg Monthly ROI", value: strategy.backtestRoi == null ? "—" : `${(strategy.backtestRoi / 12).toFixed(1)}%` },
                   ].map(s => (
                     <div key={s.label} className="text-center bg-muted dark:bg-black/30 rounded-lg p-2.5 sm:p-3 border border-border/80 dark:border-white/5 min-w-0">
                       <p className="text-sm sm:text-lg font-bold text-amber-600 dark:text-amber-400 leading-tight break-words">{s.value}</p>

@@ -11,14 +11,24 @@ async function defaultCatalog(): Promise<EACatalogItem[]> {
 }
 
 export async function getEaCatalog(): Promise<EACatalogItem[]> {
+  const defaults = await defaultCatalog();
   const [setting] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, CATALOG_KEY)).limit(1);
+  let stored: EACatalogItem[] | null = null;
   if (setting?.value) {
     try {
       const parsed = JSON.parse(setting.value);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) stored = parsed;
     } catch { /* fall through */ }
   }
-  return defaultCatalog();
+  if (!stored) return defaults;
+
+  const names = new Set(stored.map((item) => String(item.name || "").trim().toLowerCase()));
+  const missing = defaults.filter((item) => String(item.name).startsWith("FTA ") && !names.has(String(item.name).trim().toLowerCase()));
+  if (!missing.length) return stored;
+
+  const merged = [...stored, ...missing];
+  await saveEaCatalog(merged);
+  return merged;
 }
 
 export async function saveEaCatalog(catalog: EACatalogItem[]): Promise<void> {
