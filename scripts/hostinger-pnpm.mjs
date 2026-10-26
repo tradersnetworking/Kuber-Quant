@@ -3,8 +3,8 @@
  * Bootstraps pnpm via npm, then invokes pnpm.cjs directly with node.
  */
 import { execSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { chmodSync, existsSync, readdirSync } from "node:fs";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -86,6 +86,46 @@ export function ensurePnpm() {
     stdio: ["ignore", "pipe", "ignore"],
   }).trim();
   console.log(`Using pnpm ${version} at ${pnpmBinPath()}`);
+}
+
+/**
+ * Node.js 24 on Hostinger extracts npm binaries without the executable bit.
+ * esbuild's postinstall then fails with EACCES when it spawns bin/esbuild.
+ * Mark package bins executable after a script-less install and before rebuild.
+ */
+export function makePackageBinsExecutable(root = ROOT) {
+  const start = join(root, "node_modules", ".pnpm");
+  let count = 0;
+  const walk = (dir, depth) => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (depth < 9) walk(full, depth + 1);
+        continue;
+      }
+      if (!entry.isFile() && !entry.isSymbolicLink()) continue;
+      const parent = dir.split(sep).at(-1);
+      const shouldExec =
+        parent === "bin" ||
+        entry.name === "esbuild" ||
+        entry.name.endsWith(".node");
+      if (!shouldExec) continue;
+      try {
+        chmodSync(full, 0o755);
+        count += 1;
+      } catch {
+        // A missing or locked file should not abort the install.
+      }
+    }
+  };
+  walk(start, 0);
+  console.log(`Marked ${count} package binaries executable`);
 }
 
 export function pnpm(args) {

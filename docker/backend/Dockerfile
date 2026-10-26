@@ -1,5 +1,5 @@
 # Kuber Quant — API backend (PM2) for Docker / Ubuntu 24 VPS hosts
-FROM node:20-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
 RUN apt-get update \
@@ -15,7 +15,7 @@ COPY scripts ./scripts
 RUN pnpm install --frozen-lockfile --config.minimumReleaseAge=0
 RUN pnpm build:api
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 
 WORKDIR /app
 

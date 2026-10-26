@@ -1,5 +1,5 @@
 # Kuber Quant — React frontend (static nginx) for Docker
-FROM node:20-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
 RUN npm install -g pnpm@10.33.4

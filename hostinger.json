@@ -1,6 +1,6 @@
 {
   "framework": "express",
-  "nodeVersion": "20",
+  "nodeVersion": "24",
   "packageManager": "npm",
   "branch": "main",
   "installCommand": "npm install",

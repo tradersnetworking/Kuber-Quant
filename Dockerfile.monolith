@@ -1,6 +1,6 @@
 # Monolith image — API serves built SPA (single container)
 # Optional single-container image (API serves SPA). Prefer docker-compose.yml for production.
-FROM node:20-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /app
 RUN npm install -g pnpm@10.33.4
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json server.js ./
@@ -10,7 +10,7 @@ COPY scripts ./scripts
 RUN pnpm install --frozen-lockfile --config.minimumReleaseAge=0
 RUN pnpm build:prod
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 COPY --from=build /app /app
 ENV NODE_ENV=production PORT=8080
